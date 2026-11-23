@@ -5,9 +5,6 @@ import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
-import java.time.LocalDateTime
-import java.util.concurrent.ConcurrentHashMap
-import java.util.logging.Logger
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
@@ -17,6 +14,10 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
+import java.time.LocalDateTime
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.logging.Logger
 
 /**
  * Updates configured BCD outputs without loading chunks.
@@ -32,6 +33,7 @@ class RedstoneDeviceManager(
     private val logger: Logger,
 ) : Listener {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
+    private val warnedWorlds = ConcurrentHashMap.newKeySet<UUID>()
     private var lastMinute: LocalDateTime? = null
 
     fun start(plugin: Plugin) {
@@ -103,7 +105,12 @@ class RedstoneDeviceManager(
             .forEach { device ->
                 val world = server.getWorld(device.worldId)
                 if (world == null) {
-                    logger.warning("RealTime device '${device.name}' references an unloaded or missing world ${device.worldId}.")
+                    if (warnedWorlds.add(device.worldId)) {
+                        logger.warning(
+                            "RealTime device '${device.name}' references an unloaded or missing world " +
+                                "${device.worldId}.",
+                        )
+                    }
                     return@forEach
                 }
                 device.outputs.forEach { output ->
