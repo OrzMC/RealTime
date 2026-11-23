@@ -19,7 +19,7 @@ Create a safe, tag-driven release pipeline for the independently buildable RealT
 - Build on tag pushes only. Do not expose publishing secrets to pull-request workflows or fork code.
 - Create the GitHub Release only in a dedicated `release` environment and only when the repository variable `RELEASE_PUBLISH_ENABLED=true` is explicitly set.
 - Document required GitHub environment protection (required reviewers and tag-only deployment branches).
-- Keep Hangar/Modrinth publishing disabled until project IDs and narrowly scoped tokens are configured; any future upload steps must run only in the protected release job.
+- Keep Hangar/Modrinth publishing disabled until project IDs and narrowly scoped tokens are configured; upload steps must run only in the protected release job.
 
 ## Constraints
 
