@@ -39,6 +39,8 @@ class DeviceCleanupManagerTest {
         val fixture = fixture(chunkLoaded = true)
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
 
+        assertTrue(fixture.globalCallbacks.isNotEmpty())
+        fixture.globalCallbacks.first().accept(fixture.scheduledTask)
         assertTrue(fixture.regionCallbacks.isNotEmpty())
         fixture.regionCallbacks.first().accept(fixture.scheduledTask)
 
@@ -56,6 +58,7 @@ class DeviceCleanupManagerTest {
     fun `does not inspect an unloaded cleanup chunk or mark it complete`() {
         val fixture = fixture(chunkLoaded = false)
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
+        fixture.globalCallbacks.first().accept(fixture.scheduledTask)
         fixture.regionCallbacks.first().accept(fixture.scheduledTask)
 
         assertFalse(fixture.blockAccessed())
