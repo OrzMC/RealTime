@@ -193,14 +193,15 @@ class RedstoneDeviceManagerTest {
         val physicsApplied: () -> Boolean,
     )
 
-    private fun fakeScheduledTask(): ScheduledTask = fake { method, _ ->
-        when (method.name) {
-            "cancel" -> ScheduledTask.CancelledState.CANCELLED_BY_CALLER
-            "isCancelled" -> false
-            "isRepeatingTask" -> true
-            else -> null
+    private fun fakeScheduledTask(): ScheduledTask =
+        fake { method, _ ->
+            when (method.name) {
+                "cancel" -> ScheduledTask.CancelledState.CANCELLED_BY_CALLER
+                "isCancelled" -> false
+                "isRepeatingTask" -> true
+                else -> null
+            }
         }
-    }
 
     private inline fun <reified T> fake(noinline handler: (Method, Array<out Any?>?) -> Any?): T {
         val type = T::class.java
