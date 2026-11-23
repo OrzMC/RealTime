@@ -3,6 +3,7 @@ package cn.orzmc.realtime.paper.command
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
+import cn.orzmc.realtime.paper.device.DeviceCleanupDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import java.util.Locale
@@ -14,6 +15,7 @@ class RealTimeCommandHandler(
     private val reload: () -> Result<RuntimeState>,
     private val deviceAdministration: DeviceAdministration? = null,
     private val deviceDiagnostics: DeviceDiagnostics? = null,
+    private val cleanupDiagnostics: DeviceCleanupDiagnostics? = null,
 ) {
     fun execute(
         target: CommandTarget,
@@ -187,6 +189,20 @@ class RealTimeCommandHandler(
                 ),
             ),
         )
+        cleanupDiagnostics?.snapshot()?.let { cleanup ->
+            target.sendMessage(
+                state.messages.render(
+                    "command.device.status.cleanup",
+                    mapOf(
+                        "jobs" to cleanup.jobs.toString(),
+                        "pending" to cleanup.pendingOutputs.toString(),
+                        "attention" to cleanup.needsAttentionOutputs.toString(),
+                        "in-flight" to cleanup.inFlightOutputs.toString(),
+                        "queued" to cleanup.queuedResults.toString(),
+                    ),
+                ),
+            )
+        }
     }
 
     private fun showDeviceList(
