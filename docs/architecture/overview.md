@@ -30,4 +30,4 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-PR1 and PR2 are merged. PR3 wires `/rtime now`, `info`, and `reload` to the Core service, with separate root/command configuration and localized messages. Scheduler adapters, persistence, PlaceholderAPI, and redstone features remain future tasks.
+PR1–PR3 are merged. PR4 adds a Paper/Folia scheduler facade with global, region, and entity ownership, tracked task handles, entity-retirement handling, and cancellation on plugin disable. Region scheduling is never used for entity work; the adapter exposes no generic asynchronous Bukkit callback.
