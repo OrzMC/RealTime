@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR6 merged; PR7 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration are implemented.
+> **Status: PR1–PR7 merged; PR8 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration are implemented.
 
 ## Goals
 
