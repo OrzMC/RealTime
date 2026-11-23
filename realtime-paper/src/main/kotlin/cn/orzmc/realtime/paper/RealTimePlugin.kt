@@ -9,6 +9,7 @@ import cn.orzmc.realtime.paper.device.RedstoneConfigurationLoader
 import cn.orzmc.realtime.paper.device.RedstoneDeviceManager
 import cn.orzmc.realtime.paper.device.YamlDeviceRepository
 import cn.orzmc.realtime.paper.message.MessageCatalog
+import cn.orzmc.realtime.paper.placeholder.PlaceholderApiBridge
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
@@ -29,6 +30,7 @@ class RealTimePlugin :
     private lateinit var commandHandler: RealTimeCommandHandler
     private var schedulerAdapter: PaperFoliaScheduler? = null
     private var redstoneDeviceManager: RedstoneDeviceManager? = null
+    private var placeholderExpansion: Any? = null
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -78,6 +80,18 @@ class RealTimePlugin :
                 logger = logger,
             ).also { it.start(this) }
 
+        if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) {
+            placeholderExpansion =
+                PlaceholderApiBridge.register(description.version) {
+                    checkNotNull(runtimeState)
+                }
+            if (placeholderExpansion == null) {
+                logger.warning("PlaceholderAPI is present, but the RealTime expansion could not be registered.")
+            } else {
+                logger.info("PlaceholderAPI expansion registered: %realtime_time%.")
+            }
+        }
+
         val configuration = checkNotNull(runtimeState).configuration
         logger.info(
             "RealTime ${description.version} enabled " +
@@ -86,6 +100,8 @@ class RealTimePlugin :
     }
 
     override fun onDisable() {
+        placeholderExpansion?.let(PlaceholderApiBridge::unregister)
+        placeholderExpansion = null
         redstoneDeviceManager = null
         schedulerAdapter?.cancelAll()
         schedulerAdapter = null
