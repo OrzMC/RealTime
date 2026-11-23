@@ -7,7 +7,7 @@ Concurrent coding agents must not share a working directory. Use one Git worktre
 From any directory inside the RealTime checkout:
 
 ```bash
-./scripts/new-agent-worktree.sh pi realtime-core
+bash scripts/new-agent-worktree.sh pi realtime-core
 ./scripts/new-agent-worktree.sh codex realtime-core
 ./scripts/new-agent-worktree.sh claude command-config
 ```
@@ -23,7 +23,7 @@ An optional third argument selects the base ref:
 ## Inspect
 
 ```bash
-./scripts/list-agent-worktrees.sh
+bash scripts/list-agent-worktrees.sh
 ```
 
 ## Rules
