@@ -10,7 +10,7 @@ description: Real-world time services and devices for Paper and Folia.
 commands:
   rtime:
     description: Query RealTime plugin status and real-world time.
-    usage: /rtime [now|info|reload|device list|device info <uuid>|device status|device cleanup list|device cleanup retry <job-uuid>|device enable <uuid>|device disable <uuid>]
+    usage: /rtime [now|info|reload|device list|device info <uuid>|device status|device cleanup list|device cleanup retry <job-uuid>|device enable <uuid>|device disable <uuid>|device remove <uuid>]
     permission: realtime.command
 permissions:
   realtime.command:
