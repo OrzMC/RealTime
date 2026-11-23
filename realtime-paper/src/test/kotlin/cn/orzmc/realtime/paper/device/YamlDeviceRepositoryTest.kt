@@ -33,7 +33,7 @@ class YamlDeviceRepositoryTest {
         val loaded = repository.load().single()
         assertEquals(device.id, loaded.id)
         assertEquals(device.name, loaded.name)
-        assertEquals(device.worldId, loaded.worldId)
+        assertEquals(device.worldName, loaded.worldName)
         assertEquals(device.enabled, loaded.enabled)
         assertEquals(device.outputs, loaded.outputs)
     }
@@ -62,7 +62,7 @@ class YamlDeviceRepositoryTest {
         RedstoneDevice(
             id = UUID.randomUUID(),
             name = name,
-            worldId = UUID.randomUUID(),
+            worldName = "world",
             enabled = true,
             outputs =
                 (0 until 16).map { index ->
