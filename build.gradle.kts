@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.2.21" apply false
+    kotlin("jvm") version "2.4.21" apply false
     id("com.gradleup.shadow") version "9.2.2" apply false
     id("com.diffplug.spotless") version "7.2.1"
 }
