@@ -10,7 +10,7 @@
 - Keep domain logic independent from Bukkit/Paper/Folia APIs.
 - Support Paper and Folia through explicit platform adapters.
 - Add command, optional PlaceholderAPI, and redstone-clock features incrementally.
-- Remain independently buildable, testable, and releasable; no dependency on OrzMCPlugin or OrzMC/tools.
+- Remain independently buildable, testable, and releasable; no build-time or runtime dependency on the parent repository `OrzMC/OrzMC`.
 
 ## Technical baseline
 
