@@ -24,6 +24,6 @@ data class BcdHhmmFrame(
     val bits: List<Boolean>
         get() =
             digits.flatMap { digit ->
-                (0..3).map { bit -> digit and (1 shl bit) != 0 }
+                (0..3).map { bit -> (digit and (1 shl bit)) != 0 }
             }
 }
