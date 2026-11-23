@@ -112,6 +112,7 @@ class RealTimePlugin :
                 reload = ::reloadRuntimeState,
                 deviceAdministration = checkNotNull(deviceAdministration),
                 deviceDiagnostics = redstoneDeviceManager,
+                cleanupDiagnostics = deviceCleanupManager,
             )
 
         val command = getCommand("rtime")
