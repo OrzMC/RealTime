@@ -241,11 +241,13 @@ if [[ "$ATTENTION_READY" != "1" ]]; then
   exit 1
 fi
 
-rcon execute if block 1615 64 0 minecraft:stone run say REALTIME_CLEANUP_STONE_PRESERVED >/dev/null || true
-grep -Fq 'REALTIME_CLEANUP_STONE_PRESERVED' "$WORK_DIR/server.log" || {
+STONE_PROBE="$(rcon execute if block 1615 64 0 minecraft:stone run list)"
+echo "Non-wire target probe: $STONE_PROBE"
+if [[ -z "$STONE_PROBE" ]]; then
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
   echo "Cleanup overwrote the non-wire target on $PROJECT." >&2
   exit 1
-}
+fi
 
 rcon setblock 1615 64 0 'minecraft:redstone_wire[power=15]' replace >/dev/null
 rtime device cleanup retry "$JOB_ID" >/dev/null
@@ -266,11 +268,11 @@ if [[ "$EMPTY_READY" != "1" ]]; then
 fi
 
 for x in 0 1601 1614 1615; do
-  rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run say "REALTIME_CLEANUP_POWER_ZERO_$x" >/dev/null || true
-  grep -Fq "REALTIME_CLEANUP_POWER_ZERO_$x" "$WORK_DIR/server.log" || {
+  POWER_PROBE="$(rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run list)"
+  if [[ -z "$POWER_PROBE" ]]; then
     echo "Output at x=$x was not cleared to power 0 on $PROJECT." >&2
     exit 1
-  }
+  fi
 done
 
 rcon forceload remove 1600 0 >/dev/null
