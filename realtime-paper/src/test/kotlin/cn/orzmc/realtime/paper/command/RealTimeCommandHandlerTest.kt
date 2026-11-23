@@ -5,6 +5,8 @@ import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.DeviceAdministration
+import cn.orzmc.realtime.paper.device.DeviceDiagnostics
+import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -105,6 +107,36 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun deviceStatusRequiresCommandPermission() {
+        val target = RecordingTarget(emptySet())
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(device())),
+                deviceDiagnostics = DeviceDiagnostics { diagnosticsSnapshot() },
+            )
+
+        handler.execute(target, arrayOf("device", "status"))
+
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+    }
+
+    @Test
+    fun deviceStatusShowsThreadSafeAggregateCounters() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(device())),
+                deviceDiagnostics = DeviceDiagnostics { diagnosticsSnapshot() },
+            )
+
+        handler.execute(target, arrayOf("device", "status"))
+
+        assertTrue(target.messages.any { it.contains("devices 2 enabled 1 outputs 32") })
+        assertTrue(target.messages.any { it.contains("checks 48 unloaded 3 stale 2") })
+        assertTrue(target.messages.any { it.contains("changed 10 unchanged 20 invalid 4 failures 1") })
+    }
+
+    @Test
     fun deviceInfoShowsTheOutputCoordinateMapping() {
         val device = device()
         val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
@@ -171,18 +203,35 @@ class RealTimeCommandHandlerTest {
             handler.complete(readOnly, arrayOf("device", "info", "")),
         )
         assertTrue(handler.complete(readOnly, arrayOf("device", "disable", "")).isEmpty())
+        assertEquals(listOf("status"), handler.complete(readOnly, arrayOf("device", "sta")))
         assertTrue(handler.complete(unauthorized, arrayOf("device", "info", "")).isEmpty())
     }
 
     private fun handler(
         reload: () -> Result<RuntimeState> = { Result.success(state()) },
         deviceAdministration: DeviceAdministration? = null,
+        deviceDiagnostics: DeviceDiagnostics? = null,
     ) = RealTimeCommandHandler(
         pluginVersion = "1.2.3",
         currentState = ::state,
         reload = reload,
         deviceAdministration = deviceAdministration,
+        deviceDiagnostics = deviceDiagnostics,
     )
+
+    private fun diagnosticsSnapshot() =
+        RedstoneDiagnosticsSnapshot(
+            configuredDevices = 2,
+            enabledDevices = 1,
+            configuredOutputs = 32,
+            outputChecks = 48,
+            unloadedChunkSkips = 3,
+            staleOutputUpdates = 2,
+            invalidOutputBlocks = 4,
+            powerChanges = 10,
+            unchangedOutputs = 20,
+            writeFailures = 1,
+        )
 
     private fun state(): RuntimeState {
         val configuration =
@@ -225,6 +274,11 @@ class RealTimeCommandHandlerTest {
                         "command.device.not-found" to "{prefix}not found {id}",
                         "command.device.error" to "{prefix}error {reason}",
                         "command.device.unavailable" to "{prefix}unavailable",
+                        "command.device.status.header" to "{prefix}device diagnostics",
+                        "command.device.status.devices" to "{prefix}devices {configured} enabled {enabled} outputs {outputs}",
+                        "command.device.status.checks" to "{prefix}checks {checks} unloaded {unloaded} stale {stale}",
+                        "command.device.status.outcomes" to
+                            "{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}",
                     ),
             )
         return RuntimeState(

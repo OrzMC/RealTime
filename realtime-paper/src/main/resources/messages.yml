@@ -13,6 +13,11 @@ command:
     failure: '{prefix}&c配置重新加载失败，旧配置继续生效：&f{reason}'
   device:
     unavailable: '{prefix}&c设备管理服务当前不可用。'
+    status:
+      header: '{prefix}&b设备输出诊断'
+      devices: '{prefix}&7配置设备：&f{configured} &7启用：&f{enabled} &7输出点：&f{outputs}'
+      checks: '{prefix}&7输出检查：&f{checks} &7未加载区块跳过：&f{unloaded} &7过期配置更新：&f{stale}'
+      outcomes: '{prefix}&7功率变更：&f{changed} &7无变化：&f{unchanged} &7非红石线：&f{invalid} &7写入失败：&f{failures}'
     list:
       header: '{prefix}&b设备列表（{count}）'
       empty: '{prefix}&7当前没有配置任何设备。'
@@ -36,4 +41,4 @@ command:
     error: '{prefix}&c设备操作或刷新失败：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device enable|device disable]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device enable|device disable]'

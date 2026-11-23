@@ -47,6 +47,8 @@ class RedstoneDeviceManagerTest {
         assertTrue(fixture.blockAccessed())
         assertEquals(15, fixture.wirePower())
         assertTrue(fixture.physicsApplied())
+        assertEquals(1, fixture.manager.snapshot().outputChecks)
+        assertEquals(1, fixture.manager.snapshot().powerChanges)
     }
 
     @Test
@@ -83,6 +85,49 @@ class RedstoneDeviceManagerTest {
     }
 
     @Test
+    fun `counts outputs that already have the expected power`() {
+        val fixture = fixture(chunkLoaded = true, initialWirePower = 15)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+
+        assertEquals(1, fixture.manager.snapshot().unchangedOutputs)
+        assertEquals(0, fixture.manager.snapshot().powerChanges)
+    }
+
+    @Test
+    fun `counts invalid output blocks`() {
+        val fixture = fixture(chunkLoaded = true, blockType = Material.STONE)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+
+        assertEquals(1, fixture.manager.snapshot().invalidOutputBlocks)
+    }
+
+    @Test
+    fun `counts caught output write failures`() {
+        val fixture = fixture(chunkLoaded = true, failWrite = true)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+
+        assertEquals(1, fixture.manager.snapshot().writeFailures)
+    }
+
+    @Test
+    fun `stale scheduled outputs are cleared instead of being repowered`() {
+        val fixture = fixture(chunkLoaded = true)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        fixture.replaceState(fixture.initialState.copy(devices = emptyList()))
+        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+
+        assertEquals(0, fixture.wirePower())
+        assertEquals(1, fixture.manager.snapshot().staleOutputUpdates)
+    }
+
+    @Test
     fun `skips unloaded chunk without accessing its blocks`() {
         val fixture = fixture(chunkLoaded = false)
         fixture.manager.start(fixture.plugin)
@@ -91,12 +136,15 @@ class RedstoneDeviceManagerTest {
 
         assertFalse(fixture.blockAccessed())
         assertEquals(0, fixture.wirePower())
+        assertEquals(1, fixture.manager.snapshot().unloadedChunkSkips)
     }
 
     private fun fixture(
         chunkLoaded: Boolean,
         deviceEnabled: Boolean = true,
         initialWirePower: Int = 0,
+        blockType: Material = Material.REDSTONE_WIRE,
+        failWrite: Boolean = false,
     ): Fixture {
         val worldName = "world"
         var wirePower = initialWirePower
@@ -117,9 +165,10 @@ class RedstoneDeviceManagerTest {
         val block =
             fake<Block> { method, args ->
                 when (method.name) {
-                    "getType" -> Material.REDSTONE_WIRE
+                    "getType" -> blockType
                     "getBlockData" -> wire
                     "setBlockData" -> {
+                        if (failWrite) throw IllegalStateException("simulated block write failure")
                         physicsApplied = args!![1] as Boolean
                         null
                     }
@@ -186,7 +235,7 @@ class RedstoneDeviceManagerTest {
                 commandFormat = "uuuu-MM-dd HH:mm:ss XXX",
                 messages = emptyMap(),
             )
-        val runtimeState =
+        var runtimeState =
             RuntimeState(
                 configuration = configuration,
                 timeService =
@@ -229,6 +278,8 @@ class RedstoneDeviceManagerTest {
             blockAccessed = { blockAccessed },
             wirePower = { wirePower },
             physicsApplied = { physicsApplied },
+            initialState = runtimeState,
+            replaceState = { runtimeState = it },
         )
     }
 
@@ -242,6 +293,8 @@ class RedstoneDeviceManagerTest {
         val blockAccessed: () -> Boolean,
         val wirePower: () -> Int,
         val physicsApplied: () -> Boolean,
+        val initialState: RuntimeState,
+        val replaceState: (RuntimeState) -> Unit,
     )
 
     private fun fakeScheduledTask(): ScheduledTask =

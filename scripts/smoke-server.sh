@@ -129,6 +129,14 @@ grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" && grep -Fq "$DEVICE_ID" <<< "
   exit 1
 }
 
+DEVICE_STATUS_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device status
+)"
+grep -Fq "设备输出诊断" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "配置设备：" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "输出点：" <<< "$DEVICE_STATUS_OUTPUT" || {
+  echo "Device status command did not return aggregate diagnostics: $DEVICE_STATUS_OUTPUT" >&2
+  exit 1
+}
+
 DEVICE_INFO_OUTPUT="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
     rtime device info "$DEVICE_ID"
@@ -202,4 +210,4 @@ if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."
 fi
 
-echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/enable/disable, reload, and optional PlaceholderAPI smoke tests passed."
+echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/status/enable/disable, reload, and optional PlaceholderAPI smoke tests passed."

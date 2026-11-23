@@ -16,6 +16,7 @@ import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import java.util.logging.Logger
 
 /**
@@ -30,10 +31,34 @@ class RedstoneDeviceManager(
     private val scheduler: PaperFoliaScheduler,
     private val stateProvider: () -> RuntimeState,
     private val logger: Logger,
-) : Listener {
+) : Listener,
+    DeviceDiagnostics {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
     private val warnedWorlds = ConcurrentHashMap.newKeySet<String>()
+    private val outputChecks = AtomicLong()
+    private val unloadedChunkSkips = AtomicLong()
+    private val staleOutputUpdates = AtomicLong()
+    private val invalidOutputBlocks = AtomicLong()
+    private val powerChanges = AtomicLong()
+    private val unchangedOutputs = AtomicLong()
+    private val writeFailures = AtomicLong()
     private var lastMinute: LocalDateTime? = null
+
+    override fun snapshot(): RedstoneDiagnosticsSnapshot {
+        val devices = stateProvider().devices
+        return RedstoneDiagnosticsSnapshot(
+            configuredDevices = devices.size,
+            enabledDevices = devices.count { it.enabled },
+            configuredOutputs = devices.sumOf { it.outputs.size },
+            outputChecks = outputChecks.get(),
+            unloadedChunkSkips = unloadedChunkSkips.get(),
+            staleOutputUpdates = staleOutputUpdates.get(),
+            invalidOutputBlocks = invalidOutputBlocks.get(),
+            powerChanges = powerChanges.get(),
+            unchangedOutputs = unchangedOutputs.get(),
+            writeFailures = writeFailures.get(),
+        )
+    }
 
     fun start(plugin: Plugin) {
         server.pluginManager.registerEvents(this, plugin)
@@ -126,7 +151,10 @@ class RedstoneDeviceManager(
                         val targetWorld = target.world ?: return@runRegion
                         val chunkX = output.x shr 4
                         val chunkZ = output.z shr 4
-                        if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) return@runRegion
+                        if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) {
+                            unloadedChunkSkips.incrementAndGet()
+                            return@runRegion
+                        }
 
                         val currentState = stateProvider()
                         val currentDevice = currentState.devices.firstOrNull { it.id == device.id }
@@ -137,6 +165,7 @@ class RedstoneDeviceManager(
                                     currentOutput.y == output.y &&
                                     currentOutput.z == output.z
                             } == true
+                        if (currentDevice == null || !outputStillConfigured) staleOutputUpdates.incrementAndGet()
                         val effectiveBits =
                             if (currentState === state) {
                                 bits
@@ -167,23 +196,40 @@ class RedstoneDeviceManager(
         powered: Boolean,
         outputPower: Int,
     ) {
-        val block = world.getBlockAt(output.x, output.y, output.z)
-        if (block.type != Material.REDSTONE_WIRE) {
-            val warningKey = "${device.id}:${output.bitIndex}"
-            if (warnedOutputs.add(warningKey)) {
-                logger.warning(
-                    "RealTime device '${device.name}' output ${output.bitIndex} at " +
-                        "${world.name}:${output.x},${output.y},${output.z} is not redstone wire.",
-                )
+        outputChecks.incrementAndGet()
+        try {
+            val block = world.getBlockAt(output.x, output.y, output.z)
+            if (block.type != Material.REDSTONE_WIRE) {
+                invalidOutputBlocks.incrementAndGet()
+                val warningKey = "${device.id}:${output.bitIndex}"
+                if (warnedOutputs.add(warningKey)) {
+                    logger.warning(
+                        "RealTime device '${device.name}' output ${output.bitIndex} at " +
+                            "${world.name}:${output.x},${output.y},${output.z} is not redstone wire.",
+                    )
+                }
+                return
             }
-            return
+
+            val wire = block.blockData as? RedstoneWire
+            if (wire == null) {
+                invalidOutputBlocks.incrementAndGet()
+                return
+            }
+            val targetPower = if (powered) outputPower else 0
+            if (wire.power == targetPower) {
+                unchangedOutputs.incrementAndGet()
+                return
+            }
+
+            wire.power = targetPower
+            block.setBlockData(wire, true)
+            powerChanges.incrementAndGet()
+        } catch (exception: Exception) {
+            writeFailures.incrementAndGet()
+            logger.warning(
+                "RealTime device '${device.name}' output ${output.bitIndex} update failed: ${exception.message}",
+            )
         }
-
-        val wire = block.blockData as? RedstoneWire ?: return
-        val targetPower = if (powered) outputPower else 0
-        if (wire.power == targetPower) return
-
-        wire.power = targetPower
-        block.setBlockData(wire, true)
     }
 }

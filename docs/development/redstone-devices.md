@@ -78,6 +78,7 @@ The device records remain YAML-defined so each of the 16 output positions is exp
 |---|---|---|
 | `/rtime device list` | `realtime.command` | Lists configured devices, UUID, world, and enabled state |
 | `/rtime device info <uuid>` | `realtime.command` | Shows metadata and all 16 bit-to-coordinate mappings |
+| `/rtime device status` | `realtime.command` | Shows aggregate output health and refresh counters |
 | `/rtime device enable <uuid>` | `realtime.admin` | Persists enabled state and schedules a redstone refresh |
 | `/rtime device disable <uuid>` | `realtime.admin` | Persists disabled state and schedules a redstone refresh |
 
@@ -88,3 +89,7 @@ These commands never inspect or mutate world blocks directly. The redstone manag
 There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. A persistent deferred-cleanup queue is required before safe in-game deletion can be offered.
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
+
+## Output diagnostics
+
+Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, completed output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual power changes, unchanged outputs, and caught write failures. Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Diagnostics never load chunks and do not change output behavior.

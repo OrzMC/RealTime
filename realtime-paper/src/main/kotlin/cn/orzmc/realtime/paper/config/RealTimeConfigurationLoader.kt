@@ -181,6 +181,11 @@ class RealTimeConfigurationLoader {
         val OPTIONAL_MESSAGES =
             mapOf(
                 "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",
+                "command.device.status.header" to "{prefix}&b设备输出诊断",
+                "command.device.status.devices" to "{prefix}&7配置设备：&f{configured} &7启用：&f{enabled} &7输出点：&f{outputs}",
+                "command.device.status.checks" to "{prefix}&7输出检查：&f{checks} &7未加载区块跳过：&f{unloaded} &7过期配置更新：&f{stale}",
+                "command.device.status.outcomes" to
+                    "{prefix}&7功率变更：&f{changed} &7无变化：&f{unchanged} &7非红石线：&f{invalid} &7写入失败：&f{failures}",
                 "command.device.list.header" to "{prefix}&b设备列表（{count}）",
                 "command.device.list.empty" to "{prefix}&7当前没有配置任何设备。",
                 "command.device.list.item" to "{prefix}&f{name} &7[{id}] &8世界：&f{world} &8状态：{enabled}",
