@@ -5,6 +5,8 @@ import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
+import cn.orzmc.realtime.paper.device.DeviceMustBeDisabledException
+import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
@@ -18,6 +20,7 @@ class RealTimeCommandHandler(
     private val deviceAdministration: DeviceAdministration? = null,
     private val deviceDiagnostics: DeviceDiagnostics? = null,
     private val cleanupAdministration: DeviceCleanupAdministration? = null,
+    private val deviceRetirement: DeviceRetirementAdministration? = null,
 ) {
     fun execute(
         target: CommandTarget,
@@ -75,6 +78,7 @@ class RealTimeCommandHandler(
                     if (isAdmin) {
                         add("enable")
                         add("disable")
+                        if (deviceRetirement != null) add("remove")
                     }
                 }
             return candidates.filter { it.startsWith(args[1].lowercase(Locale.ROOT)) }
@@ -101,7 +105,7 @@ class RealTimeCommandHandler(
         }
 
         val canReadIds = canRead && subcommand == "info"
-        val canMutateIds = isAdmin && subcommand in setOf("enable", "disable")
+        val canMutateIds = isAdmin && subcommand in setOf("enable", "disable", "remove")
         if (args.size == 3 && (canReadIds || canMutateIds)) {
             val prefix = args[2].lowercase(Locale.ROOT)
             return deviceAdministration
@@ -142,6 +146,7 @@ class RealTimeCommandHandler(
                 }
             }
             "cleanup" -> handleDeviceCleanup(target, args.drop(1), state)
+            "remove" -> handleDeviceRemove(target, args.drop(1), state)
             "status" -> {
                 if (args.size != 1) return sendUsage(target, state)
                 if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
@@ -248,6 +253,51 @@ class RealTimeCommandHandler(
             }
             else -> sendUsage(target, state)
         }
+    }
+
+    private fun handleDeviceRemove(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+    ) {
+        val retirement = deviceRetirement
+        if (retirement == null) {
+            target.sendMessage(state.messages.render("command.device.unavailable"))
+            return
+        }
+        if (args.size != 1) return sendUsage(target, state)
+        if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
+        val id = parseDeviceId(target, state, args[0]) ?: return
+
+        runCatching { retirement.retire(id) }
+            .fold(
+                onSuccess = { job ->
+                    target.sendMessage(
+                        state.messages.render(
+                            "command.device.remove.success",
+                            mapOf(
+                                "id" to id.toString(),
+                                "job" to job.id.toString(),
+                                "name" to job.deviceName,
+                            ),
+                        ),
+                    )
+                },
+                onFailure = { exception ->
+                    val key =
+                        when (exception) {
+                            is DeviceMustBeDisabledException -> "command.device.remove.must-disable"
+                            is DeviceNotFoundException -> "command.device.remove.not-found"
+                            else -> "command.device.remove.error"
+                        }
+                    target.sendMessage(
+                        state.messages.render(
+                            key,
+                            mapOf("id" to id.toString(), "reason" to (exception.message ?: "unknown error")),
+                        ),
+                    )
+                },
+            )
     }
 
     private fun parseCleanupJobId(
