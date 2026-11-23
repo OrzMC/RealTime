@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   smoke:
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
