@@ -46,3 +46,8 @@ PR4 provides `PaperFoliaScheduler` over the Paper 26.3 scheduler APIs:
 - No generic asynchronous Bukkit callback is exposed. Any future asynchronous work must operate on detached data only and hand world/entity mutations back to the appropriate owning scheduler.
 
 Official Paper 26.3 API references: [GlobalRegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/GlobalRegionScheduler.html), [RegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/RegionScheduler.html), [EntityScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/EntityScheduler.html).
+
+
+### BCD redstone devices
+
+The core maps local HHmm to sixteen logical BCD outputs. The Paper adapter persists validated device records in `data/devices.yml`; the optional redstone module is disabled by default. Global work calculates the frame, region work checks `World.isChunkLoaded` before any block lookup, and `ChunkLoadEvent` refreshes outputs when chunks become available. The physical output block must be `REDSTONE_WIRE`; bit 1 maps to the configured output power (1–15), bit 0 maps to 0. See [redstone device configuration](../development/redstone-devices.md).
