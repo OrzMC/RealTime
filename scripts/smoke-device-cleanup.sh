@@ -196,7 +196,7 @@ rcon forceload add 0 0 >/dev/null
 PENDING_READY=0
 for _ in $(seq 1 30); do
   QUEUE="$(rtime device cleanup list)"
-  if grep -Fq '待处理：15' <<< "$QUEUE" && grep -Fq '需人工处理：0' <<< "$QUEUE"; then
+  if grep -Eq '待处理：.*15' <<< "$QUEUE" && grep -Eq '需人工处理：.*0' <<< "$QUEUE"; then
     PENDING_READY=1
     break
   fi
@@ -221,7 +221,7 @@ rcon forceload add 1600 0 >/dev/null
 ATTENTION_READY=0
 for _ in $(seq 1 30); do
   QUEUE="$(rtime device cleanup list)"
-  if grep -Fq '待处理：0' <<< "$QUEUE" && grep -Fq '需人工处理：1' <<< "$QUEUE"; then
+  if grep -Eq '待处理：.*0' <<< "$QUEUE" && grep -Eq '需人工处理：.*1' <<< "$QUEUE"; then
     ATTENTION_READY=1
     break
   fi
