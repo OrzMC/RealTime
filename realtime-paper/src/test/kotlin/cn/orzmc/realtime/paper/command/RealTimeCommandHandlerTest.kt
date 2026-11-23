@@ -51,10 +51,11 @@ class RealTimeCommandHandlerTest {
     fun `reload requires admin permission`() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
         var reloadCalled = false
-        val handler = handler(reload = {
-            reloadCalled = true
-            Result.success(state())
-        })
+        val handler =
+            handler(reload = {
+                reloadCalled = true
+                Result.success(state())
+            })
 
         handler.execute(target, arrayOf("reload"))
 
@@ -89,13 +90,12 @@ class RealTimeCommandHandlerTest {
         assertEquals(ZoneId.of("Asia/Shanghai"), activeState.configuration.zoneId)
     }
 
-    private fun handler(
-        reload: () -> Result<RuntimeState> = { Result.success(state()) },
-    ) = RealTimeCommandHandler(
-        pluginVersion = "1.2.3",
-        currentState = ::state,
-        reload = reload,
-    )
+    private fun handler(reload: () -> Result<RuntimeState> = { Result.success(state()) }) =
+        RealTimeCommandHandler(
+            pluginVersion = "1.2.3",
+            currentState = ::state,
+            reload = reload,
+        )
 
     private fun state(): RuntimeState {
         val configuration =
