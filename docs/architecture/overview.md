@@ -30,7 +30,7 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-PR1–PR3 are merged. PR4 adds a Paper/Folia scheduler facade with global, region, and entity ownership, tracked task handles, entity-retirement handling, and cancellation on plugin disable. Region scheduling is never used for entity work; the adapter exposes no generic asynchronous Bukkit callback.
+PR1–PR4 are merged. PR5 adds the pure Kotlin HHmm BCD encoder and validated device model, versioned YAML persistence, and a Paper/Folia redstone manager. The manager calculates frames globally, updates REDSTONE_WIRE blocks only on owning regions, skips unloaded chunks, and refreshes outputs on chunk load.
 
 
 ### Paper/Folia scheduler ownership
