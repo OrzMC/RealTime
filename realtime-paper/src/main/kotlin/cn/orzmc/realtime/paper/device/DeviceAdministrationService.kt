@@ -13,8 +13,6 @@ interface DeviceAdministration {
         id: UUID,
         enabled: Boolean,
     ): RedstoneDevice
-
-    fun remove(id: UUID): RedstoneDevice
 }
 
 class DeviceNotFoundException(id: UUID) : IllegalArgumentException("Device not found: $id")
@@ -66,17 +64,4 @@ class DeviceAdministrationService(
             updatedDevice
         }
 
-    override fun remove(id: UUID): RedstoneDevice =
-        synchronized(stateLock) {
-            val currentState = stateProvider()
-            val removedDevice =
-                currentState.devices.firstOrNull { it.id == id }
-                    ?: throw DeviceNotFoundException(id)
-            val updatedDevices = currentState.devices.filterNot { it.id == id }
-
-            persistDevices(updatedDevices)
-            replaceState(currentState.copy(devices = updatedDevices))
-            requestRefresh()
-            removedDevice
-        }
 }
