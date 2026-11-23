@@ -2,8 +2,9 @@ package cn.orzmc.realtime.paper.command
 
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
-import cn.orzmc.realtime.paper.device.DeviceNotFoundException
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
+import cn.orzmc.realtime.paper.device.DeviceNotFoundException
+import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import java.util.Locale
 import java.util.UUID
 
@@ -152,7 +153,7 @@ class RealTimeCommandHandler(
     private fun showDeviceStatus(
         target: CommandTarget,
         state: RuntimeState,
-        snapshot: cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot,
+        snapshot: RedstoneDiagnosticsSnapshot,
     ) {
         target.sendMessage(state.messages.render("command.device.status.header"))
         target.sendMessage(
