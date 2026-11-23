@@ -221,8 +221,6 @@ class RealTimeCommandHandlerTest {
                         "command.device.state.disabled" to "disabled",
                         "command.device.enable.success" to "{prefix}enabled {name}",
                         "command.device.disable.success" to "{prefix}disabled {name}",
-                        "command.device.remove.confirm" to "{prefix}remove {id} confirm",
-                        "command.device.remove.success" to "{prefix}removed {name}",
                         "command.device.invalid-id" to "{prefix}invalid {id}",
                         "command.device.not-found" to "{prefix}not found {id}",
                         "command.device.error" to "{prefix}error {reason}",
