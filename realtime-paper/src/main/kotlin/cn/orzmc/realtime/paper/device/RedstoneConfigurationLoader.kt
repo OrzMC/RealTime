@@ -1,9 +1,9 @@
 package cn.orzmc.realtime.paper.device
 
-import java.io.File
-import java.io.IOException
 import org.bukkit.configuration.InvalidConfigurationException
 import org.bukkit.configuration.file.YamlConfiguration
+import java.io.File
+import java.io.IOException
 
 class RedstoneConfigurationLoader {
     fun load(dataFolder: File): RedstoneConfiguration {
