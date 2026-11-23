@@ -57,17 +57,18 @@ class RealTimeCommandHandler(
         val isAdmin = target.hasPermission(ADMIN_PERMISSION)
         val canRead = target.hasPermission(COMMAND_PERMISSION)
         if (args.size == 2) {
-            val candidates = buildList {
-                if (canRead) {
-                    add("list")
-                    add("info")
+            val candidates =
+                buildList {
+                    if (canRead) {
+                        add("list")
+                        add("info")
+                    }
+                    if (isAdmin) {
+                        add("enable")
+                        add("disable")
+                        add("remove")
+                    }
                 }
-                if (isAdmin) {
-                    add("enable")
-                    add("disable")
-                    add("remove")
-                }
-            }
             return candidates.filter { it.startsWith(args[1].lowercase(Locale.ROOT)) }
         }
 
@@ -76,12 +77,16 @@ class RealTimeCommandHandler(
         val canMutateIds = isAdmin && subcommand in setOf("enable", "disable", "remove")
         if (args.size == 3 && (canReadIds || canMutateIds)) {
             val prefix = args[2].lowercase(Locale.ROOT)
-            return deviceAdministration.list()
+            return deviceAdministration
+                .list()
                 .map { it.id.toString() }
                 .filter { it.startsWith(prefix) }
         }
 
-        if (args.size == 4 && isAdmin && subcommand == "remove" &&
+        if (
+            args.size == 4 &&
+            isAdmin &&
+            subcommand == "remove" &&
             "confirm".startsWith(args[3].lowercase(Locale.ROOT))
         ) {
             return listOf("confirm")
