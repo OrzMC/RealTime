@@ -55,14 +55,12 @@ class RedstoneDeviceManager(
     @EventHandler
     fun onChunkLoad(event: ChunkLoadEvent) {
         val state = stateProvider()
-        if (!state.configuration.generalEnabled || !state.redstoneConfiguration.enabled) return
-
         val world = event.world
         val chunk = event.chunk
         val frame = BcdHhmmEncoder.encode(state.timeService.now().toLocalTime())
         state.devices
             .asSequence()
-            .filter { it.enabled && it.worldName == world.name }
+            .filter { it.worldName == world.name }
             .flatMap { device -> device.outputs.asSequence().map { device to it } }
             .filter { (_, output) ->
                 output.x shr 4 == chunk.x && output.z shr 4 == chunk.z
@@ -71,7 +69,11 @@ class RedstoneDeviceManager(
                     world = world,
                     device = device,
                     output = output,
-                    powered = frame.bits[output.bitIndex],
+                    powered =
+                        state.configuration.generalEnabled &&
+                            state.redstoneConfiguration.enabled &&
+                            device.enabled &&
+                            frame.bits[output.bitIndex],
                     outputPower = state.redstoneConfiguration.outputPower,
                 )
             }
@@ -79,11 +81,6 @@ class RedstoneDeviceManager(
 
     private fun refreshCurrentMinute(force: Boolean) {
         val state = stateProvider()
-        if (!state.configuration.generalEnabled || !state.redstoneConfiguration.enabled) {
-            lastMinute = null
-            return
-        }
-
         val snapshot = state.timeService.snapshot()
         val localMinute =
             snapshot.zonedDateTime
@@ -103,7 +100,6 @@ class RedstoneDeviceManager(
     ) {
         state.devices
             .asSequence()
-            .filter(RedstoneDevice::enabled)
             .forEach { device ->
                 val world = server.getWorld(device.worldName)
                 if (world == null) {
@@ -129,12 +125,30 @@ class RedstoneDeviceManager(
                         val chunkZ = output.z shr 4
                         if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) return@runRegion
 
+                        val currentState = stateProvider()
+                        val currentDevice = currentState.devices.firstOrNull { it.id == device.id }
+                        val outputStillConfigured =
+                            currentDevice?.outputs?.any { currentOutput ->
+                                currentOutput.bitIndex == output.bitIndex &&
+                                    currentOutput.x == output.x &&
+                                    currentOutput.y == output.y &&
+                                    currentOutput.z == output.z
+                            } == true
+                        val effectiveBits =
+                            if (currentState === state) bits else {
+                                BcdHhmmEncoder.encode(currentState.timeService.now().toLocalTime()).bits
+                            }
                         applyOutput(
                             world = targetWorld,
-                            device = device,
+                            device = currentDevice ?: device,
                             output = output,
-                            powered = bits[output.bitIndex],
-                            outputPower = state.redstoneConfiguration.outputPower,
+                            powered =
+                                currentState.configuration.generalEnabled &&
+                                    currentState.redstoneConfiguration.enabled &&
+                                    currentDevice?.enabled == true &&
+                                    outputStillConfigured &&
+                                    effectiveBits[output.bitIndex],
+                            outputPower = currentState.redstoneConfiguration.outputPower,
                         )
                     }
                 }
