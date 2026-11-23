@@ -6,6 +6,8 @@ import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
 import cn.orzmc.realtime.paper.device.DeviceAdministrationService
+import cn.orzmc.realtime.paper.device.DeviceCleanupManager
+import cn.orzmc.realtime.paper.device.DeviceRetirementService
 import cn.orzmc.realtime.paper.device.DeviceStoreSnapshot
 import cn.orzmc.realtime.paper.device.RedstoneConfigurationLoader
 import cn.orzmc.realtime.paper.device.RedstoneDeviceManager
@@ -33,6 +35,8 @@ class RealTimePlugin :
     private lateinit var commandHandler: RealTimeCommandHandler
     private lateinit var deviceRepository: YamlDeviceRepository
     private var deviceAdministration: DeviceAdministrationService? = null
+    private var deviceRetirementService: DeviceRetirementService? = null
+    private var deviceCleanupManager: DeviceCleanupManager? = null
     private var schedulerAdapter: PaperFoliaScheduler? = null
     private var redstoneDeviceManager: RedstoneDeviceManager? = null
     private var placeholderExpansion: Any? = null
@@ -69,6 +73,26 @@ class RealTimePlugin :
                 stateProvider = { checkNotNull(runtimeState) },
                 logger = logger,
             ).also { it.start(this) }
+
+        deviceCleanupManager =
+            DeviceCleanupManager(
+                server = server,
+                scheduler = checkNotNull(schedulerAdapter),
+                stateLock = runtimeStateLock,
+                stateProvider = { checkNotNull(runtimeState) },
+                persistStore = deviceRepository::save,
+                replaceState = { runtimeState = it },
+                logger = logger,
+            ).also { it.start(this) }
+
+        deviceRetirementService =
+            DeviceRetirementService(
+                stateLock = runtimeStateLock,
+                stateProvider = { checkNotNull(runtimeState) },
+                persistStore = deviceRepository::save,
+                replaceState = { runtimeState = it },
+                requestCleanup = { deviceCleanupManager?.requestRefresh() },
+            )
 
         deviceAdministration =
             DeviceAdministrationService(
@@ -122,6 +146,8 @@ class RealTimePlugin :
         placeholderExpansion?.let { PlaceholderApiBridge.unregister(it) }
         placeholderExpansion = null
         deviceAdministration = null
+        deviceRetirementService = null
+        deviceCleanupManager = null
         redstoneDeviceManager = null
         schedulerAdapter?.cancelAll()
         schedulerAdapter = null
