@@ -36,7 +36,8 @@ fi
 curl --fail --location --silent --show-error "$DOWNLOAD_URL" -o "$WORK_DIR/server.jar"
 echo "$SHA256  $WORK_DIR/server.jar" | sha256sum --check -
 
-cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.1.0-SNAPSHOT}.jar" "$WORK_DIR/RealTime.jar"
+mkdir -p "$WORK_DIR/plugins"
+cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.1.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
 printf 'eula=true\n' > "$WORK_DIR/eula.txt"
 cat > "$WORK_DIR/server.properties" <<PROPERTIES
 server-port=25566
