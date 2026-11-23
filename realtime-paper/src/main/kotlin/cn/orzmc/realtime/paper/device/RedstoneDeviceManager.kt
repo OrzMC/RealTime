@@ -15,7 +15,6 @@ import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import java.time.LocalDateTime
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Logger
 
@@ -33,7 +32,7 @@ class RedstoneDeviceManager(
     private val logger: Logger,
 ) : Listener {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
-    private val warnedWorlds = ConcurrentHashMap.newKeySet<UUID>()
+    private val warnedWorlds = ConcurrentHashMap.newKeySet<String>()
     private var lastMinute: LocalDateTime? = null
 
     fun start(plugin: Plugin) {
@@ -105,7 +104,7 @@ class RedstoneDeviceManager(
             .forEach { device ->
                 val world = server.getWorld(device.worldName)
                 if (world == null) {
-                    if (warnedWorlds.add(device.worldId)) {
+                    if (warnedWorlds.add(device.worldName)) {
                         logger.warning(
                             "RealTime device '${device.name}' references an unloaded or missing world " +
                                 "${device.worldName}.",
