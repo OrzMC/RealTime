@@ -13,6 +13,33 @@ The module is disabled by default. `output-power` must be 1–15. A logical 1 is
 
 `data/devices.yml` stores versioned device records. It is separate from feature configuration and is backed up before repository writes.
 
+## Device store schema v2
+
+The current `data/devices.yml` format uses schema version 2. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1 files are migrated automatically on load; device records are preserved and `cleanup-jobs` starts empty. The previous file is retained at `backups/devices.yml.bak`.
+
+A cleanup job records the retired device identity, world name, optional world UUID, and all 16 output coordinates. Each output has one of three states:
+
+- `PENDING`: not yet safely processed (including unloaded chunks or unavailable worlds).
+- `CLEARED`: confirmed redstone wire is at power 0, or was already at power 0.
+- `NEEDS_ATTENTION`: target is not redstone wire or another terminal condition requires operator inspection; it is not considered fully cleaned.
+
+Example shape (abbreviated):
+
+```yaml
+schema-version: 2
+devices: []
+cleanup-jobs:
+  - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
+    device-id: 45b8f930-0a13-4f8c-9b90-8eac4a2b4a10
+    device-name: lobby-clock
+    world: world
+    world-uuid: null
+    outputs:
+      - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
+```
+
+The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b/PR10c still need to implement and verify the cleanup processor. No in-game remove command is available yet.
+
 ## HHmm BCD output layout
 
 Each device has exactly 16 unique output blocks. All output blocks must be `minecraft:redstone_wire`.
@@ -31,7 +58,7 @@ For example, 23:59 is encoded as digits `2, 3, 5, 9`; each digit occupies four b
 The following shows the complete schema and 16 output records. Change the world name and coordinates to match the build:
 
 ```yaml
-schema-version: 1
+schema-version: 2
 devices:
   - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
     name: lobby-clock
@@ -54,6 +81,7 @@ devices:
       - { bit-index: 13, x: 126, y: 65, z: 100 }
       - { bit-index: 14, x: 128, y: 65, z: 100 }
       - { bit-index: 15, x: 130, y: 65, z: 100 }
+cleanup-jobs: []
 ```
 
 Device IDs must be unique. Bit indexes must cover 0 through 15 exactly once. Output coordinates must be unique within a device and across all devices in the same world. World names are used for configuration convenience; changing a world's name requires updating this file.
@@ -86,7 +114,7 @@ Use the full UUID shown by `device list`; device names are labels and are not id
 
 These commands never inspect or mutate world blocks directly. The redstone manager receives a refresh request and performs all world/block access through the existing Paper/Folia scheduler ownership rules. Disabled devices remain in the device store so their outputs can be driven to zero when their chunks are loaded.
 
-There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. PR10 is the next planned milestone: add a persistent deferred-cleanup queue before safe in-game deletion can be offered. Until that work is merged and verified, do not remove device records through runtime commands or by any automated process that could lose unloaded output coordinates.
+There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. PR10 is in progress. PR10a has added the schema-v2 store, but the deferred cleanup processor is not yet implemented. Do not remove device records through runtime commands or by any automated process that could lose unloaded output coordinates until PR10b/PR10c are merged and verified.
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
 
