@@ -4,9 +4,6 @@ import io.papermc.paper.threadedregions.scheduler.EntityScheduler
 import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
-import java.lang.reflect.Method
-import java.lang.reflect.Proxy
-import java.util.function.Consumer
 import org.bukkit.Location
 import org.bukkit.entity.Entity
 import org.bukkit.plugin.Plugin
@@ -15,6 +12,9 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.lang.reflect.Method
+import java.lang.reflect.Proxy
+import java.util.function.Consumer
 
 class PaperFoliaSchedulerTest {
     @Test
