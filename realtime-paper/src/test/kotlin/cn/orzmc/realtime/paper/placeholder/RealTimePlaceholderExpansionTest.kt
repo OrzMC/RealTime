@@ -39,7 +39,10 @@ class RealTimePlaceholderExpansionTest {
         assertEquals("Asia/Shanghai", expansion.onRequest(null, "timezone"))
         assertEquals("+08:00", expansion.onRequest(null, "offset"))
         assertEquals("2026-11-23T23:59:00+08:00", expansion.onRequest(null, "iso"))
-        assertEquals(Instant.parse("2026-11-23T15:59:00Z").epochSecond.toString(), expansion.onRequest(null, "timestamp"))
+        assertEquals(
+            Instant.parse("2026-11-23T15:59:00Z").epochSecond.toString(),
+            expansion.onRequest(null, "timestamp"),
+        )
         assertEquals("2359", expansion.onRequest(null, "bcd"))
         assertEquals(expectedBits, expansion.onRequest(null, "bcd_bits"))
         assertEquals("true", expansion.onRequest(null, "redstone_enabled"))
