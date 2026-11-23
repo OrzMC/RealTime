@@ -2,14 +2,14 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.RedstoneDevice
+import org.bukkit.configuration.InvalidConfigurationException
+import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
-import org.bukkit.configuration.InvalidConfigurationException
-import org.bukkit.configuration.file.YamlConfiguration
 
 class YamlDeviceRepository(
     dataFolder: File,
@@ -151,7 +151,7 @@ class YamlDeviceRepository(
         key: String,
         context: String,
     ): Int =
-        (values[key] as? Number)?.toInt()
+        values[key] as? Int
             ?: throw DeviceRepositoryException("$context.$key must be an integer")
 
     private fun parseUuid(
