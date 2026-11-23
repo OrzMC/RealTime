@@ -15,14 +15,21 @@ class DeviceMustBeDisabledException(
  * World UUID is supplied by the caller when it is already known. A null UUID
  * leaves the configured world name as the resolution key until a world loads.
  */
+fun interface DeviceRetirement {
+    fun retire(
+        id: UUID,
+        worldId: UUID?,
+    ): DeviceCleanupJob
+}
+
 class DeviceRetirementService(
     private val stateLock: Any,
     private val stateProvider: () -> RuntimeState,
     private val persistStore: (DeviceStoreSnapshot) -> Unit,
     private val replaceState: (RuntimeState) -> Unit,
     private val requestCleanup: () -> Unit,
-) {
-    fun retire(
+) : DeviceRetirement {
+    override fun retire(
         id: UUID,
         worldId: UUID?,
     ): DeviceCleanupJob =
