@@ -26,6 +26,7 @@ class RealTimeConfigurationLoaderTest {
         assertEquals(true, configuration.commandEnabled)
         assertEquals("uuuu-MM-dd HH:mm:ss XXX", configuration.commandFormat)
         assertEquals("{prefix}devices {count}", configuration.messages["command.device.list.header"])
+        assertEquals("{prefix}device diagnostics", configuration.messages["command.device.status.header"])
     }
 
     @Test
@@ -38,6 +39,7 @@ class RealTimeConfigurationLoaderTest {
         val configuration = RealTimeConfigurationLoader().load(temporaryDirectory.toFile())
 
         assertEquals("{prefix}&b设备列表（{count}）", configuration.messages["command.device.list.header"])
+        assertEquals("{prefix}&b设备输出诊断", configuration.messages["command.device.status.header"])
     }
 
     @Test
@@ -150,6 +152,11 @@ class RealTimeConfigurationLoaderTest {
               usage: '{prefix}usage'
               device:
                 unavailable: '{prefix}unavailable'
+                status:
+                  header: '{prefix}device diagnostics'
+                  devices: '{prefix}devices {configured} enabled {enabled} outputs {outputs}'
+                  checks: '{prefix}checks {checks} unloaded {unloaded} stale {stale}'
+                  outcomes: '{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}'
                 list:
                   header: '{prefix}devices {count}'
                   empty: '{prefix}empty'
