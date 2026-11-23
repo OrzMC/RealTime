@@ -5,6 +5,8 @@ import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.DeviceAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupDiagnostics
+import cn.orzmc.realtime.paper.device.DeviceCleanupDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
@@ -134,6 +136,29 @@ class RealTimeCommandHandlerTest {
         assertTrue(target.messages.any { it.contains("devices 2 enabled 1 outputs 32") })
         assertTrue(target.messages.any { it.contains("checks 48 unloaded 3 stale 2") })
         assertTrue(target.messages.any { it.contains("changed 10 unchanged 20 invalid 4 failures 1") })
+    }
+
+    @Test
+    fun deviceStatusShowsDeferredCleanupQueueState() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(device())),
+                deviceDiagnostics = DeviceDiagnostics { diagnosticsSnapshot() },
+                cleanupDiagnostics = DeviceCleanupDiagnostics {
+                    DeviceCleanupDiagnosticsSnapshot(
+                        jobs = 2,
+                        pendingOutputs = 5,
+                        needsAttentionOutputs = 1,
+                        inFlightOutputs = 2,
+                        queuedResults = 3,
+                    )
+                },
+            )
+
+        handler.execute(target, arrayOf("device", "status"))
+
+        assertTrue(target.messages.any { it.contains("jobs 2 pending 5 attention 1 in-flight 2 queued 3") })
     }
 
     @Test
