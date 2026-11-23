@@ -31,3 +31,5 @@ jobs:
         run: bash scripts/check-agent-environment.sh
       - name: Verify
         run: bash scripts/verify.sh
+      - name: Inspect shaded plugin JAR
+        run: bash scripts/inspect-jar.sh
