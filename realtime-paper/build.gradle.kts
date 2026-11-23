@@ -1,6 +1,9 @@
+import io.papermc.hangarpublishplugin.model.Platforms
+
 plugins {
     kotlin("jvm")
     id("com.gradleup.shadow")
+    id("io.papermc.hangar-publish-plugin")
 }
 
 kotlin {
@@ -50,6 +53,26 @@ tasks.shadowJar {
     archiveBaseName.set("RealTime")
     archiveClassifier.set("")
     mergeServiceFiles()
+}
+
+hangarPublish {
+    publications.register("plugin") {
+        version.set(project.version.toString())
+        channel.set(if (project.version.toString().contains('-')) "Snapshot" else "Release")
+        id.set(providers.gradleProperty("hangarProjectId"))
+        apiKey.set(providers.environmentVariable("HANGAR_API_TOKEN"))
+
+        platforms {
+            register(Platforms.PAPER) {
+                jar.set(tasks.shadowJar.flatMap { it.archiveFile })
+                platformVersions.set(
+                    providers.gradleProperty("hangarPaperVersions")
+                        .map { it.split(",").map(String::trim) }
+                        .orElse(listOf("26.3")),
+                )
+            }
+        }
+    }
 }
 
 tasks.build {
