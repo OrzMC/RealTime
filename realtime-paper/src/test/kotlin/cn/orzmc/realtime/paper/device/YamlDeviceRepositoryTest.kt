@@ -117,7 +117,14 @@ class YamlDeviceRepositoryTest {
         repository.save(DeviceStoreSnapshot(listOf(device(name = "second"))))
 
         assertTrue(Files.isRegularFile(temporaryDirectory.resolve("backups/devices.yml.bak")))
-        assertEquals("second", repository.loadStore().devices.single().name)
+        assertEquals(
+            "second",
+            repository
+                .loadStore()
+                .devices
+                .single()
+                .name,
+        )
     }
 
     @Test
