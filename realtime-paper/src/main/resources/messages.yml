@@ -11,6 +11,32 @@ command:
   reload:
     success: '{prefix}&a配置重新加载成功。'
     failure: '{prefix}&c配置重新加载失败，旧配置继续生效：&f{reason}'
+  device:
+    unavailable: '{prefix}&c设备管理服务当前不可用。'
+    list:
+      header: '{prefix}&b设备列表（{count}）'
+      empty: '{prefix}&7当前没有配置任何设备。'
+      item: '{prefix}&f{name} &7[{id}] &8世界：&f{world} &8状态：{enabled}'
+    info:
+      header: '{prefix}&b设备信息：&f{name}'
+      id: '{prefix}&7ID：&f{id}'
+      world: '{prefix}&7世界：&f{world}'
+      enabled: '{prefix}&7状态：{enabled}'
+      outputs: '{prefix}&7输出点（{count}）：'
+      output: '{prefix}&8位 {bit}：&f{x}, {y}, {z}'
+    state:
+      enabled: '&a启用'
+      disabled: '&c禁用'
+    enable:
+      success: '{prefix}&a设备 {name} 已启用。&7({id})'
+    disable:
+      success: '{prefix}&e设备 {name} 已禁用。&7({id})'
+    remove:
+      confirm: '{prefix}&c删除设备 {id} 不可撤销。再次执行 /rtime device remove {id} confirm 确认。'
+      success: '{prefix}&a设备 {name} 已删除。&7({id})'
+    invalid-id: '{prefix}&c设备 ID 格式无效：&f{id}'
+    not-found: '{prefix}&c未找到设备：&f{id}'
+    error: '{prefix}&c设备操作失败，运行状态未更改：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device enable|device disable|device remove]'
