@@ -21,10 +21,12 @@ class RedstoneConfigurationLoader {
             throw DeviceRepositoryException("Unable to parse $CONFIG_FILE: ${exception.message}", exception)
         }
 
-        val enabled = yaml.get("enabled") as? Boolean
-            ?: throw DeviceRepositoryException("$CONFIG_FILE: enabled must be true or false")
-        val outputPower = yaml.get("output-power") as? Int
-            ?: throw DeviceRepositoryException("$CONFIG_FILE: output-power must be an integer")
+        val enabled =
+            yaml.get("enabled") as? Boolean
+                ?: throw DeviceRepositoryException("$CONFIG_FILE: enabled must be true or false")
+        val outputPower =
+            yaml.get("output-power") as? Int
+                ?: throw DeviceRepositoryException("$CONFIG_FILE: output-power must be an integer")
         if (outputPower !in 1..15) {
             throw DeviceRepositoryException("$CONFIG_FILE: output-power must be between 1 and 15")
         }
