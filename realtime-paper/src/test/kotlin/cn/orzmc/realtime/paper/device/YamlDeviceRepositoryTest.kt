@@ -46,10 +46,11 @@ class YamlDeviceRepositoryTest {
     fun `persists and reloads cleanup jobs with world identity and per-output state`() {
         val repository = YamlDeviceRepository(temporaryDirectory.toFile())
         val source = device()
+        val pendingJob = DeviceCleanupJob.fromDevice(source, UUID.randomUUID())
         val job =
-            DeviceCleanupJob.fromDevice(source, UUID.randomUUID()).copy(
+            pendingJob.copy(
                 outputs =
-                    DeviceCleanupJob.fromDevice(source, null).outputs.mapIndexed { index, output ->
+                    pendingJob.outputs.mapIndexed { index, output ->
                         when (index) {
                             0 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.CLEARED)
                             1 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.NEEDS_ATTENTION, "not redstone wire")
