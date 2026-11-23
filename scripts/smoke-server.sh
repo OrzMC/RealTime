@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT="${1:?Usage: smoke-server.sh <paper|folia>}"
 MC_VERSION="${MC_VERSION:-26.3}"
 RCON_PORT="${RCON_PORT:-25575}"
