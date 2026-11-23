@@ -1,9 +1,10 @@
 # PR10 — Persistent Deferred Cleanup for Device Retirement
 
-- Status: In Progress
+- Status: In Progress (PR10a + PR10b complete; PR10c active)
 - PR10a: Complete — [PR #15](https://github.com/OrzMC/RealTime/pull/15), merge `b9880c5fbf3e7eaf6a3f5326a23518f4c281a3b3`.
 - Verification: CI #89, Agent Validation #76, and Paper/Folia + PlaceholderAPI smoke #58 all passed; shaded JAR inspection passed.
-- Active implementation: PR10b — crash-safe retirement service and region-owned deferred cleanup/retry processor.
+- PR10b: Complete — [PR #17](https://github.com/OrzMC/RealTime/pull/17), merge `ea4b3fbe2cc9da3b431a7c111f10c266fe0f1b7d`.
+- Active implementation: PR10c — device-specific Paper/Folia runtime recovery coverage and cleanup queue operator diagnostics.
 - Priority: P1
 - Depends on: PR5, PR8, PR9
 
@@ -18,8 +19,8 @@ Today, disabled device records remain in `data/devices.yml` so their outputs can
 ## Implementation slices
 
 - **PR10a (complete):** immutable cleanup-job/store models, schema v2 serialization, atomic v1-to-v2 migration, and store invariants (merged in PR #15).
-- **PR10b (current):** add crash-safe retirement service and region-owned deferred cleanup/retry processor.
-- **PR10c:** complete Paper/Folia restart/chunk-load runtime coverage and operator observability. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
+- **PR10b (complete):** crash-safe retirement service and region-owned deferred cleanup/retry processor (merged PR #17).
+- **PR10c (current):** device-specific Paper/Folia runtime coverage for restart recovery, chunk-load retry, non-wire attention states, and queue diagnostics/operator retry. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
 
 ## Scope
 
@@ -50,14 +51,17 @@ Today, disabled device records remain in `data/devices.yml` so their outputs can
 - Cleanup only changes REDSTONE_WIRE to power 0; unrelated blocks are never modified.
 - Repeated processing is idempotent; completed positions are not rewritten.
 - Concurrent reload/enable/disable/retire operations cannot lose queue entries or resurrect retired devices; all store mutations share the runtime-state lock.
-- Paper and Folia runtime smoke tests cover loaded and unloaded output chunks, restart recovery, and chunk-load retry.
+- Paper and Folia runtime smoke tests cover a persisted cleanup job across a server restart, a loaded output cleared at startup, an unloaded output remaining pending without block access, and chunk-load-triggered retry.
+- Runtime tests verify non-wire targets are not overwritten, become `NEEDS_ATTENTION`, remain reserved, and can be retried explicitly after operator correction.
+- Read-only cleanup queue diagnostics report pending and needs-attention jobs without exposing output mutation or removal.
 - `./scripts/verify.sh`, Gradle CI, shaded JAR inspection, and the Paper/Folia runtime matrix pass.
 - Only after all above pass may a separately reviewed PR expose `/rtime device remove <uuid>`.
 
 ## Deliverables
 
-- Versioned cleanup queue model and persistence.
-- Crash-safe retirement service and region-safe cleanup processor.
-- Retry/recovery lifecycle integration.
-- Tests, runtime smoke coverage, and updated operator documentation.
+- Versioned cleanup queue model and persistence (PR10a).
+- Crash-safe retirement service and region-safe cleanup processor (PR10b).
+- Paper/Folia device-specific restart and chunk-load runtime smoke coverage (PR10c).
+- Cleanup queue diagnostics and safe operator retry for `NEEDS_ATTENTION` positions (PR10c).
+- Updated operator documentation and tests.
 - A separate explicit decision/PR for exposing the remove command.
