@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR10 complete (PR10a/PR10b/PR10c merged).** RealTime provides the timezone-aware core, Paper/Folia scheduler adapters, HHmm BCD redstone devices, versioned persistence, optional PlaceholderAPI integration, device administration and diagnostics, crash-safe retirement, deferred cleanup, restart/chunk-load recovery, and cleanup queue inspection/retry. The device remove command remains a separate follow-up change.
+> **Status: PR1–PR10 complete (PR10a/PR10b/PR10c merged).** RealTime provides the timezone-aware core, Paper/Folia scheduler adapters, HHmm BCD redstone devices, versioned persistence, optional PlaceholderAPI integration, device administration and diagnostics, crash-safe retirement, deferred cleanup, restart/chunk-load recovery, and cleanup queue inspection/retry. A guarded device remove command is available for disabled devices; it creates a durable cleanup job and never discards unresolved output coordinates.
 
 ## Goals
 
@@ -67,8 +67,9 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Retry manually corrected `NEEDS_ATTENTION` outputs |
 | `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
 | `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
+| `/rtime device remove <uuid>` | `realtime.admin` | Retire a disabled device into the durable cleanup queue |
 
-Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. In-game device removal remains disabled pending a separate, reviewed command change; PR10c's Paper/Folia recovery acceptance has passed.
+Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal requires the device to be disabled first; the operation atomically creates a cleanup job for all 16 outputs. Operators can inspect and retry unresolved jobs; no unresolved coordinates are silently discarded.
 
 ## Docs
 
