@@ -63,7 +63,7 @@ class RedstoneDeviceManager(
         val frame = BcdHhmmEncoder.encode(state.timeService.now().toLocalTime())
         state.devices
             .asSequence()
-            .filter { it.enabled && it.worldId == world.uid }
+            .filter { it.enabled && it.worldName == world.name }
             .flatMap { device -> device.outputs.asSequence().map { device to it } }
             .filter { (_, output) ->
                 output.x shr 4 == chunk.x && output.z shr 4 == chunk.z
@@ -103,12 +103,12 @@ class RedstoneDeviceManager(
             .asSequence()
             .filter(RedstoneDevice::enabled)
             .forEach { device ->
-                val world = server.getWorld(device.worldId)
+                val world = server.getWorld(device.worldName)
                 if (world == null) {
                     if (warnedWorlds.add(device.worldId)) {
                         logger.warning(
                             "RealTime device '${device.name}' references an unloaded or missing world " +
-                                "${device.worldId}.",
+                                "${device.worldName}.",
                         )
                     }
                     return@forEach
