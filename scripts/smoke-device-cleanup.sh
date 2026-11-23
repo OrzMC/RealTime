@@ -103,7 +103,7 @@ rcon() {
 }
 
 rtime() {
-  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" "$@"
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime "$@"
 }
 
 # First boot creates the world and its stable UUID. Seed output blocks, then
