@@ -109,6 +109,7 @@ The device records remain YAML-defined so each of the 16 output positions is exp
 | `/rtime device status` | `realtime.command` | Shows aggregate output health and refresh counters |
 | `/rtime device cleanup list` | `realtime.command` | Lists durable cleanup jobs with pending and operator-attention counts |
 | `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Requeues only `NEEDS_ATTENTION` outputs after an operator has corrected their blocks |
+| `/rtime device remove <uuid>` | `realtime.admin` | Retires a disabled device and atomically creates its deferred cleanup job |
 | `/rtime device enable <uuid>` | `realtime.admin` | Persists enabled state and schedules a redstone refresh |
 | `/rtime device disable <uuid>` | `realtime.admin` | Persists disabled state and schedules a redstone refresh |
 
@@ -116,7 +117,7 @@ Use the full UUID shown by `device list`; device names are labels and are not id
 
 These commands never inspect or mutate world blocks directly. The redstone manager receives a refresh request and performs all world/block access through the existing Paper/Folia scheduler ownership rules. Disabled devices remain in the device store so their outputs can be driven to zero when their chunks are loaded.
 
-There is intentionally no in-game device remove command yet. PR10b now contains the crash-safe retirement service and deferred cleanup processor, but the service is not exposed as a player-facing command. Do not manually delete device records or cleanup jobs from YAML: retirement must atomically persist the active-device removal and all 16 cleanup coordinates. While PR10c is in progress, operators can inspect the durable queue and retry `NEEDS_ATTENTION` outputs after manually correcting the target block. The remove command remains blocked until device-specific Paper/Folia restart and chunk-load recovery tests pass.
+`/rtime device remove <uuid>` is the safe retirement path (PR11). It is admin-only and rejects enabled devices. On success, the command removes the active device record and creates a durable cleanup job containing all 16 output coordinates in the same atomic schema-v2 store replacement. It does not access world blocks from the command thread; the cleanup manager binds the world UUID and performs region-owned work asynchronously. The response includes the cleanup job UUID. Use `device cleanup list` to inspect progress and `device cleanup retry <job-uuid>` after manually correcting a `NEEDS_ATTENTION` target. Never manually delete device records or cleanup jobs from YAML.
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
 
