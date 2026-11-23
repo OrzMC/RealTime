@@ -1,5 +1,7 @@
 package cn.orzmc.realtime.paper.config
 
+import org.bukkit.configuration.InvalidConfigurationException
+import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
 import java.io.IOException
 import java.time.DateTimeException
@@ -7,8 +9,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.IllformedLocaleException
 import java.util.Locale
-import org.bukkit.configuration.InvalidConfigurationException
-import org.bukkit.configuration.file.YamlConfiguration
 
 class RealTimeConfigurationLoader {
     fun load(dataFolder: File): RealTimeConfiguration {
