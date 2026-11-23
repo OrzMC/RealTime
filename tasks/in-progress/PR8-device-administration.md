@@ -15,7 +15,6 @@ Add the following /rtime device subcommands:
 - list: list configured devices with name, UUID, world, and enabled state.
 - info <uuid>: show device metadata and its 16 output coordinates.
 - enable <uuid> / disable <uuid>: persist the enabled state and refresh outputs.
-- remove <uuid> confirm: remove a device only when the explicit confirmation token is present.
 
 Permissions:
 
@@ -43,7 +42,8 @@ User experience:
 - Preserve Paper/Folia scheduler ownership; refresh requests must go through the existing scheduler adapter.
 - Do not add Bukkit/Paper dependencies to realtime-core.
 - Device identifiers in mutation commands must be full UUIDs; do not rely on potentially ambiguous names.
-- Do not expose destructive remove without the literal confirm argument.
+- Device deletion remains YAML-based until persistent deferred cleanup is implemented.
+- Do not expose in-game deletion until a persistent cleanup queue can safely clear outputs in unloaded chunks.
 
 ## Acceptance
 
@@ -56,7 +56,7 @@ User experience:
 - A stale scheduled update must re-check the current device snapshot before writing, so a disabled or reconfigured device cannot be repowered by an older task.
 - Device deletion remains a documented YAML operation after all output chunks have been loaded and cleared; in-game deletion is explicitly deferred.
 - Tab completion never reveals mutation commands or device IDs to unauthorized senders.
-- Unit tests cover command permissions, parsing, confirmation, persistence, state replacement, failure rollback, and reload serialization.
+- Unit tests cover command permissions, parsing, persistence, state replacement, failure rollback, and reload serialization.
 - Paper and Folia runtime smoke confirms commands work without unsafe world access.
 - ./scripts/verify.sh, CI, shaded JAR inspection, and Paper/Folia smoke pass.
 
