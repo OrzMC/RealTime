@@ -4,6 +4,7 @@ import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
+import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
@@ -94,6 +95,7 @@ class RealTimeCommandHandler(
             return cleanupAdministration
                 ?.list()
                 .orEmpty()
+                .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
                 .map { it.id.toString() }
                 .filter { it.startsWith(prefix) }
         }
@@ -207,8 +209,8 @@ class RealTimeCommandHandler(
                                 "name" to job.deviceName,
                                 "id" to job.id.toString(),
                                 "world" to job.worldName,
-                                "pending" to job.outputs.count { it.status.name == "PENDING" }.toString(),
-                                "attention" to job.outputs.count { it.status.name == "NEEDS_ATTENTION" }.toString(),
+                                "pending" to job.outputs.count { it.status == DeviceCleanupStatus.PENDING }.toString(),
+                                "attention" to job.outputs.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }.toString(),
                             ),
                         ),
                     )
