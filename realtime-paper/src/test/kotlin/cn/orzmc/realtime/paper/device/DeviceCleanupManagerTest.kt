@@ -81,12 +81,52 @@ class DeviceCleanupManagerTest {
                 .first()
                 .status,
         )
+        assertEquals(16, fixture.manager.snapshot().pendingOutputs)
     }
 
-    private fun fixture(chunkLoaded: Boolean): Fixture {
+    @Test
+    fun `keeps unrelated blocks reserved for operator attention`() {
+        val fixture = fixture(chunkLoaded = true, blockMaterial = Material.STONE)
+        fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
+        fixture.globalCallbacks.first().accept(fixture.scheduledTask)
+        fixture.regionCallbacks.first().accept(fixture.scheduledTask)
+        fixture.globalCallbacks.last().accept(fixture.scheduledTask)
+
+        val output = fixture.currentState().cleanupJobs.single().outputs.first()
+        assertEquals(DeviceCleanupStatus.NEEDS_ATTENTION, output.status)
+        assertTrue(output.detail!!.contains("STONE"))
+        assertEquals(1, fixture.manager.snapshot().needsAttentionOutputs)
+        assertEquals(15, fixture.manager.snapshot().pendingOutputs)
+    }
+
+    @Test
+    fun `retries idempotently after cleanup progress persistence fails`() {
+        val fixture = fixture(chunkLoaded = true, persistFailures = 1)
+        fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
+        fixture.globalCallbacks.first().accept(fixture.scheduledTask)
+        fixture.regionCallbacks.first().accept(fixture.scheduledTask)
+        fixture.globalCallbacks.last().accept(fixture.scheduledTask)
+
+        assertEquals(0, fixture.wirePower())
+        assertEquals(DeviceCleanupStatus.PENDING, fixture.currentState().cleanupJobs.single().outputs.first().status)
+
+        fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
+        fixture.globalCallbacks.last().accept(fixture.scheduledTask)
+        fixture.regionCallbacks.last().accept(fixture.scheduledTask)
+        fixture.globalCallbacks.last().accept(fixture.scheduledTask)
+
+        assertEquals(DeviceCleanupStatus.CLEARED, fixture.currentState().cleanupJobs.single().outputs.first().status)
+    }
+
+    private fun fixture(
+        chunkLoaded: Boolean,
+        blockMaterial: Material = Material.REDSTONE_WIRE,
+        persistFailures: Int = 0,
+    ): Fixture {
         val worldId = UUID.randomUUID()
         var wirePower = 15
         var blockAccessed = false
+        var remainingPersistFailures = persistFailures
         val wire =
             fake<RedstoneWire> { method, args ->
                 when (method.name) {
@@ -101,7 +141,7 @@ class DeviceCleanupManagerTest {
         val block =
             fake<Block> { method, _ ->
                 when (method.name) {
-                    "getType" -> Material.REDSTONE_WIRE
+                    "getType" -> blockMaterial
                     "getBlockData" -> wire
                     "setBlockData" -> null
                     else -> null
@@ -170,7 +210,13 @@ class DeviceCleanupManagerTest {
                 scheduler = scheduler,
                 stateLock = Any(),
                 stateProvider = { activeState },
-                persistStore = { persisted = it },
+                persistStore = {
+                    if (remainingPersistFailures > 0) {
+                        remainingPersistFailures -= 1
+                        error("simulated persistence failure")
+                    }
+                    persisted = it
+                },
                 replaceState = { activeState = it },
                 logger = Logger.getLogger("cleanup-test"),
             )
