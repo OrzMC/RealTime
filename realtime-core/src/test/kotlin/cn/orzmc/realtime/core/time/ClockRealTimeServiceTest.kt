@@ -94,7 +94,7 @@ class ClockRealTimeServiceTest {
         val service = service(Instant.parse("2026-11-23T02:00:00Z"), ZoneId.of("UTC"))
 
         assertThrows(IllegalArgumentException::class.java) {
-            service.format("yyyy-MM-dd[")
+            service.format("yyyy-MM-dd-XXXXXX")
         }
     }
 
