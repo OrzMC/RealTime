@@ -10,6 +10,7 @@ import cn.orzmc.realtime.paper.device.DeviceCleanupJob
 import cn.orzmc.realtime.paper.device.DeviceCleanupOutput
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
 import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
+import cn.orzmc.realtime.paper.device.DeviceMustBeDisabledException
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
@@ -299,8 +300,14 @@ class RealTimeCommandHandlerTest {
 
     @Test
     fun removeDeviceIdCompletionIsAdminOnly() {
-        val retirement = RecordingRetirementAdministration(cleanupJob())
-        val handler = handler(deviceRetirement = retirement)
+        val configuredDevice = device()
+        val job = DeviceCleanupJob.fromDevice(configuredDevice, UUID.randomUUID())
+        val retirement = RecordingRetirementAdministration(job)
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(configuredDevice)),
+                deviceRetirement = retirement,
+            )
         val readOnly = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
         val admin = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
 
@@ -309,6 +316,22 @@ class RealTimeCommandHandlerTest {
             listOf(retirement.deviceId.toString()),
             handler.complete(admin, arrayOf("device", "remove", "")),
         )
+    }
+
+    @Test
+    fun removeDeviceReportsDisabledRequirement() {
+        val job = cleanupJob()
+        val retirement =
+            RecordingRetirementAdministration(
+                job = job,
+                failure = DeviceMustBeDisabledException(job.deviceId),
+            )
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+        val handler = handler(deviceRetirement = retirement)
+
+        handler.execute(target, arrayOf("device", "remove", job.deviceId.toString()))
+
+        assertTrue(target.messages.single().contains("must disable"))
     }
 
     private fun handler(
@@ -475,6 +498,7 @@ class RealTimeCommandHandlerTest {
 
     private class RecordingRetirementAdministration(
         val job: DeviceCleanupJob,
+        private val failure: RuntimeException? = null,
     ) : DeviceRetirementAdministration {
         val deviceId: UUID = job.deviceId
         var retireCount = 0
@@ -482,6 +506,7 @@ class RealTimeCommandHandlerTest {
         override fun retire(id: UUID): DeviceCleanupJob {
             retireCount += 1
             require(id == deviceId)
+            failure?.let { throw it }
             return job
         }
     }
