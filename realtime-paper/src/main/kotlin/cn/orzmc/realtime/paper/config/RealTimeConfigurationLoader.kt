@@ -12,13 +12,9 @@ import org.bukkit.configuration.file.YamlConfiguration
 
 class RealTimeConfigurationLoader {
     fun load(dataFolder: File): RealTimeConfiguration {
-        val root = loadYaml(File(dataFolder, ROOT_CONFIG), ROOT_CONFIG)
-        val configVersion = root.get("config-version")
-        if (configVersion !is Number || configVersion.toInt() != SUPPORTED_CONFIG_VERSION) {
-            throw ConfigurationException(
-                "$ROOT_CONFIG: config-version must be $SUPPORTED_CONFIG_VERSION",
-            )
-        }
+        val rootFile = File(dataFolder, ROOT_CONFIG)
+        val root = loadYaml(rootFile, ROOT_CONFIG)
+        migrateRootConfig(root, rootFile)
 
         val generalEnabled = requiredBoolean(root, "general.enabled", ROOT_CONFIG)
         val timezoneName = requiredString(root, "time.timezone", ROOT_CONFIG)
@@ -75,6 +71,42 @@ class RealTimeConfigurationLoader {
             commandFormat = commandFormat,
             messages = messages,
         )
+    }
+
+    private fun migrateRootConfig(
+        root: YamlConfiguration,
+        file: File,
+    ) {
+        val version = root.get("config-version")
+        if (version == null) {
+            val backup = File(file.parentFile, "backups/config.yml.v0.bak")
+            if (!backup.exists()) {
+                backup.parentFile?.mkdirs()
+                try {
+                    file.copyTo(backup)
+                } catch (exception: IOException) {
+                    throw ConfigurationException("Unable to back up legacy $ROOT_CONFIG", exception)
+                }
+            }
+
+            if (!root.contains("general.enabled")) root.set("general.enabled", true)
+            if (!root.contains("time.timezone")) root.set("time.timezone", "Asia/Shanghai")
+            if (!root.contains("time.locale")) root.set("time.locale", "zh_CN")
+            if (!root.contains("logging.debug")) root.set("logging.debug", false)
+            root.set("config-version", SUPPORTED_CONFIG_VERSION)
+            try {
+                root.save(file)
+            } catch (exception: IOException) {
+                throw ConfigurationException("Unable to migrate legacy $ROOT_CONFIG", exception)
+            }
+            return
+        }
+
+        if (version !is Int || version != SUPPORTED_CONFIG_VERSION) {
+            throw ConfigurationException(
+                "$ROOT_CONFIG: config-version must be $SUPPORTED_CONFIG_VERSION",
+            )
+        }
     }
 
     private fun loadYaml(
