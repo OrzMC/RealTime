@@ -97,9 +97,11 @@ class RedstoneDeviceManager(
     private fun scheduleAllOutputs(
         state: RuntimeState,
         bits: List<Boolean>,
+        includeDisabled: Boolean,
     ) {
         state.devices
             .asSequence()
+            .filter { includeDisabled || it.enabled }
             .forEach { device ->
                 val world = server.getWorld(device.worldName)
                 if (world == null) {
