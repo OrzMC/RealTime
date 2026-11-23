@@ -1,5 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
@@ -25,6 +27,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.Locale
 import java.util.UUID
 import java.util.function.Consumer
 import java.util.logging.Logger
@@ -34,25 +37,25 @@ class RedstoneDeviceManagerTest {
     fun `writes powered output only after loaded chunk check`() {
         val fixture = fixture(chunkLoaded = true)
         fixture.manager.start(fixture.plugin)
-        fixture.globalCallbackValue!!.accept(fixture.scheduledTask)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
 
         assertEquals(16, fixture.regionCallbacks.size)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
-        assertTrue(fixture.blockAccessedValue)
-        assertEquals(15, fixture.wirePowerValue)
-        assertTrue(fixture.physicsAppliedValue)
+        assertTrue(fixture.blockAccessed())
+        assertEquals(15, fixture.wirePower())
+        assertTrue(fixture.physicsApplied())
     }
 
     @Test
     fun `skips unloaded chunk without accessing its blocks`() {
         val fixture = fixture(chunkLoaded = false)
         fixture.manager.start(fixture.plugin)
-        fixture.globalCallbackValue!!.accept(fixture.scheduledTask)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
-        assertFalse(fixture.blockAccessedValue)
-        assertEquals(0, fixture.wirePowerValue)
+        assertFalse(fixture.blockAccessed())
+        assertEquals(0, fixture.wirePower())
     }
 
     private fun fixture(chunkLoaded: Boolean): Fixture {
@@ -60,68 +63,75 @@ class RedstoneDeviceManagerTest {
         var wirePower = 0
         var blockAccessed = false
         var physicsApplied = false
-        val wire = fake<RedstoneWire> { method, args ->
-            when (method.name) {
-                "getPower" -> wirePower
-                "setPower" -> {
-                    wirePower = args!![0] as Int
-                    null
+
+        val wire =
+            fake<RedstoneWire> { method, args ->
+                when (method.name) {
+                    "getPower" -> wirePower
+                    "setPower" -> {
+                        wirePower = args!![0] as Int
+                        null
+                    }
+                    else -> null
                 }
-                else -> null
             }
-        }
-        val block = fake<Block> { method, args ->
-            when (method.name) {
-                "getType" -> Material.REDSTONE_WIRE
-                "getBlockData" -> wire
-                "setBlockData" -> {
-                    physicsApplied = args!![1] as Boolean
-                    null
+        val block =
+            fake<Block> { method, args ->
+                when (method.name) {
+                    "getType" -> Material.REDSTONE_WIRE
+                    "getBlockData" -> wire
+                    "setBlockData" -> {
+                        physicsApplied = args!![1] as Boolean
+                        null
+                    }
+                    else -> null
                 }
-                else -> null
             }
-        }
-        val world = fake<World> { method, _ ->
-            when (method.name) {
-                "getName" -> "world"
-                "isChunkLoaded" -> chunkLoaded
-                "getBlockAt" -> {
-                    blockAccessed = true
-                    block
+        val world =
+            fake<World> { method, _ ->
+                when (method.name) {
+                    "getName" -> worldName
+                    "isChunkLoaded" -> chunkLoaded
+                    "getBlockAt" -> {
+                        blockAccessed = true
+                        block
+                    }
+                    else -> null
                 }
-                else -> null
             }
-        }
         val pluginManager = fake<PluginManager> { _, _ -> null }
-        val server = fake<Server> { method, _ ->
-            when (method.name) {
-                "getWorld" -> world
-                "getPluginManager" -> pluginManager
-                else -> null
+        val server =
+            fake<Server> { method, _ ->
+                when (method.name) {
+                    "getWorld" -> world
+                    "getPluginManager" -> pluginManager
+                    else -> null
+                }
             }
-        }
         var globalCallback: Consumer<ScheduledTask>? = null
         val scheduledTask = fakeScheduledTask()
-        val globalScheduler = fake<GlobalRegionScheduler> { method, args ->
-            if (method.name == "run") {
-                globalCallback = args!![1] as Consumer<ScheduledTask>
+        val globalScheduler =
+            fake<GlobalRegionScheduler> { method, args ->
+                if (method.name == "run") {
+                    globalCallback = args!![1] as Consumer<ScheduledTask>
+                }
+                scheduledTask
             }
-            scheduledTask
-        }
         val regionCallbacks = mutableListOf<Consumer<ScheduledTask>>()
-        val regionScheduler = fake<RegionScheduler> { method, args ->
-            if (method.name == "run") {
-                regionCallbacks += args!![2] as Consumer<ScheduledTask>
+        val regionScheduler =
+            fake<RegionScheduler> { method, args ->
+                if (method.name == "run") {
+                    regionCallbacks += args!![2] as Consumer<ScheduledTask>
+                }
+                scheduledTask
             }
-            scheduledTask
-        }
         val plugin = fake<Plugin> { _, _ -> null }
         val scheduler = PaperFoliaScheduler(plugin, globalScheduler, regionScheduler)
         val configuration =
             RealTimeConfiguration(
                 generalEnabled = true,
                 zoneId = ZoneId.of("Asia/Shanghai"),
-                locale = java.util.Locale.forLanguageTag("zh-CN"),
+                locale = Locale.forLanguageTag("zh-CN"),
                 debugLogging = false,
                 commandEnabled = true,
                 commandFormat = "uuuu-MM-dd HH:mm:ss XXX",
@@ -147,48 +157,41 @@ class RedstoneDeviceManagerTest {
                             enabled = true,
                             outputs =
                                 (0 until 16).map { bit ->
-                                    cn.orzmc.realtime.core.device.DeviceOutput(bit, bit * 2, 64, 0)
+                                    DeviceOutput(bit, bit * 2, 64, 0)
                                 },
                         ),
                     ),
             )
-        val manager = RedstoneDeviceManager(server, scheduler, { runtimeState }, Logger.getLogger("test"))
+        val manager =
+            RedstoneDeviceManager(
+                server = server,
+                scheduler = scheduler,
+                stateProvider = { runtimeState },
+                logger = Logger.getLogger("test"),
+            )
+
         return Fixture(
             plugin = plugin,
             manager = manager,
-            globalCallback = globalCallback,
+            globalCallback = { globalCallback },
             regionCallbacks = regionCallbacks,
             scheduledTask = scheduledTask,
-            blockAccessed = blockAccessed,
-            wirePower = wirePower,
-            physicsApplied = physicsApplied,
-        ).also { fixture ->
-            fixture.blockAccessedProvider = { blockAccessed }
-            fixture.wirePowerProvider = { wirePower }
-            fixture.physicsAppliedProvider = { physicsApplied }
-            fixture.globalCallbackProvider = { globalCallback }
-        }
+            blockAccessed = { blockAccessed },
+            wirePower = { wirePower },
+            physicsApplied = { physicsApplied },
+        )
     }
 
-    private class Fixture(
+    private data class Fixture(
         val plugin: Plugin,
         val manager: RedstoneDeviceManager,
-        var globalCallback: Consumer<ScheduledTask>?,
+        val globalCallback: () -> Consumer<ScheduledTask>?,
         val regionCallbacks: List<Consumer<ScheduledTask>>,
         val scheduledTask: ScheduledTask,
-        var blockAccessed: Boolean,
-        var wirePower: Int,
-        var physicsApplied: Boolean,
-    ) {
-        var blockAccessedProvider: () -> Boolean = { blockAccessed }
-        var wirePowerProvider: () -> Int = { wirePower }
-        var physicsAppliedProvider: () -> Boolean = { physicsApplied }
-        var globalCallbackProvider: () -> Consumer<ScheduledTask>? = { globalCallback }
-        val blockAccessedValue get() = blockAccessedProvider()
-        val wirePowerValue get() = wirePowerProvider()
-        val physicsAppliedValue get() = physicsAppliedProvider()
-        val globalCallbackValue get() = globalCallbackProvider()
-    }
+        val blockAccessed: () -> Boolean,
+        val wirePower: () -> Int,
+        val physicsApplied: () -> Boolean,
+    )
 
     private fun fakeScheduledTask(): ScheduledTask = fake { method, _ ->
         when (method.name) {
@@ -201,9 +204,10 @@ class RedstoneDeviceManagerTest {
 
     private inline fun <reified T> fake(noinline handler: (Method, Array<out Any?>?) -> Any?): T {
         val type = T::class.java
-        val instance = Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
-            handler(method, args)
-        }
+        val instance =
+            Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
+                handler(method, args)
+            }
         return type.cast(instance)
     }
 }
