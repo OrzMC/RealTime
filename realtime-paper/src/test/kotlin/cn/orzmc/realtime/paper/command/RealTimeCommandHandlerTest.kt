@@ -410,6 +410,10 @@ class RealTimeCommandHandlerTest {
                         "command.device.cleanup.invalid-id" to "{prefix}cleanup invalid {id}",
                         "command.device.cleanup.not-found" to "{prefix}cleanup not found {id}",
                         "command.device.cleanup.error" to "{prefix}cleanup error {reason}",
+                        "command.device.remove.success" to "{prefix}retired {name} {job}",
+                        "command.device.remove.must-disable" to "{prefix}must disable {id}",
+                        "command.device.remove.not-found" to "{prefix}not found {id}",
+                        "command.device.remove.error" to "{prefix}remove error {reason}",
                         "command.device.status.devices" to "{prefix}devices {configured} enabled {enabled} outputs {outputs}",
                         "command.device.status.checks" to "{prefix}checks {checks} unloaded {unloaded} stale {stale}",
                         "command.device.status.outcomes" to
