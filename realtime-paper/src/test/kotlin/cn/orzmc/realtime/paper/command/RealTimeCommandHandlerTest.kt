@@ -236,12 +236,14 @@ class RealTimeCommandHandlerTest {
         reload: () -> Result<RuntimeState> = { Result.success(state()) },
         deviceAdministration: DeviceAdministration? = null,
         deviceDiagnostics: DeviceDiagnostics? = null,
+        cleanupDiagnostics: DeviceCleanupDiagnostics? = null,
     ) = RealTimeCommandHandler(
         pluginVersion = "1.2.3",
         currentState = ::state,
         reload = reload,
         deviceAdministration = deviceAdministration,
         deviceDiagnostics = deviceDiagnostics,
+        cleanupDiagnostics = cleanupDiagnostics,
     )
 
     private fun diagnosticsSnapshot() =
@@ -304,6 +306,8 @@ class RealTimeCommandHandlerTest {
                         "command.device.status.checks" to "{prefix}checks {checks} unloaded {unloaded} stale {stale}",
                         "command.device.status.outcomes" to
                             "{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}",
+                        "command.device.status.cleanup" to
+                            "{prefix}jobs {jobs} pending {pending} attention {attention} in-flight {in-flight} queued {queued}",
                     ),
             )
         return RuntimeState(
