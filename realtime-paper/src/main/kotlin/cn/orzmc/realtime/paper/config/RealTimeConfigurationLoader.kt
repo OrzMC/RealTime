@@ -195,7 +195,7 @@ class RealTimeConfigurationLoader {
                 "command.device.disable.success" to "{prefix}&e设备 {name} 已禁用。&7({id})",
                 "command.device.invalid-id" to "{prefix}&c设备 ID 格式无效：&f{id}",
                 "command.device.not-found" to "{prefix}&c未找到设备：&f{id}",
-                "command.device.error" to "{prefix}&c设备操作失败，运行状态未更改：&f{reason}",
+                "command.device.error" to "{prefix}&c设备操作或刷新失败：&f{reason}",
             )
     }
 }
