@@ -13,6 +13,8 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
+import org.bukkit.Chunk
+import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.block.Block
 import org.bukkit.block.data.type.RedstoneWire
 import org.bukkit.plugin.Plugin
@@ -45,6 +47,16 @@ class RedstoneDeviceManagerTest {
         assertTrue(fixture.blockAccessed())
         assertEquals(15, fixture.wirePower())
         assertTrue(fixture.physicsApplied())
+    }
+
+    @Test
+    fun `refreshes outputs when their chunk loads`() {
+        val fixture = fixture(chunkLoaded = true)
+
+        fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
+
+        assertTrue(fixture.blockAccessed())
+        assertEquals(15, fixture.wirePower())
     }
 
     @Test
@@ -99,6 +111,16 @@ class RedstoneDeviceManagerTest {
                     else -> null
                 }
             }
+        val chunk =
+            fake<Chunk> { method, _ ->
+                when (method.name) {
+                    "getX" -> 0
+                    "getZ" -> 0
+                    "getWorld" -> world
+                    else -> null
+                }
+            }
+        val chunkLoadEvent = ChunkLoadEvent(chunk, false)
         val pluginManager = fake<PluginManager> { _, _ -> null }
         val server =
             fake<Server> { method, _ ->
@@ -173,6 +195,7 @@ class RedstoneDeviceManagerTest {
         return Fixture(
             plugin = plugin,
             manager = manager,
+            chunkLoadEvent = chunkLoadEvent,
             globalCallback = { globalCallback },
             regionCallbacks = regionCallbacks,
             scheduledTask = scheduledTask,
@@ -185,6 +208,7 @@ class RedstoneDeviceManagerTest {
     private data class Fixture(
         val plugin: Plugin,
         val manager: RedstoneDeviceManager,
+        val chunkLoadEvent: ChunkLoadEvent,
         val globalCallback: () -> Consumer<ScheduledTask>?,
         val regionCallbacks: List<Consumer<ScheduledTask>>,
         val scheduledTask: ScheduledTask,
