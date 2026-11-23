@@ -19,6 +19,7 @@ import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class DeviceAdministrationServiceTest {
@@ -156,26 +157,32 @@ class DeviceAdministrationServiceTest {
         val releaseReload = CountDownLatch(1)
         val mutationStarted = CountDownLatch(1)
 
-        val reload =
-            CompletableFuture.runAsync {
-                synchronized(lock) {
-                    reloadEntered.countDown()
-                    check(releaseReload.await(2, TimeUnit.SECONDS))
-                }
-            }
-        assertTrue(reloadEntered.await(2, TimeUnit.SECONDS))
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            val reload =
+                CompletableFuture.runAsync({
+                    synchronized(lock) {
+                        reloadEntered.countDown()
+                        check(releaseReload.await(2, TimeUnit.SECONDS))
+                    }
+                }, executor)
+            assertTrue(reloadEntered.await(2, TimeUnit.SECONDS))
 
-        val mutation =
-            CompletableFuture.supplyAsync {
-                mutationStarted.countDown()
-                service.setEnabled(initial.devices.single().id, true)
-            }
-        assertTrue(mutationStarted.await(2, TimeUnit.SECONDS))
-        assertFalse(mutation.isDone)
+            val mutation =
+                CompletableFuture.supplyAsync({
+                    mutationStarted.countDown()
+                    service.setEnabled(initial.devices.single().id, true)
+                }, executor)
+            assertTrue(mutationStarted.await(2, TimeUnit.SECONDS))
+            assertFalse(mutation.isDone)
 
-        releaseReload.countDown()
-        reload.get(2, TimeUnit.SECONDS)
-        assertTrue(mutation.get(2, TimeUnit.SECONDS).enabled)
+            releaseReload.countDown()
+            reload.get(2, TimeUnit.SECONDS)
+            assertTrue(mutation.get(2, TimeUnit.SECONDS).enabled)
+        } finally {
+            releaseReload.countDown()
+            executor.shutdownNow()
+        }
     }
 
     private fun state(devices: List<RedstoneDevice>): RuntimeState {
