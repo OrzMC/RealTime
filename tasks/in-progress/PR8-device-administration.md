@@ -20,7 +20,7 @@ Add the following /rtime device subcommands:
 Permissions:
 
 - realtime.command: device list and device info.
-- realtime.admin: enable, disable, and remove.
+- realtime.admin: enable and disable.
 
 Persistence and state:
 
@@ -50,9 +50,11 @@ User experience:
 - Read-only commands enforce realtime.command; mutation commands enforce realtime.admin.
 - Unknown/malformed UUIDs and missing devices return actionable messages without mutation.
 - Enable/disable persists and survives reload/restart; repeated requests are safe no-ops.
-- Remove rejects calls without confirmation and persists only after confirmation.
+- Disabling a device schedules zero-power output updates for loaded chunks; future chunk-load events also clear outputs for disabled devices.
 - Failed repository writes do not change the active RuntimeState.
 - Successful mutations replace runtime state atomically and request a redstone refresh.
+- A stale scheduled update must re-check the current device snapshot before writing, so a disabled or reconfigured device cannot be repowered by an older task.
+- Device deletion remains a documented YAML operation after all output chunks have been loaded and cleared; in-game deletion is explicitly deferred.
 - Tab completion never reveals mutation commands or device IDs to unauthorized senders.
 - Unit tests cover command permissions, parsing, confirmation, persistence, state replacement, failure rollback, and reload serialization.
 - Paper and Folia runtime smoke confirms commands work without unsafe world access.
