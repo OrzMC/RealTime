@@ -55,7 +55,7 @@ data class DeviceCleanupJob(
                 deviceName = device.name,
                 worldName = device.worldName,
                 worldId = worldId,
-                outputs = device.outputs.map(::DeviceCleanupOutput),
+                outputs = device.outputs.map { output -> DeviceCleanupOutput(output) },
             )
     }
 }
