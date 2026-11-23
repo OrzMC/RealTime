@@ -19,3 +19,5 @@ permissions:
   realtime.admin:
     description: Allows administration of RealTime.
     default: op
+    children:
+      realtime.command: true
