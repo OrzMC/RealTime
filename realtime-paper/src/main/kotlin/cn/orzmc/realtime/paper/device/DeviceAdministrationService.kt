@@ -15,7 +15,9 @@ interface DeviceAdministration {
     ): RedstoneDevice
 }
 
-class DeviceNotFoundException(id: UUID) : IllegalArgumentException("Device not found: $id")
+class DeviceNotFoundException(
+    id: UUID,
+) : IllegalArgumentException("Device not found: $id")
 
 /**
  * Serializes persisted device mutations with runtime configuration reloads.
