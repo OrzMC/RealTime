@@ -126,6 +126,7 @@ DEVICE_LIST_OUTPUT="$(
 )"
 grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" || {
   echo "Device list command did not return its header: $DEVICE_LIST_OUTPUT" >&2
+  exit 1
 }
 
 DEVICE_INFO_OUTPUT="$(
