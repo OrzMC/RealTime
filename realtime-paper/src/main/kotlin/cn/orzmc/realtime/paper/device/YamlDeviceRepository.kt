@@ -44,8 +44,9 @@ class YamlDeviceRepository(
                 ?: throw DeviceRepositoryException("$DEVICE_FILE: devices must be a list")
         val devices =
             rawDevices.mapIndexed { index, value ->
-                val raw = value as? Map<*, *>
-                    ?: throw DeviceRepositoryException("$DEVICE_FILE: devices[$index] must be a map")
+                val raw =
+                    value as? Map<*, *>
+                        ?: throw DeviceRepositoryException("$DEVICE_FILE: devices[$index] must be a map")
                 parseDevice(raw, index)
             }
         validateDevices(devices, "$DEVICE_FILE")
@@ -133,14 +134,17 @@ class YamlDeviceRepository(
         val id = parseUuid(requiredString(raw, "id", context), "$context.id")
         val name = requiredString(raw, "name", context)
         val worldName = requiredString(raw, "world", context)
-        val enabled = raw["enabled"] as? Boolean
-            ?: throw DeviceRepositoryException("$context.enabled must be true or false")
-        val rawOutputs = raw["outputs"] as? List<*>
-            ?: throw DeviceRepositoryException("$context.outputs must be a list")
+        val enabled =
+            raw["enabled"] as? Boolean
+                ?: throw DeviceRepositoryException("$context.enabled must be true or false")
+        val rawOutputs =
+            raw["outputs"] as? List<*>
+                ?: throw DeviceRepositoryException("$context.outputs must be a list")
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
-                val output = value as? Map<*, *>
-                    ?: throw DeviceRepositoryException("$context.outputs[$outputIndex] must be a map")
+                val output =
+                    value as? Map<*, *>
+                        ?: throw DeviceRepositoryException("$context.outputs[$outputIndex] must be a map")
                 DeviceOutput(
                     bitIndex = requiredInt(output, "bit-index", "$context.outputs[$outputIndex]"),
                     x = requiredInt(output, "x", "$context.outputs[$outputIndex]"),
