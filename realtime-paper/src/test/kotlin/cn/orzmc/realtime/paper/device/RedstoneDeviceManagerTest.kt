@@ -56,7 +56,7 @@ class RedstoneDeviceManagerTest {
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
 
         assertTrue(fixture.blockAccessed())
-        assertEquals(15, fixture.wirePower())
+        assertTrue(fixture.physicsApplied())
     }
 
     @Test
