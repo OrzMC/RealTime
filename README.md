@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1 and PR2 merged; PR3 in progress.** Paper/Folia 26.3 bootstrap and `/rtime` smoke tests pass. `realtime-core` now provides the Clock-backed service; `/rtime` command wiring, modular configuration, localized messages, and safe reload are being implemented.
+> **Status: PR1–PR3 merged; PR4 in progress.** Paper/Folia 26.3 startup, global scheduler, `/rtime`, `info`, and `reload` smoke tests pass. The Paper/Folia scheduler facade now routes global, region, and entity work through their owning schedulers and tracks tasks for shutdown cancellation.
 
 ## Goals
 
@@ -62,6 +62,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 - [Architecture](docs/architecture/overview.md)
 - [Development setup](docs/development/setup.md)
 - [Testing strategy](docs/testing/strategy.md)
+- [Paper/Folia scheduler safety](docs/development/scheduler-safety.md)
 - [Release process](docs/release/process.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)

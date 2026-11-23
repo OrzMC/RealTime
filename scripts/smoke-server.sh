@@ -86,6 +86,22 @@ grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
   exit 1
 }
 
-python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime
+SCHEDULER_READY=0
+for _ in $(seq 1 20); do
+  if grep -q 'global scheduler adapter ready' "$WORK_DIR/server.log"; then
+    SCHEDULER_READY=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$SCHEDULER_READY" != "1" ]]; then
+  cat "$WORK_DIR/server.log"
+  echo "Global scheduler adapter did not execute on $PROJECT." >&2
+  exit 1
+fi
 
-echo "$PROJECT $MC_VERSION startup and /rtime smoke test passed."
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime info
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime reload
+
+echo "$PROJECT $MC_VERSION startup, global scheduler, /rtime, info, and reload smoke tests passed."

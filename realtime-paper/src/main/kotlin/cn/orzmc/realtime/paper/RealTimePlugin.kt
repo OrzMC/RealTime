@@ -6,6 +6,7 @@ import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
 import cn.orzmc.realtime.paper.message.MessageCatalog
+import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabExecutor
@@ -22,6 +23,7 @@ class RealTimePlugin :
     private var runtimeState: RuntimeState? = null
 
     private lateinit var commandHandler: RealTimeCommandHandler
+    private var schedulerAdapter: PaperFoliaScheduler? = null
 
     override fun onEnable() {
         saveDefaultConfig()
@@ -52,6 +54,16 @@ class RealTimePlugin :
         command.setExecutor(this)
         command.tabCompleter = this
 
+        schedulerAdapter =
+            PaperFoliaScheduler(
+                plugin = this,
+                globalScheduler = server.globalRegionScheduler,
+                regionScheduler = server.regionScheduler,
+            )
+        schedulerAdapter?.runGlobal {
+            logger.info("RealTime global scheduler adapter ready.")
+        }
+
         val configuration = checkNotNull(runtimeState).configuration
         logger.info(
             "RealTime ${description.version} enabled " +
@@ -60,6 +72,8 @@ class RealTimePlugin :
     }
 
     override fun onDisable() {
+        schedulerAdapter?.cancelAll()
+        schedulerAdapter = null
         runtimeState = null
         logger.info("RealTime disabled.")
     }

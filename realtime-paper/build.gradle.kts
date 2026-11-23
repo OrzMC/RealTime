@@ -21,7 +21,7 @@ dependencies {
     testImplementation(platform("org.junit:junit-bom:5.14.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testRuntimeOnly("io.papermc.paper:paper-api:26.3.build.+")
+    testImplementation("io.papermc.paper:paper-api:26.3.build.+")
 }
 
 tasks.test {
