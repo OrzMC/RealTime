@@ -9,7 +9,7 @@ class RedstoneDeviceTest {
     @Test
     fun `sorts outputs by bit index and validates all sixteen outputs`() {
         val outputs = outputs().reversed()
-        val device = RedstoneDevice(UUID.randomUUID(), "clock", UUID.randomUUID(), true, outputs)
+        val device = RedstoneDevice(UUID.randomUUID(), "clock", "world", true, outputs)
 
         assertEquals((0 until 16).toList(), device.outputs.map(DeviceOutput::bitIndex))
     }
@@ -18,12 +18,12 @@ class RedstoneDeviceTest {
     fun `rejects duplicate bit indexes and duplicate block positions`() {
         val duplicateBit = outputs().toMutableList().also { it[15] = it[0].copy(x = 100) }
         assertThrows(IllegalArgumentException::class.java) {
-            RedstoneDevice(UUID.randomUUID(), "clock", UUID.randomUUID(), true, duplicateBit)
+            RedstoneDevice(UUID.randomUUID(), "clock", "world", true, duplicateBit)
         }
 
         val duplicatePosition = outputs().toMutableList().also { it[15] = it[15].copy(x = 0, y = 64, z = 0) }
         assertThrows(IllegalArgumentException::class.java) {
-            RedstoneDevice(UUID.randomUUID(), "clock", UUID.randomUUID(), true, duplicatePosition)
+            RedstoneDevice(UUID.randomUUID(), "clock", "world", true, duplicatePosition)
         }
     }
 
