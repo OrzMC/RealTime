@@ -39,7 +39,7 @@ Today, disabled device records remain in `data/devices.yml` so their outputs can
 - Crash consistency: the device list and cleanup intent must be persisted in the same atomic store replacement; do not rely on a two-file write ordering.
 - Unknown/missing worlds and unloaded chunks remain pending; do not silently mark them complete. Capture world UUID when the world is resolvable at retirement; otherwise retain the configured world name as the pending resolution key. When a UUID is known, never fall back to a different world that reuses the old name.
 - A non-redstone block at an output coordinate is not overwritten. Record a terminal/skipped outcome with enough context for an operator to inspect; it must remain visible as unresolved cleanup, not silently count as fully cleaned.
-- Queue growth must be bounded by an explicit completed-job compaction/retention policy; compaction must itself be atomic and must never discard pending or operator-action-required positions. Never keep player references.
+- Completed cleanup jobs are removed immediately once all 16 outputs are `CLEARED`; no completed-job history is retained. Jobs containing `PENDING` or `NEEDS_ATTENTION` outputs remain durable and reserve their coordinates until resolved. Never keep player references.
 - Do not enable a user-facing remove command until all safety acceptance criteria pass on both Paper and Folia.
 
 ## Acceptance
