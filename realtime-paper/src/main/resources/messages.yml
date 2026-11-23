@@ -31,9 +31,6 @@ command:
       success: '{prefix}&a设备 {name} 已启用。&7({id})'
     disable:
       success: '{prefix}&e设备 {name} 已禁用。&7({id})'
-    remove:
-      confirm: '{prefix}&c删除设备 {id} 不可撤销。再次执行 /rtime device remove {id} confirm 确认。'
-      success: '{prefix}&a设备 {name} 已删除。&7({id})'
     invalid-id: '{prefix}&c设备 ID 格式无效：&f{id}'
     not-found: '{prefix}&c未找到设备：&f{id}'
     error: '{prefix}&c设备操作失败，运行状态未更改：&f{reason}'
