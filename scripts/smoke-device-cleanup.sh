@@ -118,10 +118,11 @@ grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
 rcon forceload add 0 0 >/dev/null
 rcon forceload add 1600 0 >/dev/null
 for position in "0 64 0" "1600 64 0"; do
+  MARKER="REALTIME_SEED_CHUNK_LOADED_${position// /_}"
   LOADED=0
   for _ in $(seq 1 20); do
-    rcon execute if loaded $position run say REALTIME_SEED_CHUNK_LOADED >/dev/null || true
-    if grep -Fq 'REALTIME_SEED_CHUNK_LOADED' "$WORK_DIR/server.log"; then
+    rcon execute if loaded $position run say "$MARKER" >/dev/null || true
+    if grep -Fq "$MARKER" "$WORK_DIR/server.log"; then
       LOADED=1
       break
     fi
