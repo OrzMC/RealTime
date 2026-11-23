@@ -36,4 +36,4 @@ command:
     error: '{prefix}&c设备操作失败，运行状态未更改：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device enable|device disable|device remove]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device enable|device disable]'
