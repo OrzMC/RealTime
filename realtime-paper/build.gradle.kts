@@ -12,16 +12,22 @@ repositories {
         name = "papermc"
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
+    maven {
+        name = "placeholderapi"
+        url = uri("https://repo.extendedclip.com/releases/")
+    }
 }
 
 dependencies {
     implementation(project(":realtime-core"))
     implementation(kotlin("stdlib"))
     compileOnly("io.papermc.paper:paper-api:26.3.build.+")
+    compileOnly("me.clip:placeholderapi:2.12.3")
     testImplementation(platform("org.junit:junit-bom:5.14.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.papermc.paper:paper-api:26.3.build.+")
+    testImplementation("me.clip:placeholderapi:2.12.3")
 }
 
 tasks.test {

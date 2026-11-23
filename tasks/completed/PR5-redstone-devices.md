@@ -1,6 +1,6 @@
 # PR5 — Redstone Time Devices
 
-- Status: In Progress
+- Status: Complete
 - Priority: P1
 - Depends on: PR2, PR4
 
@@ -17,10 +17,10 @@
 
 ## Acceptance
 
-- Exhaustive 24 x 60 BCD encoder test coverage and explicit LSB-first bit ordering.
-- Device validation rejects missing/duplicate bit indexes and duplicate block positions.
-- YAML persistence round-trips device records, versions schema, and creates a backup before replacing existing data.
-- Invalid timezone/config/device data fails before runtime state replacement.
-- Region callbacks do not access blocks until the target chunk is confirmed loaded.
-- Unloaded chunks are skipped and refreshed when ChunkLoadEvent fires; no forced or async chunk loads.
-- Paper 26.3 and Folia 26.3 runtime smoke starts cleanly with the module disabled by default.
+- [x] Exhaustive 24 x 60 BCD encoder test coverage and explicit LSB-first bit ordering.
+- [x] Device validation rejects missing/duplicate bit indexes and duplicate block positions.
+- [x] YAML persistence round-trips device records, versions schema, and creates a backup before replacing existing data.
+- [x] Invalid timezone/config/device data fails before runtime state replacement.
+- [x] Region callbacks do not access blocks until the target chunk is confirmed loaded.
+- [x] Unloaded chunks are skipped and refreshed when ChunkLoadEvent fires; no forced or async chunk loads.
+- [x] Paper 26.3 and Folia 26.3 runtime smoke starts cleanly with the module disabled by default.

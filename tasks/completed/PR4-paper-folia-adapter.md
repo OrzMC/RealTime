@@ -1,6 +1,6 @@
 # PR4 — Paper/Folia Platform Adapter
 
-- Status: In Progress
+- Status: Complete
 - Priority: P1
 - Depends on: PR3
 

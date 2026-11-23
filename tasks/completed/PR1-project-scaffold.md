@@ -1,6 +1,6 @@
 # PR1 — Project Scaffold and Agent Native Foundation
 
-- Status: In Progress
+- Status: Complete
 - Priority: P0
 - Depends on: empty repository bootstrap
 
@@ -24,11 +24,11 @@ Create an independently buildable Kotlin/Paper plugin skeleton and establish the
 - [x] Paper API coordinate follows official Paper 26.3 documentation.
 - [x] CI and local validation entry points defined.
 - [x] Official Gradle Wrapper 9.2.1 artifacts included from the Gradle distribution repository.
-- [ ] Gradle build and tests pass in CI.
-- [ ] Paper server startup and command smoke test recorded.
-- [ ] Folia server startup and command smoke test recorded.
-- [ ] Shaded plugin JAR inspected.
+- [x] Gradle build and tests pass in CI.
+- [x] Paper server startup and command smoke test recorded.
+- [x] Folia server startup and command smoke test recorded.
+- [x] Shaded plugin JAR inspected.
 
 ## Known limitations
 
-This task is not complete until the unchecked criteria are verified. The current PR branch is a scaffold and does not claim runtime compatibility.
+Verified in PR #1 CI and subsequent Paper/Folia 26.3 runtime smoke runs. The scaffold was the base; Core, commands, scheduler, and device features were delivered by subsequent focused PRs.

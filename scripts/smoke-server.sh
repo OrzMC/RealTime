@@ -6,6 +6,7 @@ PROJECT="${1:?Usage: smoke-server.sh <paper|folia>}"
 MC_VERSION="${MC_VERSION:-26.3}"
 RCON_PORT="${RCON_PORT:-25575}"
 RCON_PASSWORD="${RCON_PASSWORD:-realtime-ci-rcon-password}"
+WITH_PLACEHOLDERAPI="${WITH_PLACEHOLDERAPI:-false}"
 
 if [[ "$PROJECT" != "paper" && "$PROJECT" != "folia" ]]; then
   echo "Unsupported server project: $PROJECT" >&2
@@ -41,6 +42,9 @@ echo "Server artifact checksum verified."
 
 mkdir -p "$WORK_DIR/plugins"
 cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.1.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
+if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
+  bash "$ROOT_DIR/scripts/download-placeholderapi.sh" "$WORK_DIR/plugins"
+fi
 printf 'eula=true\n' > "$WORK_DIR/eula.txt"
 cat > "$WORK_DIR/server.properties" <<PROPERTIES
 server-port=25566
@@ -104,4 +108,39 @@ python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWO
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime info
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime reload
 
-echo "$PROJECT $MC_VERSION startup, global scheduler, /rtime, info, and reload smoke tests passed."
+if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
+  PAPI_READY=0
+  for _ in $(seq 1 20); do
+    if grep -q 'PlaceholderAPI expansion registered' "$WORK_DIR/server.log"; then
+      PAPI_READY=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$PAPI_READY" != "1" ]]; then
+    cat "$WORK_DIR/server.log"
+    echo "RealTime PlaceholderAPI expansion did not register on $PROJECT." >&2
+    exit 1
+  fi
+
+  PAPI_TIME_OUTPUT="$(
+    python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+      --no-expect "papi parse --null %realtime_time%"
+  )"
+  if ! grep -Eq '20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}' <<< "$PAPI_TIME_OUTPUT"; then
+    echo "PlaceholderAPI time placeholder did not resolve: $PAPI_TIME_OUTPUT" >&2
+    exit 1
+  fi
+
+  PAPI_BCD_OUTPUT="$(
+    python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+      --no-expect "papi parse --null %realtime_bcd%"
+  )"
+  if ! grep -Eq '(^|[^0-9])[0-2][0-9][0-5][0-9]([^0-9]|$)' <<< "$PAPI_BCD_OUTPUT"; then
+    echo "PlaceholderAPI BCD placeholder did not resolve: $PAPI_BCD_OUTPUT" >&2
+    exit 1
+  fi
+  echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."
+fi
+
+echo "$PROJECT $MC_VERSION startup, global scheduler, /rtime, info, reload, and optional PlaceholderAPI smoke tests passed."

@@ -34,3 +34,27 @@ jobs:
         env:
           PROJECT_VERSION: 0.1.0-SNAPSHOT
         run: bash scripts/smoke-server.sh "${{ matrix.project }}"
+
+  placeholderapi-smoke:
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [paper, folia]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.2.1'
+      - name: Build plugin
+        run: ./gradlew --no-daemon :realtime-paper:shadowJar
+      - name: Start server with PlaceholderAPI and parse placeholders
+        env:
+          PROJECT_VERSION: 0.1.0-SNAPSHOT
+          WITH_PLACEHOLDERAPI: 'true'
+        run: bash scripts/smoke-server.sh "${{ matrix.project }}"
