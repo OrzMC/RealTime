@@ -13,7 +13,7 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR7 | Hangar/Modrinth release automation | Complete | PR4, PR5, PR6 |
 | PR8 | Device administration commands and safe lifecycle | Complete | PR5, PR7 |
 | PR9 | Redstone device diagnostics and output observability | Complete | PR5, PR8 |
-| PR10 | Persistent deferred cleanup for safely retiring devices (PR10a store, PR10b processor, PR10c runtime/ops) | In progress — PR10a/PR10b merged; PR10c active | PR5, PR8, PR9 |
+| PR10 | Persistent deferred cleanup for safely retiring devices (PR10a store, PR10b processor, PR10c runtime/ops) | Complete — PR10a/PR10b/PR10c merged | PR5, PR8, PR9 |
 
 ## Milestones
 
