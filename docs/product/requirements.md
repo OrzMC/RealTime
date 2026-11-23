@@ -24,7 +24,7 @@ RealTime is an independent Minecraft server plugin that provides real-world time
 
 ### Command interface (P0)
 
-Planned commands:
+Implemented commands:
 
 - `/rtime` or `/rtime now`: display current configured local date/time.
 - `/rtime info`: display plugin version, configured timezone, and module status.
@@ -38,7 +38,7 @@ Initial planned placeholders: date, time, datetime, weekday, timezone, and Unix 
 
 ### Redstone clock devices (P1)
 
-Initial output mode is HHmm encoded as four BCD digits. Each digit uses four logical bits, for 16 logical outputs. Device definitions and runtime data must be separate from feature configuration. Block access must run on the owning Folia region. Updating devices must not force-load chunks.
+Initial output mode is HHmm encoded as four BCD digits. Each digit uses four logical bits, for 16 logical outputs. Device definitions and runtime data are stored separately from feature configuration. Block access runs on the owning Folia region. Unloaded chunks are skipped and refreshed on chunk load; device updates must never force-load chunks.
 
 ### Future display extensions (P2)
 

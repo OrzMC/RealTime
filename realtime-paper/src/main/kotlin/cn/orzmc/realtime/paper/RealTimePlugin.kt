@@ -5,6 +5,9 @@ import cn.orzmc.realtime.paper.command.CommandTarget
 import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
+import cn.orzmc.realtime.paper.device.RedstoneConfigurationLoader
+import cn.orzmc.realtime.paper.device.RedstoneDeviceManager
+import cn.orzmc.realtime.paper.device.YamlDeviceRepository
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.command.Command
@@ -18,17 +21,21 @@ class RealTimePlugin :
     JavaPlugin(),
     TabExecutor {
     private val configurationLoader = RealTimeConfigurationLoader()
+    private val redstoneConfigurationLoader = RedstoneConfigurationLoader()
 
     @Volatile
     private var runtimeState: RuntimeState? = null
 
     private lateinit var commandHandler: RealTimeCommandHandler
     private var schedulerAdapter: PaperFoliaScheduler? = null
+    private var redstoneDeviceManager: RedstoneDeviceManager? = null
 
     override fun onEnable() {
         saveDefaultConfig()
         ensureBundledResource("messages.yml")
         ensureBundledResource("modules/command.yml")
+        ensureBundledResource("modules/redstone.yml")
+        ensureBundledResource("data/devices.yml")
 
         try {
             runtimeState = createRuntimeState()
@@ -63,6 +70,13 @@ class RealTimePlugin :
         schedulerAdapter?.runGlobal {
             logger.info("RealTime global scheduler adapter ready.")
         }
+        redstoneDeviceManager =
+            RedstoneDeviceManager(
+                server = server,
+                scheduler = checkNotNull(schedulerAdapter),
+                stateProvider = { checkNotNull(runtimeState) },
+                logger = logger,
+            ).also { it.start(this) }
 
         val configuration = checkNotNull(runtimeState).configuration
         logger.info(
@@ -72,6 +86,7 @@ class RealTimePlugin :
     }
 
     override fun onDisable() {
+        redstoneDeviceManager = null
         schedulerAdapter?.cancelAll()
         schedulerAdapter = null
         runtimeState = null
@@ -94,6 +109,8 @@ class RealTimePlugin :
 
     private fun createRuntimeState(): RuntimeState {
         val configuration = configurationLoader.load(dataFolder)
+        val redstoneConfiguration = redstoneConfigurationLoader.load(dataFolder)
+        val devices = YamlDeviceRepository(dataFolder).load()
         return RuntimeState(
             configuration = configuration,
             timeService =
@@ -103,6 +120,8 @@ class RealTimePlugin :
                     locale = configuration.locale,
                 ),
             messages = MessageCatalog(configuration.messages),
+            redstoneConfiguration = redstoneConfiguration,
+            devices = devices,
         )
     }
 
@@ -110,6 +129,7 @@ class RealTimePlugin :
         runCatching {
             val candidate = createRuntimeState()
             runtimeState = candidate
+            redstoneDeviceManager?.requestRefresh()
             candidate
         }.onFailure { exception ->
             logger.warning(

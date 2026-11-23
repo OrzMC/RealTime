@@ -30,7 +30,7 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-PR1–PR3 are merged. PR4 adds a Paper/Folia scheduler facade with global, region, and entity ownership, tracked task handles, entity-retirement handling, and cancellation on plugin disable. Region scheduling is never used for entity work; the adapter exposes no generic asynchronous Bukkit callback.
+PR1–PR4 are merged. PR5 adds the pure Kotlin HHmm BCD encoder and validated device model, versioned YAML persistence, and a Paper/Folia redstone manager. The manager calculates frames globally, updates REDSTONE_WIRE blocks only on owning regions, skips unloaded chunks, and refreshes outputs on chunk load.
 
 
 ### Paper/Folia scheduler ownership
@@ -46,3 +46,8 @@ PR4 provides `PaperFoliaScheduler` over the Paper 26.3 scheduler APIs:
 - No generic asynchronous Bukkit callback is exposed. Any future asynchronous work must operate on detached data only and hand world/entity mutations back to the appropriate owning scheduler.
 
 Official Paper 26.3 API references: [GlobalRegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/GlobalRegionScheduler.html), [RegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/RegionScheduler.html), [EntityScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/EntityScheduler.html).
+
+
+### BCD redstone devices
+
+The core maps local HHmm to sixteen logical BCD outputs. The Paper adapter persists validated device records in `data/devices.yml`; the optional redstone module is disabled by default. Global work calculates the frame, region work checks `World.isChunkLoaded` before any block lookup, and `ChunkLoadEvent` refreshes outputs when chunks become available. The physical output block must be `REDSTONE_WIRE`; bit 1 maps to the configured output power (1–15), bit 0 maps to 0. See [redstone device configuration](../development/redstone-devices.md).
