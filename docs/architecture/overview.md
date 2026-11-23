@@ -51,3 +51,8 @@ Official Paper 26.3 API references: [GlobalRegionScheduler](https://jd.papermc.i
 ### BCD redstone devices
 
 The core maps local HHmm to sixteen logical BCD outputs. The Paper adapter persists validated device records in `data/devices.yml`; the optional redstone module is disabled by default. Global work calculates the frame, region work checks `World.isChunkLoaded` before any block lookup, and `ChunkLoadEvent` refreshes outputs when chunks become available. The physical output block must be `REDSTONE_WIRE`; bit 1 maps to the configured output power (1–15), bit 0 maps to 0. See [redstone device configuration](../development/redstone-devices.md).
+
+
+### Optional PlaceholderAPI adapter
+
+The optional Paper adapter registers an internal `realtime` expansion only when PlaceholderAPI is installed. Its API dependency is compile-only and is excluded from the shaded JAR. The bridge is isolated so the main plugin loads without PlaceholderAPI. Expansion requests read the current immutable runtime state and never depend on a player context. The expansion unregisters when RealTime disables.
