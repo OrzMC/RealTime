@@ -5,6 +5,10 @@ import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.DeviceAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupJob
+import cn.orzmc.realtime.paper.device.DeviceCleanupOutput
+import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
@@ -207,17 +211,99 @@ class RealTimeCommandHandlerTest {
         assertTrue(handler.complete(unauthorized, arrayOf("device", "info", "")).isEmpty())
     }
 
+    @Test
+    fun cleanupQueueListRequiresCommandPermission() {
+        val target = RecordingTarget(emptySet())
+        val handler = handler(cleanupAdministration = RecordingCleanupAdministration(listOf(cleanupJob())))
+
+        handler.execute(target, arrayOf("device", "cleanup", "list"))
+
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+    }
+
+    @Test
+    fun cleanupRetryRequiresAdminPermission() {
+        val job = cleanupJob(attention = true)
+        val administration = RecordingCleanupAdministration(listOf(job))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler(cleanupAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "cleanup", "retry", job.id.toString()))
+
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+        assertEquals(0, administration.retryCount)
+    }
+
+    @Test
+    fun cleanupQueueListShowsPendingAndAttentionCounts() {
+        val job = cleanupJob(attention = true)
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler(cleanupAdministration = RecordingCleanupAdministration(listOf(job)))
+
+        handler.execute(target, arrayOf("device", "cleanup", "list"))
+
+        assertTrue(target.messages.any { it.contains("cleanup jobs 1") })
+        assertTrue(target.messages.any { it.contains("clock") && it.contains("pending 15") && it.contains("attention 1") })
+    }
+
+    @Test
+    fun cleanupRetryIsAvailableToAdminsAndCallsAdministration() {
+        val job = cleanupJob(attention = true)
+        val administration = RecordingCleanupAdministration(listOf(job))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+        val handler = handler(cleanupAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "cleanup", "retry", job.id.toString()))
+
+        assertEquals(1, administration.retryCount)
+        assertTrue(target.messages.single().contains("retry queued"))
+    }
+
+    @Test
+    fun cleanupTabCompletionHidesRetryFromReadOnlyUsers() {
+        val job = cleanupJob(attention = true)
+        val handler = handler(cleanupAdministration = RecordingCleanupAdministration(listOf(job)))
+        val readOnly = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val admin = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+
+        assertEquals(listOf("list"), handler.complete(readOnly, arrayOf("device", "cleanup", "")))
+        assertEquals(listOf("retry"), handler.complete(admin, arrayOf("device", "cleanup", "")))
+        assertEquals(listOf(job.id.toString()), handler.complete(admin, arrayOf("device", "cleanup", "retry", "")))
+    }
+
     private fun handler(
         reload: () -> Result<RuntimeState> = { Result.success(state()) },
-        deviceAdministration: DeviceAdministration? = null,
+        deviceAdministration: DeviceAdministration? = RecordingDeviceAdministration(emptyList()),
         deviceDiagnostics: DeviceDiagnostics? = null,
+        cleanupAdministration: DeviceCleanupAdministration? = null,
     ) = RealTimeCommandHandler(
         pluginVersion = "1.2.3",
         currentState = ::state,
         reload = reload,
         deviceAdministration = deviceAdministration,
         deviceDiagnostics = deviceDiagnostics,
+        cleanupAdministration = cleanupAdministration,
     )
+
+    private fun cleanupJob(attention: Boolean = false): DeviceCleanupJob {
+        val device = device()
+        val original =
+            DeviceCleanupJob.fromDevice(device, UUID.randomUUID())
+        return if (!attention) {
+            original
+        } else {
+            original.copy(
+                outputs =
+                    original.outputs.mapIndexed { index, output ->
+                        if (index == 0) {
+                            DeviceCleanupOutput(output.output, DeviceCleanupStatus.NEEDS_ATTENTION, "found STONE")
+                        } else {
+                            output
+                        }
+                    },
+            )
+        }
+    }
 
     private fun diagnosticsSnapshot() =
         RedstoneDiagnosticsSnapshot(
@@ -275,6 +361,13 @@ class RealTimeCommandHandlerTest {
                         "command.device.error" to "{prefix}error {reason}",
                         "command.device.unavailable" to "{prefix}unavailable",
                         "command.device.status.header" to "{prefix}device diagnostics",
+                        "command.device.cleanup.header" to "{prefix}cleanup jobs {count}",
+                        "command.device.cleanup.empty" to "{prefix}cleanup empty",
+                        "command.device.cleanup.item" to "{prefix}{name} {id} {world} pending {pending} attention {attention}",
+                        "command.device.cleanup.retry.success" to "{prefix}retry queued {id}",
+                        "command.device.cleanup.invalid-id" to "{prefix}cleanup invalid {id}",
+                        "command.device.cleanup.not-found" to "{prefix}cleanup not found {id}",
+                        "command.device.cleanup.error" to "{prefix}cleanup error {reason}",
                         "command.device.status.devices" to "{prefix}devices {configured} enabled {enabled} outputs {outputs}",
                         "command.device.status.checks" to "{prefix}checks {checks} unloaded {unloaded} stale {stale}",
                         "command.device.status.outcomes" to
@@ -331,6 +424,19 @@ class RealTimeCommandHandlerTest {
                 )
             devices[devices.indexOf(current)] = updated
             return updated
+        }
+    }
+
+    private class RecordingCleanupAdministration(
+        private val jobs: List<DeviceCleanupJob>,
+    ) : DeviceCleanupAdministration {
+        var retryCount = 0
+
+        override fun list(): List<DeviceCleanupJob> = jobs
+
+        override fun retry(jobId: UUID): DeviceCleanupJob {
+            retryCount += 1
+            return jobs.first { it.id == jobId }
         }
     }
 

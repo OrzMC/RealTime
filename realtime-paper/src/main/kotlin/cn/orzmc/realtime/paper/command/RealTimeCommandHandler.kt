@@ -2,6 +2,9 @@ package cn.orzmc.realtime.paper.command
 
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
+import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
@@ -14,6 +17,7 @@ class RealTimeCommandHandler(
     private val reload: () -> Result<RuntimeState>,
     private val deviceAdministration: DeviceAdministration? = null,
     private val deviceDiagnostics: DeviceDiagnostics? = null,
+    private val cleanupAdministration: DeviceCleanupAdministration? = null,
 ) {
     fun execute(
         target: CommandTarget,
@@ -66,6 +70,7 @@ class RealTimeCommandHandler(
                         add("list")
                         add("info")
                         add("status")
+                        if (cleanupAdministration != null) add("cleanup")
                     }
                     if (isAdmin) {
                         add("enable")
@@ -76,6 +81,25 @@ class RealTimeCommandHandler(
         }
 
         val subcommand = args[1].lowercase(Locale.ROOT)
+        if (args.size == 3 && subcommand == "cleanup" && cleanupAdministration != null) {
+            val candidates =
+                buildList {
+                    if (canRead) add("list")
+                    if (isAdmin) add("retry")
+                }
+            return candidates.filter { it.startsWith(args[2].lowercase(Locale.ROOT)) }
+        }
+
+        if (args.size == 4 && subcommand == "cleanup" && args[2].equals("retry", true) && isAdmin) {
+            val prefix = args[3].lowercase(Locale.ROOT)
+            return cleanupAdministration
+                ?.list()
+                .orEmpty()
+                .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
+                .map { it.id.toString() }
+                .filter { it.startsWith(prefix) }
+        }
+
         val canReadIds = canRead && subcommand == "info"
         val canMutateIds = isAdmin && subcommand in setOf("enable", "disable")
         if (args.size == 3 && (canReadIds || canMutateIds)) {
@@ -117,6 +141,7 @@ class RealTimeCommandHandler(
                     showDeviceInfo(target, state, device)
                 }
             }
+            "cleanup" -> handleDeviceCleanup(target, args.drop(1), state)
             "status" -> {
                 if (args.size != 1) return sendUsage(target, state)
                 if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
@@ -149,6 +174,91 @@ class RealTimeCommandHandler(
             else -> sendUsage(target, state)
         }
     }
+
+    private fun handleDeviceCleanup(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+    ) {
+        val administration = cleanupAdministration
+        if (administration == null) {
+            target.sendMessage(state.messages.render("command.device.unavailable"))
+            return
+        }
+
+        when (args.firstOrNull()?.lowercase(Locale.ROOT)) {
+            "list" -> {
+                if (args.size != 1) return sendUsage(target, state)
+                if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
+                val jobs = administration.list()
+                if (jobs.isEmpty()) {
+                    target.sendMessage(state.messages.render("command.device.cleanup.empty"))
+                    return
+                }
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.cleanup.header",
+                        mapOf("count" to jobs.size.toString()),
+                    ),
+                )
+                jobs.forEach { job ->
+                    target.sendMessage(
+                        state.messages.render(
+                            "command.device.cleanup.item",
+                            mapOf(
+                                "name" to job.deviceName,
+                                "id" to job.id.toString(),
+                                "world" to job.worldName,
+                                "pending" to job.outputs.count { it.status == DeviceCleanupStatus.PENDING }.toString(),
+                                "attention" to job.outputs.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }.toString(),
+                            ),
+                        ),
+                    )
+                }
+            }
+            "retry" -> {
+                if (args.size != 2) return sendUsage(target, state)
+                if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
+                val id = parseCleanupJobId(target, state, args[1]) ?: return
+                runCatching { administration.retry(id) }
+                    .fold(
+                        onSuccess = { job ->
+                            target.sendMessage(
+                                state.messages.render(
+                                    "command.device.cleanup.retry.success",
+                                    mapOf("id" to job.id.toString()),
+                                ),
+                            )
+                        },
+                        onFailure = { exception ->
+                            val key =
+                                if (exception is DeviceCleanupJobNotFoundException) {
+                                    "command.device.cleanup.not-found"
+                                } else {
+                                    "command.device.cleanup.error"
+                                }
+                            target.sendMessage(
+                                state.messages.render(
+                                    key,
+                                    mapOf("id" to id.toString(), "reason" to (exception.message ?: "unknown error")),
+                                ),
+                            )
+                        },
+                    )
+            }
+            else -> sendUsage(target, state)
+        }
+    }
+
+    private fun parseCleanupJobId(
+        target: CommandTarget,
+        state: RuntimeState,
+        raw: String,
+    ): UUID? =
+        runCatching { UUID.fromString(raw) }.getOrElse {
+            target.sendMessage(state.messages.render("command.device.cleanup.invalid-id", mapOf("id" to raw)))
+            null
+        }
 
     private fun showDeviceStatus(
         target: CommandTarget,

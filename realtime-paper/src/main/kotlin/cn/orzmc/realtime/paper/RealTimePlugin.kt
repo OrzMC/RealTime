@@ -6,6 +6,7 @@ import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
 import cn.orzmc.realtime.paper.device.DeviceAdministrationService
+import cn.orzmc.realtime.paper.device.DeviceCleanupAdministrationService
 import cn.orzmc.realtime.paper.device.DeviceCleanupManager
 import cn.orzmc.realtime.paper.device.DeviceRetirementService
 import cn.orzmc.realtime.paper.device.DeviceStoreSnapshot
@@ -37,6 +38,7 @@ class RealTimePlugin :
     private var deviceAdministration: DeviceAdministrationService? = null
     private var deviceRetirementService: DeviceRetirementService? = null
     private var deviceCleanupManager: DeviceCleanupManager? = null
+    private var cleanupAdministration: DeviceCleanupAdministrationService? = null
     private var schedulerAdapter: PaperFoliaScheduler? = null
     private var redstoneDeviceManager: RedstoneDeviceManager? = null
     private var placeholderExpansion: Any? = null
@@ -94,6 +96,15 @@ class RealTimePlugin :
                 requestCleanup = { deviceCleanupManager?.requestRefresh() },
             )
 
+        cleanupAdministration =
+            DeviceCleanupAdministrationService(
+                stateLock = runtimeStateLock,
+                stateProvider = { checkNotNull(runtimeState) },
+                persistStore = deviceRepository::save,
+                replaceState = { runtimeState = it },
+                requestCleanup = { deviceCleanupManager?.requestRefresh() },
+            )
+
         deviceAdministration =
             DeviceAdministrationService(
                 stateLock = runtimeStateLock,
@@ -112,6 +123,7 @@ class RealTimePlugin :
                 reload = ::reloadRuntimeState,
                 deviceAdministration = checkNotNull(deviceAdministration),
                 deviceDiagnostics = redstoneDeviceManager,
+                cleanupAdministration = cleanupAdministration,
             )
 
         val command = getCommand("rtime")
@@ -148,6 +160,7 @@ class RealTimePlugin :
         deviceAdministration = null
         deviceRetirementService = null
         deviceCleanupManager = null
+        cleanupAdministration = null
         redstoneDeviceManager = null
         schedulerAdapter?.cancelAll()
         schedulerAdapter = null

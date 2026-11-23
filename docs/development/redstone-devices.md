@@ -38,7 +38,7 @@ cleanup-jobs:
       - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
 ```
 
-The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b/PR10c still need to implement and verify the cleanup processor. No in-game remove command is available yet.
+The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. No in-game remove command is available yet.
 
 ## HHmm BCD output layout
 
@@ -107,6 +107,8 @@ The device records remain YAML-defined so each of the 16 output positions is exp
 | `/rtime device list` | `realtime.command` | Lists configured devices, UUID, world, and enabled state |
 | `/rtime device info <uuid>` | `realtime.command` | Shows metadata and all 16 bit-to-coordinate mappings |
 | `/rtime device status` | `realtime.command` | Shows aggregate output health and refresh counters |
+| `/rtime device cleanup list` | `realtime.command` | Lists durable cleanup jobs with pending and operator-attention counts |
+| `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Requeues only `NEEDS_ATTENTION` outputs after an operator has corrected their blocks |
 | `/rtime device enable <uuid>` | `realtime.admin` | Persists enabled state and schedules a redstone refresh |
 | `/rtime device disable <uuid>` | `realtime.admin` | Persists disabled state and schedules a redstone refresh |
 
@@ -114,7 +116,7 @@ Use the full UUID shown by `device list`; device names are labels and are not id
 
 These commands never inspect or mutate world blocks directly. The redstone manager receives a refresh request and performs all world/block access through the existing Paper/Folia scheduler ownership rules. Disabled devices remain in the device store so their outputs can be driven to zero when their chunks are loaded.
 
-There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. PR10 is in progress. PR10a has added the schema-v2 store, but the deferred cleanup processor is not yet implemented. Do not remove device records through runtime commands or by any automated process that could lose unloaded output coordinates until PR10b/PR10c are merged and verified.
+There is intentionally no in-game device remove command yet. PR10b now contains the crash-safe retirement service and deferred cleanup processor, but the service is not exposed as a player-facing command. Do not manually delete device records or cleanup jobs from YAML: retirement must atomically persist the active-device removal and all 16 cleanup coordinates. While PR10c is in progress, operators can inspect the durable queue and retry `NEEDS_ATTENTION` outputs after manually correcting the target block. The remove command remains blocked until device-specific Paper/Folia restart and chunk-load recovery tests pass.
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
 

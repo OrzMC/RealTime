@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR9 merged.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, optional PlaceholderAPI integration, device administration, and aggregate diagnostics are implemented. PR10 (deferred cleanup for safely retiring devices) is in progress; schema v2 device/cleanup-job persistence and v1 migration are merged, while the crash-safe region cleanup processor is the next implementation slice.
+> **Status: PR1–PR9 and PR10a/PR10b merged.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, optional PlaceholderAPI integration, device administration, aggregate diagnostics, crash-safe retirement, and region-owned deferred cleanup are implemented. PR10c is in progress: device-specific Paper/Folia restart/chunk-load recovery tests and cleanup queue operator diagnostics/retry. The remove command remains disabled.
 
 ## Goals
 
@@ -63,10 +63,12 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | `/rtime device list` | `realtime.command` | List configured device IDs and status |
 | `/rtime device info <uuid>` | `realtime.command` | Inspect the 16 output coordinates |
 | `/rtime device status` | `realtime.command` | View aggregate redstone output diagnostics |
+| `/rtime device cleanup list` | `realtime.command` | Inspect deferred cleanup queue |
+| `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Retry manually corrected `NEEDS_ATTENTION` outputs |
 | `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
 | `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
 
-Device records remain YAML-defined. In-game deletion remains disabled until PR10 implements a persistent deferred-cleanup queue that can safely clear outputs in unloaded chunks.
+Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. In-game device removal remains disabled until PR10c runtime recovery acceptance passes and a separate remove-command PR is reviewed.
 
 ## Docs
 

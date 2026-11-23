@@ -13,6 +13,15 @@ command:
     failure: '{prefix}&c配置重新加载失败，旧配置继续生效：&f{reason}'
   device:
     unavailable: '{prefix}&c设备管理服务当前不可用。'
+    cleanup:
+      header: '{prefix}&b待清理设备队列（{count}）'
+      empty: '{prefix}&7当前没有待清理设备。'
+      item: '{prefix}&f{name} &7[{id}] &8世界：&f{world} &8待处理：&e{pending} &8需人工处理：&c{attention}'
+      retry:
+        success: '{prefix}&a已重新排队清理任务：&f{id}'
+      invalid-id: '{prefix}&c清理任务 ID 格式无效：&f{id}'
+      not-found: '{prefix}&c未找到清理任务：&f{id}'
+      error: '{prefix}&c清理任务操作失败：&f{reason}'
     status:
       header: '{prefix}&b设备输出诊断'
       devices: '{prefix}&7配置设备：&f{configured} &7启用：&f{enabled} &7输出点：&f{outputs}'
@@ -41,4 +50,4 @@ command:
     error: '{prefix}&c设备操作或刷新失败：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device enable|device disable]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device cleanup list|device cleanup retry|device enable|device disable]'
