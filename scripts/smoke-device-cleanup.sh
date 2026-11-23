@@ -209,16 +209,14 @@ if [[ "$PENDING_READY" != "1" ]]; then
   exit 1
 fi
 
-rcon execute if loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_IS_LOADED >/dev/null || true
-if grep -Fq 'REALTIME_CLEANUP_CHUNK_IS_LOADED' "$WORK_DIR/server.log"; then
-  cat "$WORK_DIR/server.log"
-  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT." >&2
+LOADED_CHECK="$(rcon execute if loaded 1600 64 0 run list)"
+UNLOADED_CHECK="$(rcon execute unless loaded 1600 64 0 run list)"
+if grep -Fq 'Test passed' <<< "$LOADED_CHECK"; then
+  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT: $LOADED_CHECK" >&2
   exit 1
 fi
-rcon execute unless loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_STILL_UNLOADED >/dev/null || true
-grep -Fq 'REALTIME_CLEANUP_CHUNK_STILL_UNLOADED' "$WORK_DIR/server.log" || {
-  cat "$WORK_DIR/server.log"
-  echo "Unable to prove deferred output chunk remained unloaded on $PROJECT." >&2
+grep -Fq 'Test passed' <<< "$UNLOADED_CHECK" || {
+  echo "Unable to prove deferred output chunk remained unloaded on $PROJECT: $UNLOADED_CHECK" >&2
   exit 1
 }
 
