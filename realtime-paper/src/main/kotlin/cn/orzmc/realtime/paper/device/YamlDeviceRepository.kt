@@ -44,16 +44,12 @@ class YamlDeviceRepository(
             rawDevices.mapIndexed { index, raw ->
                 parseDevice(raw, index)
             }
-        if (devices.map(RedstoneDevice::id).toSet().size != devices.size) {
-            throw DeviceRepositoryException("$DEVICE_FILE: device IDs must be unique")
-        }
+        validateDevices(devices, "$DEVICE_FILE")
         return devices
     }
 
     fun save(devices: List<RedstoneDevice>) {
-        if (devices.map(RedstoneDevice::id).toSet().size != devices.size) {
-            throw DeviceRepositoryException("Device IDs must be unique")
-        }
+        validateDevices(devices, "Device store")
 
         file.parentFile?.mkdirs()
         val yaml = YamlConfiguration()
@@ -104,6 +100,24 @@ class YamlDeviceRepository(
             throw DeviceRepositoryException("Unable to save $DEVICE_FILE", exception)
         } finally {
             temporaryFile.delete()
+        }
+    }
+
+    private fun validateDevices(
+        devices: List<RedstoneDevice>,
+        context: String,
+    ) {
+        if (devices.map(RedstoneDevice::id).toSet().size != devices.size) {
+            throw DeviceRepositoryException("$context: device IDs must be unique")
+        }
+        val positions =
+            devices.flatMap { device ->
+                device.outputs.map { output ->
+                    Triple(device.worldId, output.x, output.z) to output.y
+                }
+            }
+        if (positions.toSet().size != positions.size) {
+            throw DeviceRepositoryException("$context: output block positions must be unique across devices")
         }
     }
 
