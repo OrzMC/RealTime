@@ -52,6 +52,27 @@ class DeviceRetirementServiceTest {
     }
 
     @Test
+    fun `command retirement defers world UUID resolution to the cleanup manager`() {
+        val device = device(enabled = false)
+        val initial = state(listOf(device))
+        var active = initial
+        val service =
+            DeviceRetirementService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistStore = {},
+                replaceState = { active = it },
+                requestCleanup = {},
+            )
+
+        val job = service.retire(device.id)
+
+        assertEquals(null, job.worldId)
+        assertEquals(job.id, active.cleanupJobs.single().id)
+        assertTrue(active.devices.isEmpty())
+    }
+
+    @Test
     fun `refuses to retire an enabled device`() {
         val device = device(enabled = true)
         val initial = state(listOf(device))
