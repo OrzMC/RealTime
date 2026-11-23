@@ -31,10 +31,22 @@ class DeviceCleanupManager(
     private val persistStore: (DeviceStoreSnapshot) -> Unit,
     private val replaceState: (RuntimeState) -> Unit,
     private val logger: Logger,
-) : Listener {
+) : Listener, DeviceCleanupDiagnostics {
     private val inFlight = ConcurrentHashMap.newKeySet<CleanupKey>()
     private val pendingResults = ConcurrentLinkedQueue<CleanupResult>()
     private val drainScheduled = AtomicBoolean(false)
+
+    override fun snapshot(): DeviceCleanupDiagnosticsSnapshot {
+        val jobs = stateProvider().cleanupJobs
+        return DeviceCleanupDiagnosticsSnapshot(
+            jobs = jobs.size,
+            pendingOutputs = jobs.sumOf { job -> job.outputs.count { it.status == DeviceCleanupStatus.PENDING } },
+            needsAttentionOutputs =
+                jobs.sumOf { job -> job.outputs.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } },
+            inFlightOutputs = inFlight.size,
+            queuedResults = pendingResults.size,
+        )
+    }
 
     fun start(plugin: Plugin) {
         server.pluginManager.registerEvents(this, plugin)
