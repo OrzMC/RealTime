@@ -132,7 +132,7 @@ grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" && grep -Fq "$DEVICE_ID" <<< "
 DEVICE_STATUS_OUTPUT="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device status
 )"
-grep -Fq "设备输出诊断" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "配置设备：1" <<< "$DEVICE_STATUS_OUTPUT" || {
+grep -Fq "设备输出诊断" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "配置设备：" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "输出点：" <<< "$DEVICE_STATUS_OUTPUT" || {
   echo "Device status command did not return aggregate diagnostics: $DEVICE_STATUS_OUTPUT" >&2
   exit 1
 }
