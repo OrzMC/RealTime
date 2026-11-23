@@ -1,0 +1,273 @@
+package cn.orzmc.realtime.paper.device
+
+import cn.orzmc.realtime.paper.command.RuntimeState
+import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
+import org.bukkit.Location
+import org.bukkit.Material
+import org.bukkit.Server
+import org.bukkit.World
+import org.bukkit.block.data.type.RedstoneWire
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.world.ChunkLoadEvent
+import org.bukkit.event.world.WorldLoadEvent
+import org.bukkit.plugin.Plugin
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.logging.Logger
+
+/**
+ * Executes durable cleanup jobs without loading chunks or crossing Folia
+ * region ownership. Region callbacks only inspect/write their own blocks and
+ * enqueue detached outcomes; persistence is performed by a global callback.
+ */
+class DeviceCleanupManager(
+    private val server: Server,
+    private val scheduler: PaperFoliaScheduler,
+    private val stateLock: Any,
+    private val stateProvider: () -> RuntimeState,
+    private val persistStore: (DeviceStoreSnapshot) -> Unit,
+    private val replaceState: (RuntimeState) -> Unit,
+    private val logger: Logger,
+) : Listener {
+    private val inFlight = ConcurrentHashMap.newKeySet<CleanupKey>()
+    private val pendingResults = ConcurrentLinkedQueue<CleanupResult>()
+    private val drainScheduled = AtomicBoolean(false)
+
+    fun start(plugin: Plugin) {
+        server.pluginManager.registerEvents(this, plugin)
+        scheduler.repeatGlobal(initialDelayTicks = RETRY_INITIAL_TICKS, periodTicks = RETRY_PERIOD_TICKS) {
+            processAllLoadedWorlds()
+        }
+        scheduler.runGlobal {
+            processAllLoadedWorlds()
+        }
+    }
+
+    fun requestRefresh() {
+        scheduler.runGlobal {
+            processAllLoadedWorlds()
+        }
+    }
+
+    @EventHandler
+    fun onChunkLoad(event: ChunkLoadEvent) {
+        val world = event.world
+        val worldId = world.uid
+        val state = stateProvider()
+        state.cleanupJobs.forEach { job ->
+            if (!matchesWorld(job, world.name, worldId)) return@forEach
+            job.outputs
+                .asSequence()
+                .filter { it.status == DeviceCleanupStatus.PENDING }
+                .filter { it.output.x shr 4 == event.chunk.x && it.output.z shr 4 == event.chunk.z }
+                .forEach { output -> scheduleOutput(world, job, output) }
+        }
+    }
+
+    @EventHandler
+    fun onWorldLoad(event: WorldLoadEvent) {
+        val world = event.world
+        scheduler.runGlobal {
+            attachWorldIdentity(world)
+            processWorld(world)
+        }
+    }
+
+    private fun processAllLoadedWorlds() {
+        server.worlds.forEach { world ->
+            attachWorldIdentity(world)
+            processWorld(world)
+        }
+    }
+
+    private fun processWorld(world: World) {
+        val worldId = world.uid
+        stateProvider().cleanupJobs
+            .asSequence()
+            .filter { matchesWorld(it, world.name, worldId) }
+            .forEach { job ->
+                job.outputs
+                    .asSequence()
+                    .filter { it.status == DeviceCleanupStatus.PENDING }
+                    .forEach { output -> scheduleOutput(world, job, output) }
+            }
+    }
+
+    private fun attachWorldIdentity(world: World) {
+        synchronized(stateLock) {
+            val current = stateProvider()
+            val updatedJobs =
+                current.cleanupJobs.map { job ->
+                    if (job.worldId == null && job.worldName == world.name) {
+                        job.copy(worldId = world.uid)
+                    } else {
+                        job
+                    }
+                }
+            if (updatedJobs == current.cleanupJobs) return
+            val updated = current.copy(cleanupJobs = updatedJobs)
+            try {
+                persistStore(DeviceStoreSnapshot(updated.devices, updated.cleanupJobs))
+                replaceState(updated)
+            } catch (exception: Exception) {
+                logger.warning(
+                    "Unable to persist world identity for deferred cleanup in '${world.name}': ${exception.message}",
+                )
+            }
+        }
+    }
+
+    private fun scheduleOutput(
+        world: World,
+        job: DeviceCleanupJob,
+        cleanupOutput: DeviceCleanupOutput,
+    ) {
+        val key = CleanupKey(job.id, cleanupOutput.output.bitIndex)
+        if (!inFlight.add(key)) return
+
+        val output = cleanupOutput.output
+        val location =
+            Location(
+                world,
+                output.x.toDouble(),
+                output.y.toDouble(),
+                output.z.toDouble(),
+            )
+        scheduler.runRegion(location) { target ->
+            var resultQueued = false
+            try {
+                val targetWorld = target.world ?: return@runRegion
+                val chunkX = output.x shr 4
+                val chunkZ = output.z shr 4
+                if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) return@runRegion
+
+                val currentJob =
+                    stateProvider().cleanupJobs.firstOrNull { it.id == job.id }
+                        ?: return@runRegion
+                val currentOutput =
+                    currentJob.outputs.firstOrNull { it.output.bitIndex == output.bitIndex }
+                        ?.takeIf { it.status == DeviceCleanupStatus.PENDING }
+                        ?: return@runRegion
+
+                val block = targetWorld.getBlockAt(output.x, output.y, output.z)
+                val outcome =
+                    if (block.type != Material.REDSTONE_WIRE) {
+                        DeviceCleanupStatus.NEEDS_ATTENTION to "Expected REDSTONE_WIRE, found ${block.type}"
+                    } else {
+                        val wire = block.blockData as? RedstoneWire
+                        if (wire == null) {
+                            DeviceCleanupStatus.NEEDS_ATTENTION to "Block data is not RedstoneWire"
+                        } else {
+                            if (wire.power != 0) {
+                                wire.power = 0
+                                block.setBlockData(wire, true)
+                            }
+                            DeviceCleanupStatus.CLEARED to null
+                        }
+                    }
+                pendingResults.add(
+                    CleanupResult(
+                        jobId = currentJob.id,
+                        bitIndex = currentOutput.output.bitIndex,
+                        status = outcome.first,
+                        detail = outcome.second,
+                    ),
+                )
+                resultQueued = true
+                scheduleResultDrain()
+            } catch (exception: Exception) {
+                logger.warning(
+                    "Deferred cleanup failed for device '${job.deviceName}' output ${output.bitIndex}: ${exception.message}",
+                )
+            } finally {
+                if (!resultQueued) inFlight.remove(key)
+            }
+        }
+    }
+
+    private fun scheduleResultDrain() {
+        if (!drainScheduled.compareAndSet(false, true)) return
+        scheduler.runGlobal {
+            drainResults()
+        }
+    }
+
+    private fun drainResults() {
+        val batch = mutableListOf<CleanupResult>()
+        while (true) {
+            val result = pendingResults.poll() ?: break
+            batch += result
+        }
+
+        try {
+            if (batch.isEmpty()) return
+            synchronized(stateLock) {
+                val current = stateProvider()
+                val resultsByKey = batch.associateBy { CleanupKey(it.jobId, it.bitIndex) }
+                val updatedJobs =
+                    current.cleanupJobs.mapNotNull { job ->
+                        val updatedOutputs =
+                            job.outputs.map { output ->
+                                val result = resultsByKey[CleanupKey(job.id, output.output.bitIndex)]
+                                if (result == null || output.status != DeviceCleanupStatus.PENDING) {
+                                    output
+                                } else {
+                                    DeviceCleanupOutput(output.output, result.status, result.detail)
+                                }
+                            }
+                        if (updatedOutputs.all { it.status == DeviceCleanupStatus.CLEARED }) {
+                            null
+                        } else {
+                            job.copy(outputs = updatedOutputs)
+                        }
+                    }
+                if (updatedJobs != current.cleanupJobs) {
+                    val updated = current.copy(cleanupJobs = updatedJobs)
+                    try {
+                        persistStore(DeviceStoreSnapshot(updated.devices, updated.cleanupJobs))
+                        replaceState(updated)
+                    } catch (exception: Exception) {
+                        // The blocks may already be clear. Leave the durable job pending;
+                        // the next scan retries idempotently and observes power 0.
+                        logger.warning("Unable to persist deferred cleanup progress: ${exception.message}")
+                    }
+                }
+            }
+        } finally {
+            batch.forEach { inFlight.remove(CleanupKey(it.jobId, it.bitIndex)) }
+            drainScheduled.set(false)
+            if (pendingResults.isNotEmpty()) scheduleResultDrain()
+        }
+    }
+
+    private fun matchesWorld(
+        job: DeviceCleanupJob,
+        worldName: String,
+        worldId: UUID,
+    ): Boolean =
+        if (job.worldId != null) {
+            job.worldId == worldId
+        } else {
+            job.worldName == worldName
+        }
+
+    private data class CleanupKey(
+        val jobId: UUID,
+        val bitIndex: Int,
+    )
+
+    private data class CleanupResult(
+        val jobId: UUID,
+        val bitIndex: Int,
+        val status: DeviceCleanupStatus,
+        val detail: String?,
+    )
+
+    private companion object {
+        const val RETRY_INITIAL_TICKS = 20L
+        const val RETRY_PERIOD_TICKS = 100L
+    }
+}
