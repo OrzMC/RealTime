@@ -20,7 +20,12 @@ class RedstoneDevice(
         require(this.outputs.map(DeviceOutput::bitIndex).toSet() == (0 until DeviceOutput.OUTPUT_COUNT).toSet()) {
             "Device output bit indexes must cover 0 through ${DeviceOutput.OUTPUT_COUNT - 1} exactly once"
         }
-        require(this.outputs.map { Triple(it.x, it.y, it.z) }.toSet().size == DeviceOutput.OUTPUT_COUNT) {
+        require(
+            this.outputs
+                .map { Triple(it.x, it.y, it.z) }
+                .toSet()
+                .size == DeviceOutput.OUTPUT_COUNT,
+        ) {
             "Device output block positions must be unique"
         }
     }
