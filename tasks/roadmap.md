@@ -8,8 +8,8 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR2 | Clock-backed RealTime Core | Complete | PR1 |
 | PR3 | Commands and modular configuration | Complete | PR2 |
 | PR4 | Paper/Folia scheduler adapter and runtime tests | Complete | PR3 |
-| PR5 | Device model, BCD encoder, redstone output | In progress | PR2, PR4 |
-| PR6 | Optional PlaceholderAPI integration | Backlog | PR2, PR3 |
+| PR5 | Device model, BCD encoder, redstone output | Complete | PR2, PR4 |
+| PR6 | Optional PlaceholderAPI integration | In progress | PR2, PR3 |
 | PR7 | Hangar/Modrinth release automation | Backlog | PR4, PR5, PR6 |
 
 ## Milestones
