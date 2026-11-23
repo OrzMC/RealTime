@@ -55,7 +55,7 @@ class RedstoneDeviceManager(
     @EventHandler
     fun onChunkLoad(event: ChunkLoadEvent) {
         val state = stateProvider()
-        if (!state.redstoneConfiguration.enabled) return
+        if (!state.configuration.generalEnabled || !state.redstoneConfiguration.enabled) return
 
         val world = event.world
         val chunk = event.chunk
@@ -80,7 +80,7 @@ class RedstoneDeviceManager(
 
     private fun refreshCurrentMinute(force: Boolean) {
         val state = stateProvider()
-        if (!state.redstoneConfiguration.enabled) {
+        if (!state.configuration.generalEnabled || !state.redstoneConfiguration.enabled) {
             lastMinute = null
             return
         }
