@@ -5,6 +5,8 @@ import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
+import cn.orzmc.realtime.paper.device.DeviceMustBeDisabledException
+import cn.orzmc.realtime.paper.device.DeviceRetirement
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
@@ -18,6 +20,7 @@ class RealTimeCommandHandler(
     private val deviceAdministration: DeviceAdministration? = null,
     private val deviceDiagnostics: DeviceDiagnostics? = null,
     private val cleanupAdministration: DeviceCleanupAdministration? = null,
+    private val deviceRetirement: DeviceRetirement? = null,
 ) {
     fun execute(
         target: CommandTarget,
@@ -75,6 +78,7 @@ class RealTimeCommandHandler(
                     if (isAdmin) {
                         add("enable")
                         add("disable")
+                        if (deviceRetirement != null) add("remove")
                     }
                 }
             return candidates.filter { it.startsWith(args[1].lowercase(Locale.ROOT)) }
@@ -96,6 +100,15 @@ class RealTimeCommandHandler(
                 ?.list()
                 .orEmpty()
                 .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
+                .map { it.id.toString() }
+                .filter { it.startsWith(prefix) }
+        }
+
+        if (args.size == 3 && subcommand == "remove" && isAdmin && deviceRetirement != null) {
+            val prefix = args[2].lowercase(Locale.ROOT)
+            return deviceAdministration
+                .list()
+                .filterNot { it.enabled }
                 .map { it.id.toString() }
                 .filter { it.startsWith(prefix) }
         }
@@ -151,6 +164,45 @@ class RealTimeCommandHandler(
                 } else {
                     showDeviceStatus(target, state, diagnostics.snapshot())
                 }
+            }
+            "remove" -> {
+                if (args.size != 2) return sendUsage(target, state)
+                if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
+                val id = parseDeviceId(target, state, args[1]) ?: return
+                val retirement = deviceRetirement
+                if (retirement == null) {
+                    target.sendMessage(state.messages.render("command.device.unavailable"))
+                    return
+                }
+                runCatching { retirement.retire(id, null) }
+                    .fold(
+                        onSuccess = { job ->
+                            target.sendMessage(
+                                state.messages.render(
+                                    "command.device.remove.success",
+                                    mapOf(
+                                        "name" to job.deviceName,
+                                        "id" to job.deviceId.toString(),
+                                        "job" to job.id.toString(),
+                                    ),
+                                ),
+                            )
+                        },
+                        onFailure = { exception ->
+                            val key =
+                                when (exception) {
+                                    is DeviceMustBeDisabledException -> "command.device.remove.must-disable"
+                                    is DeviceNotFoundException -> "command.device.not-found"
+                                    else -> "command.device.error"
+                                }
+                            target.sendMessage(
+                                state.messages.render(
+                                    key,
+                                    mapOf("id" to id.toString(), "reason" to (exception.message ?: "unknown error")),
+                                ),
+                            )
+                        },
+                    )
             }
             "enable", "disable" -> {
                 if (args.size != 2) return sendUsage(target, state)
