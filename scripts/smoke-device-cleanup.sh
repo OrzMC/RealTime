@@ -241,7 +241,7 @@ if [[ "$ATTENTION_READY" != "1" ]]; then
   exit 1
 fi
 
-STONE_PROBE="$(rcon execute if block 1615 64 0 minecraft:stone run list)"
+STONE_PROBE="$(rcon execute if block 1615 64 0 minecraft:stone run time query daytime)"
 echo "Non-wire target probe: $STONE_PROBE"
 if [[ -z "$STONE_PROBE" ]]; then
   cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
