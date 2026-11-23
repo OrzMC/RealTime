@@ -44,9 +44,25 @@ class DeviceCleanupAdministrationServiceTest {
 
         assertEquals(DeviceCleanupStatus.PENDING, retried.outputs.first().status)
         assertEquals(DeviceCleanupStatus.CLEARED, retried.outputs[1].status)
-        assertEquals(DeviceCleanupStatus.PENDING, persisted?.cleanupJobs?.single()?.outputs?.first()?.status)
+        assertEquals(
+            DeviceCleanupStatus.PENDING,
+            persisted
+                ?.cleanupJobs
+                ?.single()
+                ?.outputs
+                ?.first()
+                ?.status,
+        )
         assertEquals(listOf("persist", "publish", "refresh"), events)
-        assertEquals(DeviceCleanupStatus.PENDING, active.cleanupJobs.single().outputs.first().status)
+        assertEquals(
+            DeviceCleanupStatus.PENDING,
+            active
+                .cleanupJobs
+                .single()
+                .outputs
+                .first()
+                .status,
+        )
     }
 
     @Test
@@ -103,7 +119,13 @@ class DeviceCleanupAdministrationServiceTest {
 
         assertEquals(listOf(job), service.list())
         assertEquals(0, persistCount)
-        assertTrue(initial.cleanupJobs.single().outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION })
+        assertTrue(
+            initial
+                .cleanupJobs
+                .single()
+                .outputs
+                .any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION },
+        )
     }
 
     private fun jobWithAttentionOutput(): DeviceCleanupJob {
@@ -113,7 +135,12 @@ class DeviceCleanupAdministrationServiceTest {
             outputs =
                 original.outputs.mapIndexed { index, output ->
                     when (index) {
-                        0 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.NEEDS_ATTENTION, "Expected REDSTONE_WIRE, found STONE")
+                        0 ->
+                            DeviceCleanupOutput(
+                                output.output,
+                                DeviceCleanupStatus.NEEDS_ATTENTION,
+                                "Expected REDSTONE_WIRE, found STONE",
+                            )
                         1 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.CLEARED)
                         else -> output
                     }
