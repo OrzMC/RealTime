@@ -25,7 +25,12 @@ def packet(sock: socket.socket, request_id: int, kind: int, body: str) -> tuple[
 
 
 def main() -> int:
-    host, port, password, command = sys.argv[1], int(sys.argv[2]), sys.argv[3], " ".join(sys.argv[4:])
+    arguments = sys.argv[4:]
+    expected = "RealTime"
+    if arguments and arguments[0] == "--no-expect":
+        expected = None
+        arguments = arguments[1:]
+    host, port, password, command = sys.argv[1], int(sys.argv[2]), sys.argv[3], " ".join(arguments)
     with socket.create_connection((host, port), timeout=5) as sock:
         sock.settimeout(5)
         request_id = 42
@@ -36,7 +41,7 @@ def main() -> int:
         if response_id != request_id + 1:
             raise RuntimeError("RCON command response ID mismatch")
         print(output)
-        if "RealTime" not in output:
+        if expected is not None and expected not in output:
             raise RuntimeError(f"Unexpected /{command} output: {output!r}")
     return 0
 
