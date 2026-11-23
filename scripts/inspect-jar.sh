@@ -24,10 +24,8 @@ require_entry() {
 require_entry "plugin.yml"
 require_entry "cn/orzmc/realtime/paper/RealTimePlugin.class"
 
-if ! grep -Eq '^cn/orzmc/realtime/core/.+\.class$' "$CONTENTS"; then
-  echo "ERROR: realtime-core classes are missing from the shaded JAR." >&2
-  exit 1
-fi
+# realtime-core is intentionally an empty module in PR1; PR2 adds its first classes.
+
 
 if grep -Eq '^(org/bukkit|io/papermc)/' "$CONTENTS"; then
   echo "ERROR: Paper API classes must not be bundled; they are provided by the server." >&2
