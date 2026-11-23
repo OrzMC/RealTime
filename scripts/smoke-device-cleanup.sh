@@ -51,6 +51,7 @@ YAML
 printf 'eula=true\n' > "$WORK_DIR/eula.txt"
 cat > "$WORK_DIR/server.properties" <<PROPERTIES
 server-port=25567
+level-name=world
 online-mode=false
 enable-rcon=true
 rcon.port=$RCON_PORT
@@ -114,6 +115,24 @@ grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
   exit 1
 }
 
+rcon forceload add 0 0 >/dev/null
+rcon forceload add 1600 0 >/dev/null
+for position in "0 64 0" "1600 64 0"; do
+  LOADED=0
+  for _ in $(seq 1 20); do
+    if rcon execute if loaded $position run say REALTIME_SEED_CHUNK_LOADED | grep -Fq 'REALTIME_SEED_CHUNK_LOADED'; then
+      LOADED=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$LOADED" != "1" ]]; then
+    cat "$WORK_DIR/server.log"
+    echo "Could not load seed position $position on $PROJECT." >&2
+    exit 1
+  fi
+done
+
 rcon setblock 0 63 0 minecraft:stone
 rcon setblock 0 64 0 'minecraft:redstone_wire[power=15]'
 for bit in $(seq 1 14); do
@@ -123,9 +142,20 @@ for bit in $(seq 1 14); do
 done
 rcon setblock 1615 63 0 minecraft:stone
 rcon setblock 1615 64 0 minecraft:stone
+rcon forceload remove 0 0 >/dev/null
+rcon forceload remove 1600 0 >/dev/null
+sleep 5
 stop_server
 
-WORLD_UUID="$(python3 - "$WORK_DIR/world/uid.dat" <<'PY'
+UID_FILE="$(find "$WORK_DIR" -type f -name uid.dat -print -quit)"
+if [[ -z "$UID_FILE" ]]; then
+  find "$WORK_DIR" -maxdepth 3 -type d -print
+  echo "World uid.dat was not created by the first $PROJECT boot." >&2
+  exit 1
+fi
+WORLD_DIR="$(dirname "$UID_FILE")"
+WORLD_NAME="$(basename "$WORLD_DIR")"
+WORLD_UUID="$(python3 - "$UID_FILE" <<'PY'
 import pathlib
 import sys
 import uuid
@@ -144,7 +174,7 @@ JOB_ID="00000000-0000-0000-0000-000000000002"
   printf '  - id: %s\n' "$JOB_ID"
   printf '    device-id: %s\n' "$DEVICE_ID"
   printf '    device-name: ci-restart-cleanup\n'
-  printf '    world: world\n'
+  printf '    world: %s\n' "$WORLD_NAME"
   printf '    world-uuid: %s\n' "$WORLD_UUID"
   printf '    outputs:\n'
   for bit in $(seq 0 15); do
@@ -165,6 +195,7 @@ grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
   echo "RealTime did not enable after restart on $PROJECT." >&2
   exit 1
 }
+rcon forceload add 0 0 >/dev/null
 
 PENDING_READY=0
 for _ in $(seq 1 30); do
@@ -240,4 +271,5 @@ for x in 0 1601 1614 1615; do
 done
 
 rcon forceload remove 1600 0 >/dev/null
+rcon forceload remove 0 0 >/dev/null
 echo "$PROJECT cleanup runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, and idempotent power-zero cleanup."
