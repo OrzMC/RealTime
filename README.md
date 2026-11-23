@@ -33,7 +33,7 @@ PaperMC documents `io.papermc.paper:paper-api:26.3.build.+` for the 26.3 API lin
 - `realtime-paper/`: plugin lifecycle, commands, configuration, platform integration.
 - `tasks/`: roadmap and executable task contracts.
 - `.agents/`: roles, workflows, and safety policies.
-- `docs/`: architecture, ADRs, development, testing, release.
+- `docs/`: product requirements, architecture, ADRs, development, testing, release.
 - `scripts/`: common local/agent entry points.
 
 ## Quick start
@@ -56,6 +56,7 @@ Read [AGENTS.md](AGENTS.md), then [tasks/roadmap.md](tasks/roadmap.md). Agents m
 
 ## Docs
 
+- [Product requirements](docs/product/requirements.md)
 - [Architecture](docs/architecture/overview.md)
 - [Development setup](docs/development/setup.md)
 - [Testing strategy](docs/testing/strategy.md)
