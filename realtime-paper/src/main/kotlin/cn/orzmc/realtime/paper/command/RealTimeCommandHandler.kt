@@ -74,7 +74,7 @@ class RealTimeCommandHandler(
 
         val subcommand = args[1].lowercase(Locale.ROOT)
         val canReadIds = canRead && subcommand == "info"
-        val canMutateIds = isAdmin && subcommand in setOf("enable", "disable", "remove")
+        val canMutateIds = isAdmin && subcommand in setOf("enable", "disable")
         if (args.size == 3 && (canReadIds || canMutateIds)) {
             val prefix = args[2].lowercase(Locale.ROOT)
             return deviceAdministration
@@ -83,14 +83,6 @@ class RealTimeCommandHandler(
                 .filter { it.startsWith(prefix) }
         }
 
-        if (
-            args.size == 4 &&
-            isAdmin &&
-            subcommand == "remove" &&
-            "confirm".startsWith(args[3].lowercase(Locale.ROOT))
-        ) {
-            return listOf("confirm")
-        }
         return emptyList()
     }
 
@@ -134,32 +126,6 @@ class RealTimeCommandHandler(
                             target.sendMessage(
                                 state.messages.render(
                                     key,
-                                    mapOf("name" to device.name, "id" to device.id.toString()),
-                                ),
-                            )
-                        },
-                        onFailure = { exception -> sendDeviceFailure(target, state, id, exception) },
-                    )
-            }
-            "remove" -> {
-                if (args.size < 2 || args.size > 3) return sendUsage(target, state)
-                if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
-                if (args.size != 3 || args[2] != "confirm") {
-                    target.sendMessage(
-                        state.messages.render(
-                            "command.device.remove.confirm",
-                            mapOf("id" to args[1]),
-                        ),
-                    )
-                    return
-                }
-                val id = parseDeviceId(target, state, args[1]) ?: return
-                runCatching { administration.remove(id) }
-                    .fold(
-                        onSuccess = { device ->
-                            target.sendMessage(
-                                state.messages.render(
-                                    "command.device.remove.success",
                                     mapOf("name" to device.name, "id" to device.id.toString()),
                                 ),
                             )
