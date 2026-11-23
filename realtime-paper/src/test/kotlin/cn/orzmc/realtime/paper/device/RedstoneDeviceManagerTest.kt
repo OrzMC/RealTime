@@ -14,9 +14,9 @@ import org.bukkit.Chunk
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
-import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.block.Block
 import org.bukkit.block.data.type.RedstoneWire
+import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.PluginManager
 import org.junit.jupiter.api.Assertions.assertEquals
