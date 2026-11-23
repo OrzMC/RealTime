@@ -1,0 +1,20 @@
+name: RealTime
+version: '${project.version}'
+main: cn.orzmc.realtime.paper.RealTimePlugin
+api-version: '26.3'
+folia-supported: true
+authors: [OrzMC]
+website: https://github.com/OrzMC/RealTime
+description: Real-world time services and devices for Paper and Folia.
+commands:
+  rtime:
+    description: Query RealTime plugin status and real-world time.
+    usage: /rtime
+    permission: realtime.command
+permissions:
+  realtime.command:
+    description: Allows use of the RealTime command.
+    default: true
+  realtime.admin:
+    description: Allows administration of RealTime.
+    default: op
