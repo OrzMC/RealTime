@@ -9,6 +9,7 @@ import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJob
 import cn.orzmc.realtime.paper.device.DeviceCleanupOutput
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
+import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
@@ -271,11 +272,51 @@ class RealTimeCommandHandlerTest {
         assertEquals(listOf(job.id.toString()), handler.complete(admin, arrayOf("device", "cleanup", "retry", "")))
     }
 
+    @Test
+    fun removeDeviceRequiresAdminPermission() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val retirement = RecordingRetirementAdministration(cleanupJob())
+        val handler = handler(deviceRetirement = retirement)
+
+        handler.execute(target, arrayOf("device", "remove", retirement.deviceId.toString()))
+
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+        assertEquals(0, retirement.retireCount)
+    }
+
+    @Test
+    fun removeDeviceRetiresDisabledDeviceAndReportsCleanupJob() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+        val retirement = RecordingRetirementAdministration(cleanupJob())
+        val handler = handler(deviceRetirement = retirement)
+
+        handler.execute(target, arrayOf("device", "remove", retirement.deviceId.toString()))
+
+        assertEquals(1, retirement.retireCount)
+        assertTrue(target.messages.single().contains("retired"))
+        assertTrue(target.messages.single().contains(retirement.job.id.toString()))
+    }
+
+    @Test
+    fun removeDeviceIdCompletionIsAdminOnly() {
+        val retirement = RecordingRetirementAdministration(cleanupJob())
+        val handler = handler(deviceRetirement = retirement)
+        val readOnly = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val admin = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+
+        assertFalse(handler.complete(readOnly, arrayOf("device", "remove", "")).contains(retirement.deviceId.toString()))
+        assertEquals(
+            listOf(retirement.deviceId.toString()),
+            handler.complete(admin, arrayOf("device", "remove", "")),
+        )
+    }
+
     private fun handler(
         reload: () -> Result<RuntimeState> = { Result.success(state()) },
         deviceAdministration: DeviceAdministration? = RecordingDeviceAdministration(emptyList()),
         deviceDiagnostics: DeviceDiagnostics? = null,
         cleanupAdministration: DeviceCleanupAdministration? = null,
+        deviceRetirement: DeviceRetirementAdministration? = null,
     ) = RealTimeCommandHandler(
         pluginVersion = "1.2.3",
         currentState = ::state,
@@ -283,6 +324,7 @@ class RealTimeCommandHandlerTest {
         deviceAdministration = deviceAdministration,
         deviceDiagnostics = deviceDiagnostics,
         cleanupAdministration = cleanupAdministration,
+        deviceRetirement = deviceRetirement,
     )
 
     private fun cleanupJob(attention: Boolean = false): DeviceCleanupJob {
@@ -424,6 +466,19 @@ class RealTimeCommandHandlerTest {
                 )
             devices[devices.indexOf(current)] = updated
             return updated
+        }
+    }
+
+    private class RecordingRetirementAdministration(
+        val job: DeviceCleanupJob,
+    ) : DeviceRetirementAdministration {
+        val deviceId: UUID = job.deviceId
+        var retireCount = 0
+
+        override fun retire(id: UUID): DeviceCleanupJob {
+            retireCount += 1
+            require(id == deviceId)
+            return job
         }
     }
 
