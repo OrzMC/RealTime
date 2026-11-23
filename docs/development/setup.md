@@ -3,17 +3,19 @@
 ## Requirements
 
 - JDK 25.
-- Gradle 9.2.1 or a compatible Gradle 9.x release.
-- Git and network access to Maven Central and PaperMC Maven.
+- Git.
+- Network access to Maven Central, PaperMC Maven, and services.gradle.org for the first Wrapper distribution download.
 
 ## Bootstrap
 
-The initial scaffold does not include the binary Gradle Wrapper JAR. Until official wrapper artifacts are generated, install Gradle locally and use the scripts. Do not commit a fabricated wrapper JAR.
+The repository includes the official Gradle Wrapper scripts and JAR from Gradle 9.2.1. Use the wrapper; it downloads and verifies the configured Gradle distribution.
 
 ```bash
 ./scripts/doctor.sh
 ./scripts/verify.sh
 ```
+
+The wrapper distribution is pinned to Gradle 9.2.1 in `gradle/wrapper/gradle-wrapper.properties`. Do not replace the wrapper JAR with a hand-built or placeholder binary.
 
 ## IDE
 
@@ -21,7 +23,7 @@ Import as a Gradle Kotlin DSL project and use JDK 25 for Gradle and project tool
 
 ## Paper API
 
-PaperMC documents `io.papermc.paper:paper-api:26.3.build.+` for the 26.3 line. Generate and commit dependency lock state after a successful resolution. Review lockfile changes during dependency updates.
+PaperMC documents `io.papermc.paper:paper-api:26.3.build.+` for the 26.3 line. Generate and commit dependency lock state after successful resolution. Review lockfile changes during dependency updates.
 
 ## Server testing
 

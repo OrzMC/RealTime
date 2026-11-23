@@ -15,7 +15,7 @@ Create an independently buildable Kotlin/Paper plugin skeleton and establish the
 - Project identity, architecture, ADRs, development/testing/release docs.
 - AGENTS.md, Claude Code entry point, roles, workflows, permission/isolation policies.
 - Roadmap and task contracts for PR2–PR7.
-- Local verification scripts, CI, PR and issue templates.
+- Official Gradle Wrapper, local verification scripts, CI, PR and issue templates.
 
 ## Acceptance criteria
 
@@ -23,7 +23,7 @@ Create an independently buildable Kotlin/Paper plugin skeleton and establish the
 - [x] Agent instructions, workflows, and safety policies committed to the PR branch.
 - [x] Paper API coordinate follows official Paper 26.3 documentation.
 - [x] CI and local validation entry points defined.
-- [ ] Official Gradle Wrapper artifacts added and verified.
+- [x] Official Gradle Wrapper 9.2.1 artifacts included from the Gradle distribution repository.
 - [ ] Gradle build and tests pass in CI.
 - [ ] Paper server startup and command smoke test recorded.
 - [ ] Folia server startup and command smoke test recorded.

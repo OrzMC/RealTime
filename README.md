@@ -17,7 +17,7 @@
 | Area | Baseline |
 |---|---|
 | Language / JDK | Kotlin / 25 |
-| Build | Gradle Kotlin DSL |
+| Build | Gradle Kotlin DSL / Gradle Wrapper 9.2.1 |
 | Minecraft API | Paper API 26.3 line |
 | Platforms | Paper + Folia |
 | Minimum API | 26.3 |
@@ -38,7 +38,7 @@ PaperMC documents `io.papermc.paper:paper-api:26.3.build.+` for the 26.3 API lin
 
 ## Quick start
 
-Requirements: JDK 25 and Gradle 9.2.1 (or compatible Gradle 9.x).
+Requirements: JDK 25.
 
 ```bash
 ./scripts/doctor.sh
@@ -46,9 +46,9 @@ Requirements: JDK 25 and Gradle 9.2.1 (or compatible Gradle 9.x).
 ./scripts/package.sh
 ```
 
-The initial scaffold intentionally does not contain a fabricated Gradle Wrapper JAR. Until official wrapper artifacts are generated, scripts use an installed Gradle executable; CI installs the pinned Gradle version. See [development setup](docs/development/setup.md).
+The Gradle Wrapper is included and pins Gradle 9.2.1. The first build downloads the Gradle distribution and project dependencies.
 
-The distributable shaded JAR is expected at `realtime-paper/build/libs/RealTime-<version>.jar`.
+The distributable shaded JAR is expected at `realtime-paper/build/libs/RealTime-0.1.0-SNAPSHOT.jar` for the initial development version.
 
 ## AI-agent development
 
