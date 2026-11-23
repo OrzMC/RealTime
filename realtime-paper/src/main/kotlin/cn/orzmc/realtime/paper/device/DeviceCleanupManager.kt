@@ -162,8 +162,8 @@ class DeviceCleanupManager(
 
                     val currentJob =
                         stateProvider()
-                                .cleanupJobs
-                                .firstOrNull { it.id == job.id }
+                            .cleanupJobs
+                            .firstOrNull { it.id == job.id }
                             ?: return@runRegion
                     val currentOutput =
                         currentJob.outputs
