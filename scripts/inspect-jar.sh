@@ -31,7 +31,7 @@ fi
 
 PLUGIN_DESCRIPTOR="$(unzip -p "$ARTIFACT" plugin.yml)"
 grep -Fq "main: cn.orzmc.realtime.paper.RealTimePlugin" <<< "$PLUGIN_DESCRIPTOR"
-grep -Fq "version: ${VERSION}" <<< "$PLUGIN_DESCRIPTOR"
+grep -Fq "version: '${VERSION}'" <<< "$PLUGIN_DESCRIPTOR"
 grep -Fq "api-version: '26.3'" <<< "$PLUGIN_DESCRIPTOR"
 grep -Fq "folia-supported: true" <<< "$PLUGIN_DESCRIPTOR"
 
