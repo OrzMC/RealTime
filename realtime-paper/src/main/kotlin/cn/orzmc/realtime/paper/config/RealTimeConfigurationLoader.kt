@@ -60,9 +60,10 @@ class RealTimeConfigurationLoader {
         val messages =
             REQUIRED_MESSAGES.associateWith { key ->
                 requiredString(messagesYaml, key, MESSAGES_CONFIG)
-            } + OPTIONAL_MESSAGES.mapValues { (key, fallback) ->
-                if (messagesYaml.contains(key)) requiredString(messagesYaml, key, MESSAGES_CONFIG) else fallback
-            }
+            } +
+                OPTIONAL_MESSAGES.mapValues { (key, fallback) ->
+                    if (messagesYaml.contains(key)) requiredString(messagesYaml, key, MESSAGES_CONFIG) else fallback
+                }
 
         return RealTimeConfiguration(
             generalEnabled = generalEnabled,
