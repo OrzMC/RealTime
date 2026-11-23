@@ -151,54 +151,54 @@ class DeviceCleanupManager(
             )
         try {
             scheduler.runRegion(location) { target ->
-            var resultQueued = false
-            try {
-                val targetWorld = target.world ?: return@runRegion
-                val chunkX = output.x shr 4
-                val chunkZ = output.z shr 4
-                if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) return@runRegion
+                var resultQueued = false
+                try {
+                    val targetWorld = target.world ?: return@runRegion
+                    val chunkX = output.x shr 4
+                    val chunkZ = output.z shr 4
+                    if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) return@runRegion
 
-                val currentJob =
-                    stateProvider().cleanupJobs.firstOrNull { it.id == job.id }
-                        ?: return@runRegion
-                val currentOutput =
-                    currentJob.outputs.firstOrNull { it.output.bitIndex == output.bitIndex }
-                        ?.takeIf { it.status == DeviceCleanupStatus.PENDING }
-                        ?: return@runRegion
+                    val currentJob =
+                        stateProvider().cleanupJobs.firstOrNull { it.id == job.id }
+                            ?: return@runRegion
+                    val currentOutput =
+                        currentJob.outputs.firstOrNull { it.output.bitIndex == output.bitIndex }
+                            ?.takeIf { it.status == DeviceCleanupStatus.PENDING }
+                            ?: return@runRegion
 
-                val block = targetWorld.getBlockAt(output.x, output.y, output.z)
-                val outcome =
-                    if (block.type != Material.REDSTONE_WIRE) {
-                        DeviceCleanupStatus.NEEDS_ATTENTION to "Expected REDSTONE_WIRE, found ${block.type}"
-                    } else {
-                        val wire = block.blockData as? RedstoneWire
-                        if (wire == null) {
-                            DeviceCleanupStatus.NEEDS_ATTENTION to "Block data is not RedstoneWire"
+                    val block = targetWorld.getBlockAt(output.x, output.y, output.z)
+                    val outcome =
+                        if (block.type != Material.REDSTONE_WIRE) {
+                            DeviceCleanupStatus.NEEDS_ATTENTION to "Expected REDSTONE_WIRE, found ${block.type}"
                         } else {
-                            if (wire.power != 0) {
-                                wire.power = 0
-                                block.setBlockData(wire, true)
+                            val wire = block.blockData as? RedstoneWire
+                            if (wire == null) {
+                                DeviceCleanupStatus.NEEDS_ATTENTION to "Block data is not RedstoneWire"
+                            } else {
+                                if (wire.power != 0) {
+                                    wire.power = 0
+                                    block.setBlockData(wire, true)
+                                }
+                                DeviceCleanupStatus.CLEARED to null
                             }
-                            DeviceCleanupStatus.CLEARED to null
                         }
-                    }
-                pendingResults.add(
-                    CleanupResult(
-                        jobId = currentJob.id,
-                        bitIndex = currentOutput.output.bitIndex,
-                        status = outcome.first,
-                        detail = outcome.second,
-                    ),
-                )
-                resultQueued = true
-                scheduleResultDrain()
-            } catch (exception: Exception) {
-                logger.warning(
-                    "Deferred cleanup failed for device '${job.deviceName}' output ${output.bitIndex}: ${exception.message}",
-                )
-            } finally {
-                if (!resultQueued) inFlight.remove(key)
-            }
+                    pendingResults.add(
+                        CleanupResult(
+                            jobId = currentJob.id,
+                            bitIndex = currentOutput.output.bitIndex,
+                            status = outcome.first,
+                            detail = outcome.second,
+                        ),
+                    )
+                    resultQueued = true
+                    scheduleResultDrain()
+                } catch (exception: Exception) {
+                    logger.warning(
+                        "Deferred cleanup failed for device '${job.deviceName}' output ${output.bitIndex}: ${exception.message}",
+                    )
+                } finally {
+                    if (!resultQueued) inFlight.remove(key)
+                }
             }
         } catch (exception: Exception) {
             inFlight.remove(key)
