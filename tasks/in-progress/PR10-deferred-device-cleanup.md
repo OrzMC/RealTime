@@ -20,7 +20,7 @@ Today, disabled device records remain in `data/devices.yml` so their outputs can
 
 - **PR10a (complete):** immutable cleanup-job/store models, schema v2 serialization, atomic v1-to-v2 migration, and store invariants (merged in PR #15).
 - **PR10b (complete):** crash-safe retirement service and region-owned deferred cleanup/retry processor (merged PR #17).
-- **PR10c (current):** device-specific Paper/Folia runtime coverage for restart recovery, chunk-load retry, non-wire attention states, and queue diagnostics/operator retry. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
+- **PR10c (complete):** device-specific Paper/Folia restart/chunk-load runtime coverage, non-wire attention handling, queue diagnostics, and safe operator retry (merged PR #18). The user-facing remove command is intentionally a separate follow-up PR.
 
 ## Scope
 
