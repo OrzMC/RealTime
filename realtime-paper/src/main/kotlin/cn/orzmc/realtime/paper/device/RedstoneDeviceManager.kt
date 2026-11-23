@@ -31,7 +31,8 @@ class RedstoneDeviceManager(
     private val scheduler: PaperFoliaScheduler,
     private val stateProvider: () -> RuntimeState,
     private val logger: Logger,
-) : Listener, DeviceDiagnostics {
+) : Listener,
+    DeviceDiagnostics {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
     private val warnedWorlds = ConcurrentHashMap.newKeySet<String>()
     private val outputChecks = AtomicLong()
