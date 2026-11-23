@@ -56,6 +56,18 @@ Read [AGENTS.md](AGENTS.md), then [tasks/roadmap.md](tasks/roadmap.md). Agents m
 
 See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the multi-agent workspace helpers.
 
+## Device administration
+
+| Command | Permission | Purpose |
+|---|---|---|
+| `/rtime device list` | `realtime.command` | List configured device IDs and status |
+| `/rtime device info <uuid>` | `realtime.command` | Inspect the 16 output coordinates |
+| `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
+| `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
+
+Device records remain YAML-defined. In-game deletion is intentionally deferred until a persistent cleanup queue can safely clear outputs in unloaded chunks.
+
+
 ## Docs
 
 - [Product requirements](docs/product/requirements.md)
