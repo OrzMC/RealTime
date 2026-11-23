@@ -1,6 +1,8 @@
 package cn.orzmc.realtime.paper.placeholder
 
 import cn.orzmc.realtime.core.device.BcdHhmmEncoder
+import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
@@ -15,6 +17,7 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
+import java.util.UUID
 
 class RealTimePlaceholderExpansionTest {
     private val expansion = RealTimePlaceholderExpansion("1.2.3") { state() }
@@ -90,14 +93,14 @@ class RealTimePlaceholderExpansionTest {
     }
 
     private fun testDevice() =
-        cn.orzmc.realtime.core.device.RedstoneDevice(
-            id = java.util.UUID.randomUUID(),
+        RedstoneDevice(
+            id = UUID.randomUUID(),
             name = "test-clock",
             worldName = "world",
             enabled = true,
             outputs =
                 (0 until 16).map { bit ->
-                    cn.orzmc.realtime.core.device.DeviceOutput(bit, bit * 2, 64, 0)
+                    DeviceOutput(bit, bit * 2, 64, 0)
                 },
         )
 }
