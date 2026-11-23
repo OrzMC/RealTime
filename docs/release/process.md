@@ -30,7 +30,7 @@ Only the gated release job receives `contents: write`. The job waits for the env
 
 ## Optional distribution publishing
 
-Hangar publishing uses the official PaperMC Gradle publish plugin and is skipped unless `HANGAR_PROJECT_ID` is configured as a repository variable and `HANGAR_API_TOKEN` is configured as an environment secret. The token should be scoped to the RealTime project and the `create_version` permission. Stable versions publish to Hangar's `Release` channel; prereleases are not sent to Hangar automatically.
+Hangar publishing uses the official PaperMC Gradle publish plugin and is skipped unless `HANGAR_PROJECT_ID` is configured as an environment variable and `HANGAR_API_TOKEN` is configured as an environment secret. The token should be scoped to the RealTime project and the `create_version` permission. Stable versions publish to Hangar's `Release` channel; prereleases are not sent to Hangar automatically.
 
 Modrinth publishing is skipped unless `MODRINTH_PROJECT_ID` and the environment secret `MODRINTH_TOKEN` are configured. Use a token with only the version-create scope. The workflow uploads the same shaded JAR and matching changelog section.
 
