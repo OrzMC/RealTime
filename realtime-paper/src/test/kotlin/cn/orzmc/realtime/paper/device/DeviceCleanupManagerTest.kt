@@ -17,6 +17,7 @@ import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.block.data.type.RedstoneWire
 import org.bukkit.event.world.ChunkLoadEvent
+import org.bukkit.event.world.WorldLoadEvent
 import org.bukkit.plugin.Plugin
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -85,6 +86,17 @@ class DeviceCleanupManagerTest {
     }
 
     @Test
+    fun `resolves an unresolved world name when that world loads`() {
+        val fixture = fixture(chunkLoaded = true, cleanupWorldId = null)
+        fixture.manager.onWorldLoad(fixture.worldLoadEvent)
+        fixture.globalCallbacks.first().accept(fixture.scheduledTask)
+
+        assertEquals(fixture.worldId, fixture.currentState().cleanupJobs.single().worldId)
+        assertEquals(fixture.worldId, fixture.persistedSnapshot()?.cleanupJobs?.single()?.worldId)
+        assertEquals(16, fixture.regionCallbacks.size)
+    }
+
+    @Test
     fun `keeps unrelated blocks reserved for operator attention`() {
         val fixture = fixture(chunkLoaded = true, blockMaterial = Material.STONE)
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
@@ -122,6 +134,7 @@ class DeviceCleanupManagerTest {
         chunkLoaded: Boolean,
         blockMaterial: Material = Material.REDSTONE_WIRE,
         persistFailures: Int = 0,
+        cleanupWorldId: UUID? = null,
     ): Fixture {
         val worldId = UUID.randomUUID()
         var wirePower = 15
@@ -170,6 +183,7 @@ class DeviceCleanupManagerTest {
                 }
             }
         val event = ChunkLoadEvent(chunk, false)
+        val worldLoadEvent = WorldLoadEvent(world)
         val plugin = fake<Plugin> { _, _ -> null }
         val scheduledTask = fakeScheduledTask()
         val globalCallbacks = mutableListOf<Consumer<ScheduledTask>>()
@@ -200,7 +214,7 @@ class DeviceCleanupManagerTest {
                         DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
                     },
             )
-        val job = DeviceCleanupJob.fromDevice(device, worldId)
+        val job = DeviceCleanupJob.fromDevice(device, cleanupWorldId ?: worldId)
         val initialState = state(job)
         var activeState = initialState
         var persisted: DeviceStoreSnapshot? = null
@@ -224,6 +238,8 @@ class DeviceCleanupManagerTest {
         return Fixture(
             manager = manager,
             chunkLoadEvent = event,
+            worldLoadEvent = worldLoadEvent,
+            worldId = worldId,
             regionCallbacks = regionCallbacks,
             globalCallbacks = globalCallbacks,
             scheduledTask = scheduledTask,
@@ -261,6 +277,8 @@ class DeviceCleanupManagerTest {
     private data class Fixture(
         val manager: DeviceCleanupManager,
         val chunkLoadEvent: ChunkLoadEvent,
+        val worldLoadEvent: WorldLoadEvent,
+        val worldId: UUID,
         val regionCallbacks: List<Consumer<ScheduledTask>>,
         val globalCallbacks: List<Consumer<ScheduledTask>>,
         val scheduledTask: ScheduledTask,
