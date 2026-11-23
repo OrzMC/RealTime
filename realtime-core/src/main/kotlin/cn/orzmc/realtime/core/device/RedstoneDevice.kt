@@ -1,11 +1,9 @@
 package cn.orzmc.realtime.core.device
 
-import java.util.UUID
-
 class RedstoneDevice(
     val id: UUID,
     val name: String,
-    val worldId: UUID,
+    val worldName: String,
     val enabled: Boolean,
     outputs: List<DeviceOutput>,
 ) {
@@ -13,6 +11,7 @@ class RedstoneDevice(
 
     init {
         require(name.isNotBlank()) { "Device name must not be blank" }
+        require(worldName.isNotBlank()) { "World name must not be blank" }
         require(this.outputs.size == DeviceOutput.OUTPUT_COUNT) {
             "A redstone device must define exactly ${DeviceOutput.OUTPUT_COUNT} outputs"
         }
