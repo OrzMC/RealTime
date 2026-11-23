@@ -209,9 +209,16 @@ if [[ "$PENDING_READY" != "1" ]]; then
   exit 1
 fi
 
+rcon execute if loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_IS_LOADED >/dev/null || true
+if grep -Fq 'REALTIME_CLEANUP_CHUNK_IS_LOADED' "$WORK_DIR/server.log"; then
+  cat "$WORK_DIR/server.log"
+  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT." >&2
+  exit 1
+fi
 rcon execute unless loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_STILL_UNLOADED >/dev/null || true
 grep -Fq 'REALTIME_CLEANUP_CHUNK_STILL_UNLOADED' "$WORK_DIR/server.log" || {
-  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT: $UNLOADED_CHECK" >&2
+  cat "$WORK_DIR/server.log"
+  echo "Unable to prove deferred output chunk remained unloaded on $PROJECT." >&2
   exit 1
 }
 
@@ -236,7 +243,7 @@ fi
 
 rcon execute if block 1615 64 0 minecraft:stone run say REALTIME_CLEANUP_STONE_PRESERVED >/dev/null || true
 grep -Fq 'REALTIME_CLEANUP_STONE_PRESERVED' "$WORK_DIR/server.log" || {
-  echo "Cleanup overwrote the non-wire target on $PROJECT: $STONE_CHECK" >&2
+  echo "Cleanup overwrote the non-wire target on $PROJECT." >&2
   exit 1
 }
 
