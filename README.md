@@ -64,6 +64,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 - [Testing strategy](docs/testing/strategy.md)
 - [Paper/Folia scheduler safety](docs/development/scheduler-safety.md)
 - [Redstone time devices](docs/development/redstone-devices.md)
+- [PlaceholderAPI integration](docs/development/placeholderapi.md)
 - [Release process](docs/release/process.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
