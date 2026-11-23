@@ -3,6 +3,7 @@ version: '${project.version}'
 main: cn.orzmc.realtime.paper.RealTimePlugin
 api-version: '26.3'
 folia-supported: true
+softdepend: [PlaceholderAPI]
 authors: [OrzMC]
 website: https://github.com/OrzMC/RealTime
 description: Real-world time services and devices for Paper and Folia.
