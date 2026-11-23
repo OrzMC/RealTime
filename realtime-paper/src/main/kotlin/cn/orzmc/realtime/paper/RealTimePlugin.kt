@@ -6,6 +6,7 @@ import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
 import cn.orzmc.realtime.paper.device.DeviceAdministrationService
+import cn.orzmc.realtime.paper.device.DeviceStoreSnapshot
 import cn.orzmc.realtime.paper.device.RedstoneConfigurationLoader
 import cn.orzmc.realtime.paper.device.RedstoneDeviceManager
 import cn.orzmc.realtime.paper.device.YamlDeviceRepository
@@ -73,7 +74,10 @@ class RealTimePlugin :
             DeviceAdministrationService(
                 stateLock = runtimeStateLock,
                 stateProvider = { checkNotNull(runtimeState) },
-                persistDevices = deviceRepository::save,
+                persistDevices = { devices ->
+                    val current = checkNotNull(runtimeState)
+                    deviceRepository.save(DeviceStoreSnapshot(devices, current.cleanupJobs))
+                },
                 replaceState = { runtimeState = it },
                 requestRefresh = { redstoneDeviceManager?.requestRefresh() },
             )
@@ -142,7 +146,7 @@ class RealTimePlugin :
     private fun createRuntimeState(): RuntimeState {
         val configuration = configurationLoader.load(dataFolder)
         val redstoneConfiguration = redstoneConfigurationLoader.load(dataFolder)
-        val devices = deviceRepository.load()
+        val deviceStore = deviceRepository.loadStore()
         return RuntimeState(
             configuration = configuration,
             timeService =
@@ -153,7 +157,8 @@ class RealTimePlugin :
                 ),
             messages = MessageCatalog(configuration.messages),
             redstoneConfiguration = redstoneConfiguration,
-            devices = devices,
+            devices = deviceStore.devices,
+            cleanupJobs = deviceStore.cleanupJobs,
         )
     }
 
