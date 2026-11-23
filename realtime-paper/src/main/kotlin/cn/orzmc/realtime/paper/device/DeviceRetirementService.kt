@@ -7,6 +7,10 @@ class DeviceMustBeDisabledException(
     id: UUID,
 ) : IllegalStateException("Device must be disabled before retirement: $id")
 
+fun interface DeviceRetirementAdministration {
+    fun retire(id: UUID): DeviceCleanupJob
+}
+
 /**
  * Atomically moves a disabled device from the active store into the deferred
  * cleanup queue. The repository persists both lists in one schema-v2 file
@@ -21,7 +25,9 @@ class DeviceRetirementService(
     private val persistStore: (DeviceStoreSnapshot) -> Unit,
     private val replaceState: (RuntimeState) -> Unit,
     private val requestCleanup: () -> Unit,
-) {
+) : DeviceRetirementAdministration {
+    override fun retire(id: UUID): DeviceCleanupJob = retire(id, null)
+
     fun retire(
         id: UUID,
         worldId: UUID?,
