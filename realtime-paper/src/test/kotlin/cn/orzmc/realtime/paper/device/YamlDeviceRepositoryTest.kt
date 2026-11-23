@@ -3,8 +3,8 @@ package cn.orzmc.realtime.paper.device
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
