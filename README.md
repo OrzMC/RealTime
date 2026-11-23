@@ -62,6 +62,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 - [Architecture](docs/architecture/overview.md)
 - [Development setup](docs/development/setup.md)
 - [Testing strategy](docs/testing/strategy.md)
+- [Paper/Folia scheduler safety](docs/development/scheduler-safety.md)
 - [Release process](docs/release/process.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
