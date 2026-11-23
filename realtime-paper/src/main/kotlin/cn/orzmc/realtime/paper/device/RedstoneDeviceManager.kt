@@ -66,8 +66,7 @@ class RedstoneDeviceManager(
             .flatMap { device -> device.outputs.asSequence().map { device to it } }
             .filter { (_, output) ->
                 output.x shr 4 == chunk.x && output.z shr 4 == chunk.z
-            }
-            .forEach { (device, output) ->
+            }.forEach { (device, output) ->
                 applyOutput(
                     world = world,
                     device = device,
@@ -86,7 +85,11 @@ class RedstoneDeviceManager(
         }
 
         val snapshot = state.timeService.snapshot()
-        val localMinute = snapshot.zonedDateTime.toLocalDateTime().withSecond(0).withNano(0)
+        val localMinute =
+            snapshot.zonedDateTime
+                .toLocalDateTime()
+                .withSecond(0)
+                .withNano(0)
         if (!force && localMinute == lastMinute) return
         lastMinute = localMinute
 
