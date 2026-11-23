@@ -51,6 +51,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.2.1'
+      - name: Validate cleanup smoke script
+        run: bash -n scripts/smoke-device-cleanup.sh
       - name: Build plugin
         run: ./gradlew --no-daemon :realtime-paper:shadowJar
       - name: Verify deferred cleanup recovery and operator retry
