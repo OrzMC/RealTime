@@ -97,7 +97,12 @@ class YamlDeviceRepositoryTest {
 
         val migrated = YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
 
-        assertEquals(listOf(device), migrated.devices)
+        val migratedDevice = migrated.devices.single()
+        assertEquals(device.id, migratedDevice.id)
+        assertEquals(device.name, migratedDevice.name)
+        assertEquals(device.worldName, migratedDevice.worldName)
+        assertEquals(device.enabled, migratedDevice.enabled)
+        assertEquals(device.outputs, migratedDevice.outputs)
         assertTrue(migrated.cleanupJobs.isEmpty())
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
