@@ -1,6 +1,7 @@
 # PR10 — Persistent Deferred Cleanup for Device Retirement
 
-- Status: Ready
+- Status: In Progress
+- Active implementation: PR10a — schema v2 store model and v1 migration
 - Priority: P1
 - Depends on: PR5, PR8, PR9
 
@@ -11,6 +12,12 @@ Make device retirement safe when some output chunks are unloaded or worlds are t
 ## Context
 
 Today, disabled device records remain in `data/devices.yml` so their outputs can be cleared when chunks load. Deleting a record before all 16 output positions are confirmed cleared would discard the only durable coordinates needed to clean unloaded chunks. PR10 introduces a durable cleanup queue as the prerequisite for any in-game remove command.
+
+## Implementation slices
+
+- **PR10a (current):** introduce immutable cleanup-job/store models, schema v2 serialization, atomic v1-to-v2 migration, and store invariants.
+- **PR10b:** add crash-safe retirement service and region-owned deferred cleanup/retry processor.
+- **PR10c:** complete Paper/Folia restart/chunk-load runtime coverage and operator observability. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
 
 ## Scope
 
