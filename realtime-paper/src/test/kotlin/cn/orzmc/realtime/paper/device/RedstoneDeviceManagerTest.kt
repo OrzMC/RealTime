@@ -56,7 +56,7 @@ class RedstoneDeviceManagerTest {
     }
 
     private fun fixture(chunkLoaded: Boolean): Fixture {
-        val worldId = UUID.randomUUID()
+        val worldName = "world"
         var wirePower = 0
         var blockAccessed = false
         var physicsApplied = false
@@ -83,7 +83,6 @@ class RedstoneDeviceManagerTest {
         }
         val world = fake<World> { method, _ ->
             when (method.name) {
-                "getUID" -> worldId
                 "getName" -> "world"
                 "isChunkLoaded" -> chunkLoaded
                 "getBlockAt" -> {
@@ -144,7 +143,7 @@ class RedstoneDeviceManagerTest {
                         RedstoneDevice(
                             id = UUID.randomUUID(),
                             name = "test-clock",
-                            worldId = worldId,
+                            worldName = worldName,
                             enabled = true,
                             outputs =
                                 (0 until 16).map { bit ->
