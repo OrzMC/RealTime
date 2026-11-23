@@ -38,7 +38,7 @@ cleanup-jobs:
       - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
 ```
 
-The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b/PR10c still need to implement and verify the cleanup processor. No in-game remove command is available yet.
+The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b implements crash-safe retirement and the Paper/Folia deferred cleanup processor. PR10c is completing runtime recovery verification and operator observability. No in-game remove command is available yet.
 
 ## HHmm BCD output layout
 
@@ -114,7 +114,7 @@ Use the full UUID shown by `device list`; device names are labels and are not id
 
 These commands never inspect or mutate world blocks directly. The redstone manager receives a refresh request and performs all world/block access through the existing Paper/Folia scheduler ownership rules. Disabled devices remain in the device store so their outputs can be driven to zero when their chunks are loaded.
 
-There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. PR10 is in progress. PR10a has added the schema-v2 store, but the deferred cleanup processor is not yet implemented. Do not remove device records through runtime commands or by any automated process that could lose unloaded output coordinates until PR10b/PR10c are merged and verified.
+There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. PR10b has implemented the durable cleanup queue and deferred processor, but PR10c runtime recovery acceptance is still in progress. Do not manually delete device records or expose a remove command until Paper/Folia restart, chunk-load retry, idempotency, and persistence-failure recovery have been verified.
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
 
