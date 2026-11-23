@@ -32,7 +32,7 @@ class RealTimeConfigurationLoaderTest {
     fun `loads default device messages when upgrading an older message file`() {
         writeConfiguration()
         val messagesFile = temporaryDirectory.resolve("messages.yml")
-        val legacyMessages = Files.readString(messagesFile).substringBefore("              device:")
+        val legacyMessages = Files.readString(messagesFile).substringBefore("  device:")
         Files.writeString(messagesFile, legacyMessages)
 
         val configuration = RealTimeConfigurationLoader().load(temporaryDirectory.toFile())
