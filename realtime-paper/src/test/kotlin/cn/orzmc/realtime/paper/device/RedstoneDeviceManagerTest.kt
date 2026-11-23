@@ -34,14 +34,14 @@ class RedstoneDeviceManagerTest {
     fun `writes powered output only after loaded chunk check`() {
         val fixture = fixture(chunkLoaded = true)
         fixture.manager.start(fixture.plugin)
-        fixture.globalCallback!!.accept(fixture.scheduledTask)
+        fixture.globalCallbackValue!!.accept(fixture.scheduledTask)
 
         assertEquals(16, fixture.regionCallbacks.size)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
-        assertTrue(fixture.blockAccessed)
-        assertEquals(15, fixture.wirePower)
-        assertTrue(fixture.physicsApplied)
+        assertTrue(fixture.blockAccessedValue)
+        assertEquals(15, fixture.wirePowerValue)
+        assertTrue(fixture.physicsAppliedValue)
     }
 
     @Test
@@ -51,8 +51,8 @@ class RedstoneDeviceManagerTest {
         fixture.globalCallback!!.accept(fixture.scheduledTask)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
-        assertFalse(fixture.blockAccessed)
-        assertEquals(0, fixture.wirePower)
+        assertFalse(fixture.blockAccessedValue)
+        assertEquals(0, fixture.wirePowerValue)
     }
 
     private fun fixture(chunkLoaded: Boolean): Fixture {
