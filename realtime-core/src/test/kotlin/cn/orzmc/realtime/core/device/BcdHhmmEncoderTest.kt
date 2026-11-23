@@ -17,10 +17,22 @@ class BcdHhmmEncoderTest {
         assertEquals(16, lastMinute.bits.size)
         assertEquals(
             listOf(
-                false, true, false, false,
-                true, true, false, false,
-                true, false, true, false,
-                true, false, false, true,
+                false,
+                true,
+                false,
+                false,
+                true,
+                true,
+                false,
+                false,
+                true,
+                false,
+                true,
+                false,
+                true,
+                false,
+                false,
+                true,
             ),
             lastMinute.bits,
         )
