@@ -1,6 +1,6 @@
 # PR10 — Persistent Deferred Cleanup for Device Retirement
 
-- Status: In Progress (PR10a + PR10b complete; PR10c active)
+- Status: Complete — PR10a, PR10b, and PR10c merged; device remove command is a separate follow-up PR.
 - PR10a: Complete — [PR #15](https://github.com/OrzMC/RealTime/pull/15), merge `b9880c5fbf3e7eaf6a3f5326a23518f4c281a3b3`.
 - Verification: CI #89, Agent Validation #76, and Paper/Folia + PlaceholderAPI smoke #58 all passed; shaded JAR inspection passed.
 - PR10b: Complete — [PR #17](https://github.com/OrzMC/RealTime/pull/17), merge `ea4b3fbe2cc9da3b431a7c111f10c266fe0f1b7d`.
