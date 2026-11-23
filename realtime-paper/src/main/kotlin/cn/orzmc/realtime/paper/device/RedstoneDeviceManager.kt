@@ -137,7 +137,9 @@ class RedstoneDeviceManager(
                                     currentOutput.z == output.z
                             } == true
                         val effectiveBits =
-                            if (currentState === state) bits else {
+                            if (currentState === state) {
+                                bits
+                            } else {
                                 BcdHhmmEncoder.encode(currentState.timeService.now().toLocalTime()).bits
                             }
                         applyOutput(
