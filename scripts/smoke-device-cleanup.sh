@@ -217,8 +217,8 @@ if grep -Fq 'That position is not loaded' <<< "$SPAWN_PROBE"; then
 fi
 REMOTE_PROBE="$(rcon execute if loaded 1600 64 0 run list)"
 echo "Deferred chunk probe: $REMOTE_PROBE"
-if ! grep -Fq 'That position is not loaded' <<< "$REMOTE_PROBE"; then
-  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT." >&2
+if [[ -n "$REMOTE_PROBE" ]]; then
+  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT: $REMOTE_PROBE" >&2
   exit 1
 fi
 
