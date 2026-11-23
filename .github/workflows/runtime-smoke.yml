@@ -55,7 +55,7 @@ jobs:
         run: bash -n scripts/smoke-device-cleanup.sh
       - name: Build plugin
         run: ./gradlew --no-daemon :realtime-paper:shadowJar
-      - name: Verify deferred cleanup recovery and operator retry
+      - name: Verify cleanup recovery, operator retry, and safe device retirement
         env:
           PROJECT_VERSION: 0.1.0-SNAPSHOT
         run: bash scripts/smoke-device-cleanup.sh "${{ matrix.project }}"
