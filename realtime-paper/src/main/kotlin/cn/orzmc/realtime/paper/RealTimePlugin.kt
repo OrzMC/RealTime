@@ -124,6 +124,7 @@ class RealTimePlugin :
                 deviceAdministration = checkNotNull(deviceAdministration),
                 deviceDiagnostics = redstoneDeviceManager,
                 cleanupAdministration = cleanupAdministration,
+                deviceRetirement = checkNotNull(deviceRetirementService),
             )
 
         val command = getCommand("rtime")
