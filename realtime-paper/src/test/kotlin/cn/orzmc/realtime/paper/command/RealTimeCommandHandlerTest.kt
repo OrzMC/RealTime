@@ -273,7 +273,7 @@ class RealTimeCommandHandlerTest {
 
     private fun handler(
         reload: () -> Result<RuntimeState> = { Result.success(state()) },
-        deviceAdministration: DeviceAdministration? = null,
+        deviceAdministration: DeviceAdministration? = RecordingDeviceAdministration(emptyList()),
         deviceDiagnostics: DeviceDiagnostics? = null,
         cleanupAdministration: DeviceCleanupAdministration? = null,
     ) = RealTimeCommandHandler(
