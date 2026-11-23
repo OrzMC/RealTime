@@ -181,6 +181,13 @@ class RealTimeConfigurationLoader {
         val OPTIONAL_MESSAGES =
             mapOf(
                 "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",
+                "command.device.cleanup.header" to "{prefix}&b待清理设备队列（{count}）",
+                "command.device.cleanup.empty" to "{prefix}&7当前没有待清理设备。",
+                "command.device.cleanup.item" to "{prefix}&f{name} &7[{id}] &8世界：&f{world} &8待处理：&e{pending} &8需人工处理：&c{attention}",
+                "command.device.cleanup.retry.success" to "{prefix}&a已重新排队清理任务：&f{id}",
+                "command.device.cleanup.invalid-id" to "{prefix}&c清理任务 ID 格式无效：&f{id}",
+                "command.device.cleanup.not-found" to "{prefix}&c未找到清理任务：&f{id}",
+                "command.device.cleanup.error" to "{prefix}&c清理任务操作失败：&f{reason}",
                 "command.device.status.header" to "{prefix}&b设备输出诊断",
                 "command.device.status.devices" to "{prefix}&7配置设备：&f{configured} &7启用：&f{enabled} &7输出点：&f{outputs}",
                 "command.device.status.checks" to "{prefix}&7输出检查：&f{checks} &7未加载区块跳过：&f{unloaded} &7过期配置更新：&f{stale}",
