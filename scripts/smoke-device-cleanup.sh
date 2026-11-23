@@ -158,6 +158,7 @@ JOB_ID="00000000-0000-0000-0000-000000000002"
 } > "$WORK_DIR/plugins/RealTime/data/devices.yml"
 
 echo "Restarting $PROJECT with a persisted cleanup job for world UUID $WORLD_UUID..."
+: > "$WORK_DIR/server.log"
 start_server
 grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
   cat "$WORK_DIR/server.log"
