@@ -42,6 +42,20 @@ echo "Server artifact checksum verified."
 
 mkdir -p "$WORK_DIR/plugins"
 cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.1.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
+
+DEVICE_ID="00000000-0000-0000-0000-000000000001"
+mkdir -p "$WORK_DIR/plugins/RealTime/data"
+{
+  printf 'schema-version: 1\ndevices:\n'
+  printf '  - id: %s\n' "$DEVICE_ID"
+  printf '    name: ci-clock\n'
+  printf '    world: world\n'
+  printf '    enabled: false\n'
+  printf '    outputs:\n'
+  for bit in $(seq 0 15); do
+    printf '      - { bit-index: %s, x: %s, y: 64, z: 0 }\n' "$bit" "$((bit * 2))"
+  done
+} > "$WORK_DIR/plugins/RealTime/data/devices.yml"
 if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   bash "$ROOT_DIR/scripts/download-placeholderapi.sh" "$WORK_DIR/plugins"
 fi
@@ -106,7 +120,68 @@ fi
 
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime info
+
+DEVICE_LIST_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
+)"
+grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_OUTPUT" || {
+  echo "Device list did not include the configured CI device: $DEVICE_LIST_OUTPUT" >&2
+  exit 1
+}
+
+DEVICE_INFO_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+    rtime device info "$DEVICE_ID"
+)"
+grep -Fq "bit 15" <<< "$DEVICE_INFO_OUTPUT" || {
+  echo "Device info did not include all bit mappings: $DEVICE_INFO_OUTPUT" >&2
+  exit 1
+}
+
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+  rtime device enable "$DEVICE_ID"
+grep -Eq 'enabled: true' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Device enable did not persist." >&2
+  exit 1
+}
+
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+  rtime device disable "$DEVICE_ID"
+grep -Eq 'enabled: false' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Device disable did not persist." >&2
+  exit 1
+}
+
+REMOVE_PREVIEW="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+    rtime device remove "$DEVICE_ID"
+)"
+grep -Fq "confirm" <<< "$REMOVE_PREVIEW" || {
+  echo "Device removal did not require explicit confirmation: $REMOVE_PREVIEW" >&2
+  exit 1
+}
+grep -Fq "$DEVICE_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  echo "Device was removed without confirmation." >&2
+  exit 1
+}
+
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+  rtime device remove "$DEVICE_ID" confirm
+if grep -Fq "$DEVICE_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml"; then
+  echo "Confirmed device removal did not persist." >&2
+  exit 1
+fi
+
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime reload
+EMPTY_DEVICE_LIST="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
+)"
+grep -Fq "没有配置任何设备" <<< "$EMPTY_DEVICE_LIST" || {
+  echo "Device removal was not reflected after reload: $EMPTY_DEVICE_LIST" >&2
+  exit 1
+}
 
 if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   PAPI_READY=0
@@ -143,4 +218,4 @@ if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."
 fi
 
-echo "$PROJECT $MC_VERSION startup, global scheduler, /rtime, info, reload, and optional PlaceholderAPI smoke tests passed."
+echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/enable/disable/remove, reload, and optional PlaceholderAPI smoke tests passed."
