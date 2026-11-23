@@ -39,9 +39,13 @@ class YamlDeviceRepository(
             )
         }
 
-        val rawDevices = yaml.getMapList("devices")
+        val rawDevices =
+            yaml.get("devices") as? List<*>
+                ?: throw DeviceRepositoryException("$DEVICE_FILE: devices must be a list")
         val devices =
-            rawDevices.mapIndexed { index, raw ->
+            rawDevices.mapIndexed { index, value ->
+                val raw = value as? Map<*, *>
+                    ?: throw DeviceRepositoryException("$DEVICE_FILE: devices[$index] must be a map")
                 parseDevice(raw, index)
             }
         validateDevices(devices, "$DEVICE_FILE")
