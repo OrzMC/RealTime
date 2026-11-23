@@ -97,7 +97,8 @@ class DeviceCleanupManager(
         chunkZ: Int,
     ) {
         val worldId = world.uid
-        stateProvider().cleanupJobs
+        stateProvider()
+            .cleanupJobs
             .asSequence()
             .filter { it.worldId == worldId }
             .forEach { job ->
@@ -160,11 +161,12 @@ class DeviceCleanupManager(
                     if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) return@runRegion
 
                     val currentJob =
-                        stateProvider().cleanupJobs.firstOrNull { it.id == job.id }
+                        stateProvider()
+            .cleanupJobs.firstOrNull { it.id == job.id }
                             ?: return@runRegion
                     val currentOutput =
                         currentJob.outputs
-                                .firstOrNull { it.output.bitIndex == output.bitIndex }
+                            .firstOrNull { it.output.bitIndex == output.bitIndex }
                             ?.takeIf { it.status == DeviceCleanupStatus.PENDING }
                             ?: return@runRegion
 
