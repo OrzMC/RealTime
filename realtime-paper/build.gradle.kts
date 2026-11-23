@@ -66,7 +66,8 @@ hangarPublish {
             register(Platforms.PAPER) {
                 jar.set(tasks.shadowJar.flatMap { it.archiveFile })
                 platformVersions.set(
-                    providers.gradleProperty("hangarPaperVersions")
+                    providers
+                        .gradleProperty("hangarPaperVersions")
                         .map { it.split(",").map(String::trim) }
                         .orElse(listOf("26.3")),
                 )
