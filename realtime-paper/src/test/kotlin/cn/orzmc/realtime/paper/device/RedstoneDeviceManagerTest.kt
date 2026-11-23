@@ -10,10 +10,10 @@ import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
+import org.bukkit.Chunk
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
-import org.bukkit.Chunk
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.block.Block
 import org.bukkit.block.data.type.RedstoneWire
