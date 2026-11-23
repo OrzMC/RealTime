@@ -1,5 +1,7 @@
 package cn.orzmc.realtime.core.device
 
+import java.util.UUID
+
 class RedstoneDevice(
     val id: UUID,
     val name: String,
