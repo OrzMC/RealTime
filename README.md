@@ -68,7 +68,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
 | `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
 
-Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. In-game device removal remains disabled until PR10c runtime recovery acceptance passes and a separate remove-command PR is reviewed.
+Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. In-game device removal remains disabled pending a separate, reviewed command change; PR10c's Paper/Folia recovery acceptance has passed.
 
 ## Docs
 
