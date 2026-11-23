@@ -146,21 +146,17 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
-    fun deviceRemovalRequiresExplicitConfirmation() {
+    fun deviceDisableIsAvailableToAdmins() {
         val device = device()
         val administration = RecordingDeviceAdministration(listOf(device))
         val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
         val handler = handler(deviceAdministration = administration)
 
-        handler.execute(target, arrayOf("device", "remove", device.id.toString()))
-        assertEquals(0, administration.mutationCount)
-        assertTrue(target.messages.single().contains("confirm"))
-
-        handler.execute(target, arrayOf("device", "remove", device.id.toString(), "confirm"))
+        handler.execute(target, arrayOf("device", "disable", device.id.toString()))
 
         assertEquals(1, administration.mutationCount)
-        assertTrue(administration.devices.isEmpty())
-        assertTrue(target.messages.last().contains("removed"))
+        assertFalse(administration.devices.single().enabled)
+        assertTrue(target.messages.single().contains("disabled"))
     }
 
     @Test
@@ -174,7 +170,7 @@ class RealTimeCommandHandlerTest {
             listOf(device.id.toString()),
             handler.complete(readOnly, arrayOf("device", "info", "")),
         )
-        assertTrue(handler.complete(readOnly, arrayOf("device", "remove", "")).isEmpty())
+        assertTrue(handler.complete(readOnly, arrayOf("device", "disable", "")).isEmpty())
         assertTrue(handler.complete(unauthorized, arrayOf("device", "info", "")).isEmpty())
     }
 
@@ -285,12 +281,6 @@ class RealTimeCommandHandlerTest {
             return updated
         }
 
-        override fun remove(id: UUID): RedstoneDevice {
-            mutationCount += 1
-            val removed = devices.first { it.id == id }
-            devices.remove(removed)
-            return removed
-        }
     }
 
     private class RecordingTarget(
