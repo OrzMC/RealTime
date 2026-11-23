@@ -3,6 +3,7 @@ package cn.orzmc.realtime.paper.command
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
+import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import java.util.Locale
 import java.util.UUID
 
@@ -11,6 +12,7 @@ class RealTimeCommandHandler(
     private val currentState: () -> RuntimeState,
     private val reload: () -> Result<RuntimeState>,
     private val deviceAdministration: DeviceAdministration? = null,
+    private val deviceDiagnostics: DeviceDiagnostics? = null,
 ) {
     fun execute(
         target: CommandTarget,
@@ -62,6 +64,7 @@ class RealTimeCommandHandler(
                     if (canRead) {
                         add("list")
                         add("info")
+                        add("status")
                     }
                     if (isAdmin) {
                         add("enable")
@@ -113,6 +116,16 @@ class RealTimeCommandHandler(
                     showDeviceInfo(target, state, device)
                 }
             }
+            "status" -> {
+                if (args.size != 1) return sendUsage(target, state)
+                if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
+                val diagnostics = deviceDiagnostics
+                if (diagnostics == null) {
+                    target.sendMessage(state.messages.render("command.device.unavailable"))
+                } else {
+                    showDeviceStatus(target, state, diagnostics.snapshot())
+                }
+            }
             "enable", "disable" -> {
                 if (args.size != 2) return sendUsage(target, state)
                 if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
@@ -134,6 +147,45 @@ class RealTimeCommandHandler(
             }
             else -> sendUsage(target, state)
         }
+    }
+
+    private fun showDeviceStatus(
+        target: CommandTarget,
+        state: RuntimeState,
+        snapshot: cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot,
+    ) {
+        target.sendMessage(state.messages.render("command.device.status.header"))
+        target.sendMessage(
+            state.messages.render(
+                "command.device.status.devices",
+                mapOf(
+                    "configured" to snapshot.configuredDevices.toString(),
+                    "enabled" to snapshot.enabledDevices.toString(),
+                    "outputs" to snapshot.configuredOutputs.toString(),
+                ),
+            ),
+        )
+        target.sendMessage(
+            state.messages.render(
+                "command.device.status.checks",
+                mapOf(
+                    "checks" to snapshot.outputChecks.toString(),
+                    "unloaded" to snapshot.unloadedChunkSkips.toString(),
+                    "stale" to snapshot.staleOutputUpdates.toString(),
+                ),
+            ),
+        )
+        target.sendMessage(
+            state.messages.render(
+                "command.device.status.outcomes",
+                mapOf(
+                    "changed" to snapshot.powerChanges.toString(),
+                    "unchanged" to snapshot.unchangedOutputs.toString(),
+                    "invalid" to snapshot.invalidOutputBlocks.toString(),
+                    "failures" to snapshot.writeFailures.toString(),
+                ),
+            ),
+        )
     }
 
     private fun showDeviceList(
