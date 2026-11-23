@@ -209,15 +209,15 @@ if [[ "$PENDING_READY" != "1" ]]; then
   exit 1
 fi
 
-rcon execute if loaded 0 64 0 run say REALTIME_CLEANUP_SPAWN_CHUNK_LOADED >/dev/null || true
-grep -Fq 'REALTIME_CLEANUP_SPAWN_CHUNK_LOADED' "$WORK_DIR/server.log" || {
-  cat "$WORK_DIR/server.log"
-  echo "Loaded-chunk probe did not execute on $PROJECT." >&2
+SPAWN_PROBE="$(rcon execute if loaded 0 64 0 run list)"
+echo "Spawn chunk probe: $SPAWN_PROBE"
+if grep -Fq 'That position is not loaded' <<< "$SPAWN_PROBE"; then
+  echo "Spawn chunk was not loaded when expected on $PROJECT." >&2
   exit 1
-}
-rcon execute if loaded 1600 64 0 run say REALTIME_CLEANUP_REMOTE_CHUNK_LOADED >/dev/null || true
-if grep -Fq 'REALTIME_CLEANUP_REMOTE_CHUNK_LOADED' "$WORK_DIR/server.log"; then
-  cat "$WORK_DIR/server.log"
+fi
+REMOTE_PROBE="$(rcon execute if loaded 1600 64 0 run list)"
+echo "Deferred chunk probe: $REMOTE_PROBE"
+if ! grep -Fq 'That position is not loaded' <<< "$REMOTE_PROBE"; then
   echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT." >&2
   exit 1
 fi
