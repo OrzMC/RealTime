@@ -11,7 +11,6 @@ import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import org.bukkit.Chunk
-import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
