@@ -1,9 +1,9 @@
 package cn.orzmc.realtime.core.device
 
-import java.util.UUID
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import java.util.UUID
 
 class RedstoneDeviceTest {
     @Test
