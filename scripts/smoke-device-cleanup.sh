@@ -98,6 +98,10 @@ stop_server() {
 }
 
 rcon() {
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" --no-expect "$@"
+}
+
+rtime() {
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" "$@"
 }
 
@@ -163,7 +167,7 @@ grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
 
 PENDING_READY=0
 for _ in $(seq 1 30); do
-  QUEUE="$(rcon rtime device cleanup list)"
+  QUEUE="$(rtime rtime device cleanup list)"
   if grep -Fq '待处理：15' <<< "$QUEUE" && grep -Fq '需人工处理：0' <<< "$QUEUE"; then
     PENDING_READY=1
     break
@@ -188,7 +192,7 @@ grep -Fq 'REALTIME_CLEANUP_CHUNK_STILL_UNLOADED' <<< "$UNLOADED_CHECK" || {
 rcon forceload add 1600 0 >/dev/null
 ATTENTION_READY=0
 for _ in $(seq 1 30); do
-  QUEUE="$(rcon rtime device cleanup list)"
+  QUEUE="$(rtime rtime device cleanup list)"
   if grep -Fq '待处理：0' <<< "$QUEUE" && grep -Fq '需人工处理：1' <<< "$QUEUE"; then
     ATTENTION_READY=1
     break
@@ -209,10 +213,10 @@ grep -Fq 'REALTIME_CLEANUP_STONE_PRESERVED' <<< "$STONE_CHECK" || {
 }
 
 rcon setblock 1615 64 0 'minecraft:redstone_wire[power=15]' replace >/dev/null
-rcon rtime device cleanup retry "$JOB_ID" >/dev/null
+rtime rtime device cleanup retry "$JOB_ID" >/dev/null
 EMPTY_READY=0
 for _ in $(seq 1 30); do
-  QUEUE="$(rcon rtime device cleanup list)"
+  QUEUE="$(rtime rtime device cleanup list)"
   if grep -Fq '当前没有待清理设备' <<< "$QUEUE"; then
     EMPTY_READY=1
     break
