@@ -174,9 +174,7 @@ class PaperFoliaSchedulerTest {
         }
     }
 
-    private inline fun <reified T> fake(
-        noinline handler: (Method, Array<out Any?>?) -> Any?,
-    ): T {
+    private inline fun <reified T> fake(noinline handler: (Method, Array<out Any?>?) -> Any?): T {
         val type = T::class.java
         val instance =
             Proxy.newProxyInstance(type.classLoader, arrayOf(type)) { _, method, args ->
