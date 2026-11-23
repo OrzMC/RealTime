@@ -167,10 +167,20 @@ class YamlDeviceRepository(
         snapshot: DeviceStoreSnapshot,
         context: String,
     ) {
-        if (snapshot.devices.map(RedstoneDevice::id).toSet().size != snapshot.devices.size) {
+        if (
+            snapshot.devices
+                .map(RedstoneDevice::id)
+                .toSet()
+                .size != snapshot.devices.size
+        ) {
             throw DeviceRepositoryException("$context: device IDs must be unique")
         }
-        if (snapshot.cleanupJobs.map(DeviceCleanupJob::id).toSet().size != snapshot.cleanupJobs.size) {
+        if (
+            snapshot.cleanupJobs
+                .map(DeviceCleanupJob::id)
+                .toSet()
+                .size != snapshot.cleanupJobs.size
+        ) {
             throw DeviceRepositoryException("$context: cleanup job IDs must be unique")
         }
 
