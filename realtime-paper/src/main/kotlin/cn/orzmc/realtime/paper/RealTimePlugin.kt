@@ -5,6 +5,7 @@ import cn.orzmc.realtime.paper.command.CommandTarget
 import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
+import cn.orzmc.realtime.paper.device.DeviceAdministrationService
 import cn.orzmc.realtime.paper.device.RedstoneConfigurationLoader
 import cn.orzmc.realtime.paper.device.RedstoneDeviceManager
 import cn.orzmc.realtime.paper.device.YamlDeviceRepository
@@ -23,11 +24,14 @@ class RealTimePlugin :
     TabExecutor {
     private val configurationLoader = RealTimeConfigurationLoader()
     private val redstoneConfigurationLoader = RedstoneConfigurationLoader()
+    private val runtimeStateLock = Any()
 
     @Volatile
     private var runtimeState: RuntimeState? = null
 
     private lateinit var commandHandler: RealTimeCommandHandler
+    private lateinit var deviceRepository: YamlDeviceRepository
+    private var deviceAdministration: DeviceAdministrationService? = null
     private var schedulerAdapter: PaperFoliaScheduler? = null
     private var redstoneDeviceManager: RedstoneDeviceManager? = null
     private var placeholderExpansion: Any? = null
@@ -38,6 +42,7 @@ class RealTimePlugin :
         ensureBundledResource("modules/command.yml")
         ensureBundledResource("modules/redstone.yml")
         ensureBundledResource("data/devices.yml")
+        deviceRepository = YamlDeviceRepository(dataFolder)
 
         try {
             runtimeState = createRuntimeState()
@@ -46,22 +51,6 @@ class RealTimePlugin :
             server.pluginManager.disablePlugin(this)
             return
         }
-
-        commandHandler =
-            RealTimeCommandHandler(
-                pluginVersion = description.version,
-                currentState = { checkNotNull(runtimeState) },
-                reload = ::reloadRuntimeState,
-            )
-
-        val command = getCommand("rtime")
-        if (command == null) {
-            logger.severe("Command 'rtime' is missing from plugin.yml")
-            server.pluginManager.disablePlugin(this)
-            return
-        }
-        command.setExecutor(this)
-        command.tabCompleter = this
 
         schedulerAdapter =
             PaperFoliaScheduler(
@@ -79,6 +68,31 @@ class RealTimePlugin :
                 stateProvider = { checkNotNull(runtimeState) },
                 logger = logger,
             ).also { it.start(this) }
+
+        deviceAdministration =
+            DeviceAdministrationService(
+                stateLock = runtimeStateLock,
+                stateProvider = { checkNotNull(runtimeState) },
+                persistDevices = deviceRepository::save,
+                replaceState = { runtimeState = it },
+                requestRefresh = { redstoneDeviceManager?.requestRefresh() },
+            )
+        commandHandler =
+            RealTimeCommandHandler(
+                pluginVersion = description.version,
+                currentState = { checkNotNull(runtimeState) },
+                reload = ::reloadRuntimeState,
+                deviceAdministration = checkNotNull(deviceAdministration),
+            )
+
+        val command = getCommand("rtime")
+        if (command == null) {
+            logger.severe("Command 'rtime' is missing from plugin.yml")
+            server.pluginManager.disablePlugin(this)
+            return
+        }
+        command.setExecutor(this)
+        command.tabCompleter = this
 
         if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) {
             placeholderExpansion =
@@ -102,6 +116,7 @@ class RealTimePlugin :
     override fun onDisable() {
         placeholderExpansion?.let { PlaceholderApiBridge.unregister(it) }
         placeholderExpansion = null
+        deviceAdministration = null
         redstoneDeviceManager = null
         schedulerAdapter?.cancelAll()
         schedulerAdapter = null
@@ -126,7 +141,7 @@ class RealTimePlugin :
     private fun createRuntimeState(): RuntimeState {
         val configuration = configurationLoader.load(dataFolder)
         val redstoneConfiguration = redstoneConfigurationLoader.load(dataFolder)
-        val devices = YamlDeviceRepository(dataFolder).load()
+        val devices = deviceRepository.load()
         return RuntimeState(
             configuration = configuration,
             timeService =
@@ -142,16 +157,18 @@ class RealTimePlugin :
     }
 
     private fun reloadRuntimeState(): Result<RuntimeState> =
-        runCatching {
-            val candidate = createRuntimeState()
-            runtimeState = candidate
-            redstoneDeviceManager?.requestRefresh()
-            candidate
-        }.onFailure { exception ->
-            logger.warning(
-                "RealTime configuration reload rejected; previous configuration remains active: " +
-                    exception.message,
-            )
+        synchronized(runtimeStateLock) {
+            runCatching {
+                val candidate = createRuntimeState()
+                runtimeState = candidate
+                redstoneDeviceManager?.requestRefresh()
+                candidate
+            }.onFailure { exception ->
+                logger.warning(
+                    "RealTime configuration reload rejected; previous configuration remains active: " +
+                        exception.message,
+                )
+            }
         }
 
     private fun ensureBundledResource(path: String) {
