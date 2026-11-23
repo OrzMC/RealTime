@@ -154,5 +154,5 @@ jobs:
             --request POST "https://api.modrinth.com/v2/version" \
             --header "Authorization: $MODRINTH_TOKEN" \
             --header "User-Agent: OrzMC/RealTime (https://github.com/OrzMC/RealTime)" \
-            --form "data=$DATA" \
+            --form "data=$DATA;type=application/json" \
             --form "plugin=@dist/RealTime-$VERSION.jar;type=application/java-archive"
