@@ -1,7 +1,9 @@
 # PR10 — Persistent Deferred Cleanup for Device Retirement
 
 - Status: In Progress
-- Active implementation: PR10a — schema v2 store model and v1 migration
+- PR10a: Complete — [PR #15](https://github.com/OrzMC/RealTime/pull/15), merge `b9880c5fbf3e7eaf6a3f5326a23518f4c281a3b3`.
+- Verification: CI #89, Agent Validation #76, and Paper/Folia + PlaceholderAPI smoke #58 all passed; shaded JAR inspection passed.
+- Active implementation: PR10b — crash-safe retirement service and region-owned deferred cleanup/retry processor.
 - Priority: P1
 - Depends on: PR5, PR8, PR9
 
@@ -15,8 +17,8 @@ Today, disabled device records remain in `data/devices.yml` so their outputs can
 
 ## Implementation slices
 
-- **PR10a (current):** introduce immutable cleanup-job/store models, schema v2 serialization, atomic v1-to-v2 migration, and store invariants.
-- **PR10b:** add crash-safe retirement service and region-owned deferred cleanup/retry processor.
+- **PR10a (complete):** immutable cleanup-job/store models, schema v2 serialization, atomic v1-to-v2 migration, and store invariants (merged in PR #15).
+- **PR10b (current):** add crash-safe retirement service and region-owned deferred cleanup/retry processor.
 - **PR10c:** complete Paper/Folia restart/chunk-load runtime coverage and operator observability. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
 
 ## Scope
