@@ -54,7 +54,8 @@ class RealTimePlugin :
 
         val configuration = checkNotNull(runtimeState).configuration
         logger.info(
-            "RealTime ${description.version} enabled (timezone=${configuration.zoneId.id}, locale=${configuration.locale.toLanguageTag()}).",
+            "RealTime ${description.version} enabled " +
+                "(timezone=${configuration.zoneId.id}, locale=${configuration.locale.toLanguageTag()}).",
         )
     }
 
@@ -97,7 +98,10 @@ class RealTimePlugin :
             runtimeState = candidate
             candidate
         }.onFailure { exception ->
-            logger.warning("RealTime configuration reload rejected; previous configuration remains active: ${exception.message}")
+            logger.warning(
+                "RealTime configuration reload rejected; previous configuration remains active: " +
+                    exception.message,
+            )
         }
 
     private fun ensureBundledResource(path: String) {
