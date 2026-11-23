@@ -78,8 +78,19 @@ class RealTimeConfigurationLoaderTest {
         assertEquals(true, exception.message!!.contains("config-version"))
     }
 
+    @Test
+    fun `migrates unversioned root configuration and keeps a backup`() {
+        writeConfiguration(version = null)
+
+        val configuration = RealTimeConfigurationLoader().load(temporaryDirectory.toFile())
+
+        assertEquals(ZoneId.of("Asia/Shanghai"), configuration.zoneId)
+        assertEquals(true, Files.isRegularFile(temporaryDirectory.resolve("backups/config.yml.v0.bak")))
+        assertEquals(true, Files.readString(temporaryDirectory.resolve("config.yml")).contains("config-version: 1"))
+    }
+
     private fun writeConfiguration(
-        version: Int = 1,
+        version: Int? = 1,
         timezone: String = "Asia/Shanghai",
         locale: String = "zh_CN",
         format: String = "uuuu-MM-dd HH:mm:ss XXX",
@@ -88,7 +99,7 @@ class RealTimeConfigurationLoaderTest {
         Files.writeString(
             temporaryDirectory.resolve("config.yml"),
             """
-            config-version: $version
+            ${version?.let { "config-version: $it" }.orEmpty()}
             general:
               enabled: true
             time:
