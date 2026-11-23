@@ -133,7 +133,7 @@ DEVICE_INFO_OUTPUT="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
     rtime device info "$DEVICE_ID"
 )"
-grep -Fq "设备信息" <<< "$DEVICE_INFO_OUTPUT" && grep -Fq "bit 15" <<< "$DEVICE_INFO_OUTPUT" || {
+grep -Fq "设备信息" <<< "$DEVICE_INFO_OUTPUT" && grep -Fq "位 15" <<< "$DEVICE_INFO_OUTPUT" || {
   echo "Device info command did not return all bit mappings: $DEVICE_INFO_OUTPUT" >&2
   exit 1
 }
