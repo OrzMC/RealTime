@@ -46,13 +46,15 @@ Requirements: JDK 25.
 ./scripts/package.sh
 ```
 
-The Gradle Wrapper is included and pins Gradle 9.2.1. The first build downloads the Gradle distribution and project dependencies.
+The Gradle Wrapper pins Gradle 9.2.1. The first build downloads the Gradle distribution and project dependencies.
 
 The distributable shaded JAR is expected at `realtime-paper/build/libs/RealTime-0.1.0-SNAPSHOT.jar` for the initial development version.
 
 ## AI-agent development
 
 Read [AGENTS.md](AGENTS.md), then [tasks/roadmap.md](tasks/roadmap.md). Agents must select only ready tasks, use isolated worktrees, run the shared verification scripts, and report observed evidence rather than assumptions.
+
+See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the multi-agent workspace helpers.
 
 ## Docs
 
