@@ -19,7 +19,7 @@ class RealTimeCommandHandler(
         val state = currentState()
         val action = args.firstOrNull()?.lowercase(Locale.ROOT) ?: "now"
         when (action) {
-            "now" -> if (args.size == 1) showNow(target, state) else sendUsage(target, state)
+            "now" -> if (args.isEmpty() || args.size == 1) showNow(target, state) else sendUsage(target, state)
             "info" -> if (args.size == 1) showInfo(target, state) else sendUsage(target, state)
             "reload" -> if (args.size == 1) reloadConfiguration(target, state) else sendUsage(target, state)
             "device" -> handleDevice(target, args.drop(1), state)
