@@ -15,7 +15,7 @@ An operator can retire a disabled redstone clock with `/rtime device remove <uui
 - Reuse `DeviceRetirementService`; do not implement a second persistence path.
 - Do not inspect `World`, `Chunk`, or `Block` from the command thread. Retire with an unresolved world UUID and let the global cleanup processor bind the configured world name to the loaded world's UUID.
 - If persistence fails, leave runtime state unchanged and do not request cleanup.
-- On success, report both the retired device ID and cleanup job ID; do not claim all blocks have already been cleared.
+- On success, report both the retired device ID and cleanup job ID; do not claim all blocks have already been cleared. The job ID must remain usable with `device cleanup list` and `device cleanup retry`.
 - Preserve cleanup reservation rules: no coordinate reuse until every output is `CLEARED`.
 - Keep `device cleanup list` and `device cleanup retry` as the operator follow-up path.
 - Never expose a command that directly deletes YAML records or discards cleanup jobs.
