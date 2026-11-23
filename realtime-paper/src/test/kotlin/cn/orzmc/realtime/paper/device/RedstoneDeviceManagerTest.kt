@@ -48,7 +48,7 @@ class RedstoneDeviceManagerTest {
     fun `skips unloaded chunk without accessing its blocks`() {
         val fixture = fixture(chunkLoaded = false)
         fixture.manager.start(fixture.plugin)
-        fixture.globalCallback!!.accept(fixture.scheduledTask)
+        fixture.globalCallbackValue!!.accept(fixture.scheduledTask)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
         assertFalse(fixture.blockAccessedValue)
