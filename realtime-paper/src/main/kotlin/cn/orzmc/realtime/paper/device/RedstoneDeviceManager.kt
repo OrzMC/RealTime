@@ -89,9 +89,10 @@ class RedstoneDeviceManager(
                 .withNano(0)
         if (!force && localMinute == lastMinute) return
         lastMinute = localMinute
+        if (!force && (!state.configuration.generalEnabled || !state.redstoneConfiguration.enabled)) return
 
         val frame = BcdHhmmEncoder.encode(snapshot.zonedDateTime.toLocalTime())
-        scheduleAllOutputs(state, frame.bits)
+        scheduleAllOutputs(state, frame.bits, includeDisabled = force)
     }
 
     private fun scheduleAllOutputs(
