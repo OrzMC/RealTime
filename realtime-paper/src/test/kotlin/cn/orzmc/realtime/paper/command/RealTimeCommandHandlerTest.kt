@@ -1,7 +1,10 @@
 package cn.orzmc.realtime.paper.command
 
+import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
+import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -12,10 +15,11 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
+import java.util.UUID
 
 class RealTimeCommandHandlerTest {
     @Test
-    fun `no arguments displays current configured time`() {
+    fun noArgumentsDisplaysCurrentConfiguredTime() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
         val handler = handler()
 
@@ -26,7 +30,7 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
-    fun `info displays version timezone and module state`() {
+    fun infoDisplaysVersionTimezoneAndModuleState() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
         val handler = handler()
 
@@ -38,7 +42,7 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
-    fun `command permission is required for now and info`() {
+    fun commandPermissionIsRequiredForNowAndInfo() {
         val target = RecordingTarget(emptySet())
         val handler = handler()
 
@@ -48,7 +52,7 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
-    fun `reload requires admin permission`() {
+    fun reloadRequiresAdminPermission() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
         var reloadCalled = false
         val handler =
@@ -64,7 +68,7 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
-    fun `invalid arguments return usage`() {
+    fun invalidArgumentsReturnUsage() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
         val handler = handler()
 
@@ -74,7 +78,7 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
-    fun `failed reload reports error without changing active state`() {
+    fun failedReloadReportsErrorWithoutChangingActiveState() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
         val activeState = state()
         val handler =
@@ -90,12 +94,85 @@ class RealTimeCommandHandlerTest {
         assertEquals(ZoneId.of("Asia/Shanghai"), activeState.configuration.zoneId)
     }
 
-    private fun handler(reload: () -> Result<RuntimeState> = { Result.success(state()) }) =
-        RealTimeCommandHandler(
-            pluginVersion = "1.2.3",
-            currentState = ::state,
-            reload = reload,
+    @Test
+    fun deviceListRequiresCommandPermission() {
+        val target = RecordingTarget(emptySet())
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(device())))
+
+        handler.execute(target, arrayOf("device", "list"))
+
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+    }
+
+    @Test
+    fun deviceInfoShowsTheOutputCoordinateMapping() {
+        val device = device()
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(device)))
+
+        handler.execute(target, arrayOf("device", "info", device.id.toString()))
+
+        assertTrue(target.messages.any { it.contains("clock") })
+        assertTrue(target.messages.any { it.contains(device.id.toString()) })
+        assertTrue(target.messages.any { it.contains("bit 0 at 0, 64, 0") })
+        assertEquals(16, target.messages.count { it.contains("bit ") && it.contains(" at ") })
+    }
+
+    @Test
+    fun deviceMutationRequiresAdminPermission() {
+        val device = device()
+        val administration = RecordingDeviceAdministration(listOf(device))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "enable", device.id.toString()))
+
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+        assertEquals(0, administration.mutationCount)
+    }
+
+    @Test
+    fun deviceRemovalRequiresExplicitConfirmation() {
+        val device = device()
+        val administration = RecordingDeviceAdministration(listOf(device))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "remove", device.id.toString()))
+        assertEquals(0, administration.mutationCount)
+        assertTrue(target.messages.single().contains("confirm"))
+
+        handler.execute(target, arrayOf("device", "remove", device.id.toString(), "confirm"))
+
+        assertEquals(1, administration.mutationCount)
+        assertTrue(administration.devices.isEmpty())
+        assertTrue(target.messages.last().contains("removed"))
+    }
+
+    @Test
+    fun deviceTabCompletionDoesNotExposeMutationIdsToReadOnlyUsers() {
+        val device = device()
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(device)))
+        val readOnly = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val unauthorized = RecordingTarget(emptySet())
+
+        assertEquals(
+            listOf(device.id.toString()),
+            handler.complete(readOnly, arrayOf("device", "info", "")),
         )
+        assertTrue(handler.complete(readOnly, arrayOf("device", "remove", "")).isEmpty())
+        assertTrue(handler.complete(unauthorized, arrayOf("device", "info", "")).isEmpty())
+    }
+
+    private fun handler(
+        reload: () -> Result<RuntimeState> = { Result.success(state()) },
+        deviceAdministration: DeviceAdministration? = null,
+    ) = RealTimeCommandHandler(
+        pluginVersion = "1.2.3",
+        currentState = ::state,
+        reload = reload,
+        deviceAdministration = deviceAdministration,
+    )
 
     private fun state(): RuntimeState {
         val configuration =
@@ -121,6 +198,25 @@ class RealTimeCommandHandlerTest {
                         "command.no-permission" to "{prefix}denied",
                         "command.disabled" to "{prefix}disabled",
                         "command.usage" to "{prefix}usage",
+                        "command.device.list.header" to "{prefix}devices {count}",
+                        "command.device.list.empty" to "{prefix}empty",
+                        "command.device.list.item" to "{prefix}{name} {id} {world} {enabled}",
+                        "command.device.info.header" to "{prefix}{name}",
+                        "command.device.info.id" to "{prefix}{id}",
+                        "command.device.info.world" to "{prefix}{world}",
+                        "command.device.info.enabled" to "{prefix}{enabled}",
+                        "command.device.info.outputs" to "{prefix}outputs {count}",
+                        "command.device.info.output" to "{prefix}bit {bit} at {x}, {y}, {z}",
+                        "command.device.state.enabled" to "enabled",
+                        "command.device.state.disabled" to "disabled",
+                        "command.device.enable.success" to "{prefix}enabled {name}",
+                        "command.device.disable.success" to "{prefix}disabled {name}",
+                        "command.device.remove.confirm" to "{prefix}remove {id} confirm",
+                        "command.device.remove.success" to "{prefix}removed {name}",
+                        "command.device.invalid-id" to "{prefix}invalid {id}",
+                        "command.device.not-found" to "{prefix}not found {id}",
+                        "command.device.error" to "{prefix}error {reason}",
+                        "command.device.unavailable" to "{prefix}unavailable",
                     ),
             )
         return RuntimeState(
@@ -133,6 +229,54 @@ class RealTimeCommandHandlerTest {
                 ),
             messages = MessageCatalog(configuration.messages),
         )
+    }
+
+    private fun device() =
+        RedstoneDevice(
+            id = UUID.randomUUID(),
+            name = "clock",
+            worldName = "world",
+            enabled = true,
+            outputs =
+                (0 until 16).map { bit ->
+                    DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
+                },
+        )
+
+    private class RecordingDeviceAdministration(
+        initialDevices: List<RedstoneDevice>,
+    ) : DeviceAdministration {
+        val devices = initialDevices.toMutableList()
+        var mutationCount = 0
+
+        override fun list(): List<RedstoneDevice> = devices.toList()
+
+        override fun find(id: UUID): RedstoneDevice? = devices.firstOrNull { it.id == id }
+
+        override fun setEnabled(
+            id: UUID,
+            enabled: Boolean,
+        ): RedstoneDevice {
+            mutationCount += 1
+            val current = devices.first { it.id == id }
+            val updated =
+                RedstoneDevice(
+                    id = current.id,
+                    name = current.name,
+                    worldName = current.worldName,
+                    enabled = enabled,
+                    outputs = current.outputs,
+                )
+            devices[devices.indexOf(current)] = updated
+            return updated
+        }
+
+        override fun remove(id: UUID): RedstoneDevice {
+            mutationCount += 1
+            val removed = devices.first { it.id == id }
+            devices.remove(removed)
+            return removed
+        }
     }
 
     private class RecordingTarget(
