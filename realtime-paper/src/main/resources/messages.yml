@@ -1,0 +1,16 @@
+prefix: '&8[&bRealTime&8]&r '
+command:
+  now: '{prefix}&f当前时间：&e{datetime}&7（{timezone}）'
+  info:
+    header: '{prefix}&bRealTime 运行信息'
+    version: '{prefix}&7版本：&f{version}'
+    timezone: '{prefix}&7时区：&f{timezone}'
+    locale: '{prefix}&7语言：&f{locale}'
+    global-enabled: '{prefix}&7全局启用：&f{enabled}'
+    command-enabled: '{prefix}&7命令模块启用：&f{enabled}'
+  reload:
+    success: '{prefix}&a配置重新加载成功。'
+    failure: '{prefix}&c配置重新加载失败，旧配置继续生效：&f{reason}'
+  no-permission: '{prefix}&c你没有权限执行此操作。'
+  disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload]'

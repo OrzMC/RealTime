@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1 merged; PR2 in progress.** Paper/Folia 26.3 bootstrap and `/rtime` smoke tests pass. The platform-independent Clock-backed time service is being implemented in `realtime-core`; command wiring, modular configuration, devices, and optional integrations remain planned.
+> **Status: PR1 and PR2 merged; PR3 in progress.** Paper/Folia 26.3 bootstrap and `/rtime` smoke tests pass. `realtime-core` now provides the Clock-backed service; `/rtime` command wiring, modular configuration, localized messages, and safe reload are being implemented.
 
 ## Goals
 

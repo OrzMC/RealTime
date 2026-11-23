@@ -30,4 +30,4 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-PR1 scaffold is merged. PR2 implements the platform-independent Clock-backed time service and deterministic unit tests. The Paper command is not yet wired to the service; modular configuration, scheduler adapters, persistence, PlaceholderAPI, and redstone features remain future tasks.
+PR1 and PR2 are merged. PR3 wires `/rtime now`, `info`, and `reload` to the Core service, with separate root/command configuration and localized messages. Scheduler adapters, persistence, PlaceholderAPI, and redstone features remain future tasks.

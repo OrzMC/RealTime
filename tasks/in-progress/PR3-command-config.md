@@ -1,6 +1,6 @@
 # PR3 — Command and Modular Configuration
 
-- Status: Backlog
+- Status: In Progress
 - Priority: P0
 - Depends on: PR2
 
