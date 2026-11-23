@@ -9,8 +9,11 @@ class TaskRegistry {
     val activeTaskCount: Int
         get() = handles.size
 
-    internal fun register(scheduledTask: ScheduledTask): TaskHandle =
-        TaskHandle(scheduledTask, ::remove).also(handles::add)
+    internal fun register(scheduledTask: ScheduledTask): TaskHandle {
+        val handle = TaskHandle(scheduledTask, ::remove)
+        handles.add(handle)
+        return handle
+    }
 
     fun cancelAll(): Int {
         val snapshot = handles.toList()
