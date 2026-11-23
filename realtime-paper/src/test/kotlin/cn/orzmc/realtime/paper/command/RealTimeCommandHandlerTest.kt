@@ -278,7 +278,6 @@ class RealTimeCommandHandlerTest {
             devices[devices.indexOf(current)] = updated
             return updated
         }
-
     }
 
     private class RecordingTarget(
