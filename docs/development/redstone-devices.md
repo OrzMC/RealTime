@@ -106,7 +106,7 @@ The device records remain YAML-defined so each of the 16 output positions is exp
 |---|---|---|
 | `/rtime device list` | `realtime.command` | Lists configured devices, UUID, world, and enabled state |
 | `/rtime device info <uuid>` | `realtime.command` | Shows metadata and all 16 bit-to-coordinate mappings |
-| `/rtime device status` | `realtime.command` | Shows aggregate output health and refresh counters |
+| `/rtime device status` | `realtime.command` | Shows aggregate output health, refresh counters, and deferred-cleanup queue counts (pending / needs attention / in flight / queued results) |
 | `/rtime device enable <uuid>` | `realtime.admin` | Persists enabled state and schedules a redstone refresh |
 | `/rtime device disable <uuid>` | `realtime.admin` | Persists disabled state and schedules a redstone refresh |
 
@@ -120,4 +120,4 @@ Device creation and coordinate editing remain in `data/devices.yml`; no automati
 
 ## Output diagnostics
 
-Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, completed output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual power changes, unchanged outputs, and caught write failures. Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Diagnostics never load chunks and do not change output behavior.
+Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, completed output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual power changes, unchanged outputs, and caught write failures. It also reports deferred-cleanup job count, pending outputs, outputs requiring operator attention, in-flight outputs, and queued persistence results. Redstone counters are process-lifetime totals; cleanup counts reflect the current durable queue plus transient in-memory work. Diagnostics never load chunks and do not change output behavior.
