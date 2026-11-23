@@ -66,7 +66,6 @@ class RealTimeCommandHandler(
                     if (isAdmin) {
                         add("enable")
                         add("disable")
-                        add("remove")
                     }
                 }
             return candidates.filter { it.startsWith(args[1].lowercase(Locale.ROOT)) }
