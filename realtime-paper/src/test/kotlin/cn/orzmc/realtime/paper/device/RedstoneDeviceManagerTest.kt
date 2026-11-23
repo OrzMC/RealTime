@@ -115,7 +115,7 @@ class RedstoneDeviceManagerTest {
             fake<Chunk> { method, _ ->
                 when (method.name) {
                     "getX" -> 0
-                    "getZ" -> 4
+                    "getZ" -> 0
                     "getWorld" -> world
                     else -> null
                 }
