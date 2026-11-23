@@ -29,6 +29,18 @@ class RealTimeConfigurationLoaderTest {
     }
 
     @Test
+    fun `loads default device messages when upgrading an older message file`() {
+        writeConfiguration()
+        val messagesFile = temporaryDirectory.resolve("messages.yml")
+        val legacyMessages = Files.readString(messagesFile).substringBefore("              device:")
+        Files.writeString(messagesFile, legacyMessages)
+
+        val configuration = RealTimeConfigurationLoader().load(temporaryDirectory.toFile())
+
+        assertEquals("{prefix}&b设备列表（{count}）", configuration.messages["command.device.list.header"])
+    }
+
+    @Test
     fun `rejects invalid timezone with file and key context`() {
         writeConfiguration(timezone = "Mars/Olympus")
 
