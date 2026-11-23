@@ -47,6 +47,8 @@ class RedstoneDeviceManagerTest {
         assertTrue(fixture.blockAccessed())
         assertEquals(15, fixture.wirePower())
         assertTrue(fixture.physicsApplied())
+        assertEquals(1, fixture.manager.snapshot().outputChecks)
+        assertEquals(1, fixture.manager.snapshot().powerChanges)
     }
 
     @Test
@@ -91,6 +93,7 @@ class RedstoneDeviceManagerTest {
 
         assertFalse(fixture.blockAccessed())
         assertEquals(0, fixture.wirePower())
+        assertEquals(1, fixture.manager.snapshot().unloadedChunkSkips)
     }
 
     private fun fixture(
