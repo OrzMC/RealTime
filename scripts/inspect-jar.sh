@@ -38,4 +38,4 @@ grep -Fq "api-version: '26.3'" <<< "$PLUGIN_DESCRIPTOR"
 grep -Fq "folia-supported: true" <<< "$PLUGIN_DESCRIPTOR"
 
 echo "Shaded JAR inspection passed: $ARTIFACT"
-echo "Verified plugin descriptor, entry point, core classes, and server-provided API boundary."
+echo "Verified plugin descriptor, entry point, and server-provided API boundary."
