@@ -51,7 +51,15 @@ class DeviceCleanupManagerTest {
 
         val persistedJob = fixture.persistedSnapshot()?.cleanupJobs?.single()
         assertEquals(DeviceCleanupStatus.CLEARED, persistedJob?.outputs?.first()?.status)
-        assertTrue(fixture.currentState().cleanupJobs.single().outputs.first().status == DeviceCleanupStatus.CLEARED)
+        assertTrue(
+            fixture
+                .currentState()
+                .cleanupJobs
+                .single()
+                .outputs
+                .first()
+                .status == DeviceCleanupStatus.CLEARED,
+        )
     }
 
     @Test
