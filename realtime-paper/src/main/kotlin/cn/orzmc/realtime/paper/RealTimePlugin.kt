@@ -100,7 +100,7 @@ class RealTimePlugin :
     }
 
     override fun onDisable() {
-        placeholderExpansion?.let(PlaceholderApiBridge::unregister)
+        placeholderExpansion?.let { PlaceholderApiBridge.unregister(it) }
         placeholderExpansion = null
         redstoneDeviceManager = null
         schedulerAdapter?.cancelAll()
