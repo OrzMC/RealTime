@@ -42,7 +42,9 @@ class DeviceAdministrationService(
     ): RedstoneDevice =
         synchronized(stateLock) {
             val currentState = stateProvider()
-            val currentDevice = currentState.devices.firstOrNull { it.id == id } ?: throw DeviceNotFoundException(id)
+            val currentDevice =
+                currentState.devices.firstOrNull { it.id == id }
+                    ?: throw DeviceNotFoundException(id)
             if (currentDevice.enabled == enabled) return@synchronized currentDevice
 
             val updatedDevice =
@@ -67,7 +69,9 @@ class DeviceAdministrationService(
     override fun remove(id: UUID): RedstoneDevice =
         synchronized(stateLock) {
             val currentState = stateProvider()
-            val removedDevice = currentState.devices.firstOrNull { it.id == id } ?: throw DeviceNotFoundException(id)
+            val removedDevice =
+                currentState.devices.firstOrNull { it.id == id }
+                    ?: throw DeviceNotFoundException(id)
             val updatedDevices = currentState.devices.filterNot { it.id == id }
 
             persistDevices(updatedDevices)
