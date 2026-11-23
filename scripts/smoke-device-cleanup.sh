@@ -177,6 +177,12 @@ if [[ "$PENDING_READY" != "1" ]]; then
   exit 1
 fi
 
+UNLOADED_CHECK="$(rcon execute unless loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_STILL_UNLOADED)"
+grep -Fq 'REALTIME_CLEANUP_CHUNK_STILL_UNLOADED' <<< "$UNLOADED_CHECK" || {
+  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT: $UNLOADED_CHECK" >&2
+  exit 1
+}
+
 # The remaining 15 outputs live in chunk (100, 0), which must remain unloaded
 # until this command. Loading it externally should fire ChunkLoadEvent and retry.
 rcon forceload add 1600 0 >/dev/null
