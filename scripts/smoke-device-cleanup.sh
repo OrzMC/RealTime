@@ -209,16 +209,18 @@ if [[ "$PENDING_READY" != "1" ]]; then
   exit 1
 fi
 
-LOADED_CHECK="$(rcon execute if loaded 1600 64 0 run list)"
-UNLOADED_CHECK="$(rcon execute unless loaded 1600 64 0 run list)"
-if grep -Fq 'Test passed' <<< "$LOADED_CHECK"; then
-  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT: $LOADED_CHECK" >&2
-  exit 1
-fi
-grep -Fq 'Test passed' <<< "$UNLOADED_CHECK" || {
-  echo "Unable to prove deferred output chunk remained unloaded on $PROJECT: $UNLOADED_CHECK" >&2
+rcon execute if loaded 0 64 0 run say REALTIME_CLEANUP_SPAWN_CHUNK_LOADED >/dev/null || true
+grep -Fq 'REALTIME_CLEANUP_SPAWN_CHUNK_LOADED' "$WORK_DIR/server.log" || {
+  cat "$WORK_DIR/server.log"
+  echo "Loaded-chunk probe did not execute on $PROJECT." >&2
   exit 1
 }
+rcon execute if loaded 1600 64 0 run say REALTIME_CLEANUP_REMOTE_CHUNK_LOADED >/dev/null || true
+if grep -Fq 'REALTIME_CLEANUP_REMOTE_CHUNK_LOADED' "$WORK_DIR/server.log"; then
+  cat "$WORK_DIR/server.log"
+  echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT." >&2
+  exit 1
+fi
 
 # The remaining 15 outputs live in chunk (100, 0), which must remain unloaded
 # until this command. Loading it externally should fire ChunkLoadEvent and retry.
