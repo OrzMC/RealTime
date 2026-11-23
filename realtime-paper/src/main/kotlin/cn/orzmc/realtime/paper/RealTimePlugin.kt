@@ -5,7 +5,9 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.TabExecutor
 import org.bukkit.plugin.java.JavaPlugin
 
-class RealTimePlugin : JavaPlugin(), TabExecutor {
+class RealTimePlugin :
+    JavaPlugin(),
+    TabExecutor {
     override fun onEnable() {
         saveDefaultConfig()
         getCommand("rtime")?.setExecutor(this)
