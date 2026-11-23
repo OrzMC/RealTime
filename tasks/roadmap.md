@@ -5,8 +5,8 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | ID | Scope | Status | Depends on |
 |---|---|---|---|
 | PR1 | Project scaffold and Agent Native foundation | Complete | — |
-| PR2 | Clock-backed RealTime Core | In progress | PR1 |
-| PR3 | Commands and modular configuration | Backlog | PR2 |
+| PR2 | Clock-backed RealTime Core | Complete | PR1 |
+| PR3 | Commands and modular configuration | In progress | PR2 |
 | PR4 | Paper/Folia scheduler adapter and runtime tests | Backlog | PR3 |
 | PR5 | Device model, BCD encoder, redstone output | Backlog | PR2, PR4 |
 | PR6 | Optional PlaceholderAPI integration | Backlog | PR2, PR3 |
