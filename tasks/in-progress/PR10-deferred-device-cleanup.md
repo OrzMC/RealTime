@@ -4,7 +4,7 @@
 - PR10a: Complete — [PR #15](https://github.com/OrzMC/RealTime/pull/15), merge `b9880c5fbf3e7eaf6a3f5326a23518f4c281a3b3`.
 - Verification: CI #89, Agent Validation #76, and Paper/Folia + PlaceholderAPI smoke #58 all passed; shaded JAR inspection passed.
 - PR10b: Complete — [PR #17](https://github.com/OrzMC/RealTime/pull/17), merge `ea4b3fbe2cc9da3b431a7c111f10c266fe0f1b7d`.
-- Active implementation: PR10c — device-specific Paper/Folia runtime recovery coverage and cleanup queue operator diagnostics.
+- PR10c: Complete — [PR #18](https://github.com/OrzMC/RealTime/pull/18), merge `0bab2812515d1c9e58445067a6e6ed712d89f764`.
 - Priority: P1
 - Depends on: PR5, PR8, PR9
 
