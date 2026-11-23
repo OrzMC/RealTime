@@ -31,3 +31,18 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 ## Current state
 
 PR1–PR3 are merged. PR4 adds a Paper/Folia scheduler facade with global, region, and entity ownership, tracked task handles, entity-retirement handling, and cancellation on plugin disable. Region scheduling is never used for entity work; the adapter exposes no generic asynchronous Bukkit callback.
+
+
+### Paper/Folia scheduler ownership
+
+PR4 provides `PaperFoliaScheduler` over the Paper 26.3 scheduler APIs:
+
+- Global work uses `GlobalRegionScheduler` only for server-wide state that does not belong to a world location.
+- Position and block work uses `RegionScheduler` with a defensive copy of the target `Location`.
+- Entity work uses `EntityScheduler`; it follows the entity across region/world transfers. Region scheduling must never be used as a substitute for entity scheduling.
+- Entity retirement callbacks must not touch the retired entity, worlds, chunks, or blocks.
+- All returned tasks are tracked by `TaskRegistry`; plugin shutdown cancels all outstanding tasks.
+- Repeating schedules require positive initial delay and period. One-shot handles are removed when the callback completes.
+- No generic asynchronous Bukkit callback is exposed. Any future asynchronous work must operate on detached data only and hand world/entity mutations back to the appropriate owning scheduler.
+
+Official Paper 26.3 API references: [GlobalRegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/GlobalRegionScheduler.html), [RegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/RegionScheduler.html), [EntityScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/EntityScheduler.html).
