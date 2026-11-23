@@ -3,12 +3,12 @@ package cn.orzmc.realtime.paper.scheduler
 import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
-import java.util.function.Consumer
 import org.bukkit.Location
 import org.bukkit.entity.Entity
 import org.bukkit.plugin.Plugin
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Consumer
 
 /**
  * Ownership-aware scheduler facade for Paper and Folia.
