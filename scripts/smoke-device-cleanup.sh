@@ -150,12 +150,23 @@ sleep 5
 stop_server
 
 WORLD_NAME="world"
-DEVICE_ID="00000000-0000-0000-0000-000000000001"
+CLEANUP_DEVICE_ID="00000000-0000-0000-0000-000000000001"
 JOB_ID="00000000-0000-0000-0000-000000000002"
+RETIRE_DEVICE_ID="00000000-0000-0000-0000-000000000003"
 {
-  printf 'schema-version: 2\ndevices: []\ncleanup-jobs:\n'
+  printf 'schema-version: 2\ndevices:\n'
+  printf '  - id: %s\n' "$RETIRE_DEVICE_ID"
+  printf '    name: ci-remove-command\n'
+  printf '    world: %s\n' "$WORLD_NAME"
+  printf '    enabled: false\n'
+  printf '    outputs:\n'
+  for bit in $(seq 0 15); do
+    x=$((3200 + bit))
+    printf '      - bit-index: %s\n        x: %s\n        y: 64\n        z: 0\n' "$bit" "$x"
+  done
+  printf 'cleanup-jobs:\n'
   printf '  - id: %s\n' "$JOB_ID"
-  printf '    device-id: %s\n' "$DEVICE_ID"
+  printf '    device-id: %s\n' "$CLEANUP_DEVICE_ID"
   printf '    device-name: ci-restart-cleanup\n'
   printf '    world: %s\n' "$WORLD_NAME"
   printf '    world-uuid: null\n'
@@ -277,4 +288,63 @@ done
 
 rcon forceload remove 1600 0 >/dev/null
 rcon forceload remove 0 0 >/dev/null
-echo "$PROJECT cleanup runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, and idempotent power-zero cleanup."
+
+# Exercise the actual admin retirement command against a disabled active device.
+rcon forceload add 3200 0 >/dev/null
+RETIRE_CHUNK_READY=0
+for _ in $(seq 1 20); do
+  RETIRE_CHUNK_PROBE="$(rcon execute if loaded 3200 64 0 run list)"
+  if [[ -n "$RETIRE_CHUNK_PROBE" ]]; then
+    RETIRE_CHUNK_READY=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$RETIRE_CHUNK_READY" != "1" ]]; then
+  echo "Could not load retirement command test chunk on $PROJECT." >&2
+  exit 1
+fi
+for bit in $(seq 0 15); do
+  x=$((3200 + bit))
+  rcon setblock "$x" 63 0 minecraft:stone >/dev/null
+  rcon setblock "$x" 64 0 'minecraft:redstone_wire[power=15]' >/dev/null
+done
+
+REMOVE_RESULT="$(rtime device remove "$RETIRE_DEVICE_ID")"
+if ! grep -Fq '已退休' <<< "$REMOVE_RESULT"; then
+  echo "Safe device remove command did not report retirement on $PROJECT: $REMOVE_RESULT" >&2
+  exit 1
+fi
+
+RETIRE_QUEUE_EMPTY=0
+for _ in $(seq 1 30); do
+  QUEUE="$(rtime device cleanup list)"
+  if grep -Fq '当前没有待清理设备' <<< "$QUEUE"; then
+    RETIRE_QUEUE_EMPTY=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$RETIRE_QUEUE_EMPTY" != "1" ]]; then
+  cat "$WORK_DIR/server.log"
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Retirement command did not complete all 16 outputs on $PROJECT: $QUEUE" >&2
+  exit 1
+fi
+
+DEVICE_LIST="$(rtime device list)"
+if ! grep -Fq '当前没有配置任何设备' <<< "$DEVICE_LIST"; then
+  echo "Retired device is still present in the active device list on $PROJECT: $DEVICE_LIST" >&2
+  exit 1
+fi
+for bit in 0 7 15; do
+  x=$((3200 + bit))
+  POWER_PROBE="$(rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run list)"
+  if [[ -z "$POWER_PROBE" ]]; then
+    echo "Retired output at x=$x was not cleared to power 0 on $PROJECT." >&2
+    exit 1
+  fi
+done
+
+rcon forceload remove 3200 0 >/dev/null
+echo "$PROJECT cleanup and retirement runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, admin remove command, and power-zero cleanup."
