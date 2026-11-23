@@ -86,7 +86,7 @@ Use the full UUID shown by `device list`; device names are labels and are not id
 
 These commands never inspect or mutate world blocks directly. The redstone manager receives a refresh request and performs all world/block access through the existing Paper/Folia scheduler ownership rules. Disabled devices remain in the device store so their outputs can be driven to zero when their chunks are loaded.
 
-There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. A persistent deferred-cleanup queue is required before safe in-game deletion can be offered.
+There is intentionally no in-game remove command yet. Removing a record while one of its output chunks is unloaded could leave a powered wire behind with no record available to clear it on the next chunk load. To retire a device safely, disable it, allow every output chunk to load so the manager can clear the wires, then remove its YAML record. PR10 is the next planned milestone: add a persistent deferred-cleanup queue before safe in-game deletion can be offered. Until that work is merged and verified, do not remove device records through runtime commands or by any automated process that could lose unloaded output coordinates.
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
 

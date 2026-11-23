@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR8 merged; PR9 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration, plus device administration commands are implemented.
+> **Status: PR1–PR9 merged.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, optional PlaceholderAPI integration, device administration, and aggregate diagnostics are implemented. PR10 (deferred cleanup for safely retiring devices) is ready for implementation. Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration, plus device administration commands are implemented.
 
 ## Goals
 
@@ -66,7 +66,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
 | `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
 
-Device records remain YAML-defined. In-game deletion is intentionally deferred until a persistent cleanup queue can safely clear outputs in unloaded chunks.
+Device records remain YAML-defined. In-game deletion remains disabled until PR10 implements a persistent deferred-cleanup queue that can safely clear outputs in unloaded chunks.
 
 ## Docs
 

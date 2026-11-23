@@ -1,6 +1,9 @@
 # PR9 — Redstone Device Diagnostics and Output Observability
 
-- Status: In Progress
+- Status: Complete
+- Merged PR: [#13](https://github.com/OrzMC/RealTime/pull/13)
+- Merge commit: `31369b0421e979353b09fac60e47eafb10f90bcb`
+- Verification: Gradle CI run [#79](https://github.com/OrzMC/RealTime/actions/runs/45136821278), Agent Validation [#68](https://github.com/OrzMC/RealTime/actions/runs/45136821228), and Paper/Folia + PlaceholderAPI smoke [#50](https://github.com/OrzMC/RealTime/actions/runs/45136821214) all passed; CI shaded JAR inspection passed.
 - Priority: P1
 - Depends on: PR5, PR8
 

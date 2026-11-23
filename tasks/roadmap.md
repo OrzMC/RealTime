@@ -12,7 +12,8 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR6 | Optional PlaceholderAPI integration | Complete | PR2, PR3 |
 | PR7 | Hangar/Modrinth release automation | Complete | PR4, PR5, PR6 |
 | PR8 | Device administration commands and safe lifecycle | Complete | PR5, PR7 |
-| PR9 | Redstone device diagnostics and output observability | In progress | PR5, PR8 |
+| PR9 | Redstone device diagnostics and output observability | Complete | PR5, PR8 |
+| PR10 | Persistent deferred cleanup for safely retiring devices | Ready | PR5, PR8, PR9 |
 
 ## Milestones
 
@@ -21,5 +22,6 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 - M3: persistent region-safe redstone devices.
 - M4: optional integrations, compatibility matrix, release automation.
 - M5: safe device administration and operational diagnostics.
+- M6: crash-safe deferred cleanup and safe device retirement.
 
 Do not implement future milestones in the scaffold PR. Split work into small PRs with explicit acceptance criteria.
