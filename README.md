@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR5 merged; PR6 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, and region-safe redstone output are implemented. PR6 adds optional PlaceholderAPI placeholders.
+> **Status: PR1–PR6 merged; PR7 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration are implemented.
 
 ## Goals
 
@@ -30,7 +30,7 @@ PaperMC documents `io.papermc.paper:paper-api:26.3.build.+` for the 26.3 API lin
 ## Layout
 
 - `realtime-core/`: pure Kotlin/JVM time service, BCD encoder, and validated device model.
-- `realtime-paper/`: plugin lifecycle, commands, modular configuration, Paper/Folia adapters, device persistence, and optional PlaceholderAPI bridge.
+- `realtime-paper/`: plugin lifecycle, commands, modular configuration, Paper/Folia adapters, device persistence, and optional integrations.
 - `tasks/`: roadmap and executable task contracts.
 - `.agents/`: roles, workflows, and safety policies.
 - `docs/`: product requirements, architecture, ADRs, development, testing, release.
