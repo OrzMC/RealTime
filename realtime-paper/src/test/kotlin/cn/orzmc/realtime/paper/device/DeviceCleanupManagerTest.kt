@@ -87,7 +87,7 @@ class DeviceCleanupManagerTest {
 
     @Test
     fun `resolves an unresolved world name when that world loads`() {
-        val fixture = fixture(chunkLoaded = true, cleanupWorldId = null)
+        val fixture = fixture(chunkLoaded = true, resolveWorldIdentity = false)
         fixture.manager.onWorldLoad(fixture.worldLoadEvent)
         fixture.globalCallbacks.first().accept(fixture.scheduledTask)
 
@@ -134,7 +134,7 @@ class DeviceCleanupManagerTest {
         chunkLoaded: Boolean,
         blockMaterial: Material = Material.REDSTONE_WIRE,
         persistFailures: Int = 0,
-        cleanupWorldId: UUID? = null,
+        resolveWorldIdentity: Boolean = true,
     ): Fixture {
         val worldId = UUID.randomUUID()
         var wirePower = 15
@@ -214,7 +214,7 @@ class DeviceCleanupManagerTest {
                         DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
                     },
             )
-        val job = DeviceCleanupJob.fromDevice(device, cleanupWorldId ?: worldId)
+        val job = DeviceCleanupJob.fromDevice(device, if (resolveWorldIdentity) worldId else null)
         val initialState = state(job)
         var activeState = initialState
         var persisted: DeviceStoreSnapshot? = null
