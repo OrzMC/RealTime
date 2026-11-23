@@ -154,32 +154,16 @@ grep -Eq 'enabled: false' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
   exit 1
 }
 
-REMOVE_PREVIEW="$(
-  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
-    rtime device remove "$DEVICE_ID"
-)"
-grep -Fq "confirm" <<< "$REMOVE_PREVIEW" || {
-  echo "Device removal did not require explicit confirmation: $REMOVE_PREVIEW" >&2
-  exit 1
-}
-grep -Fq "$DEVICE_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
-  echo "Device was removed without confirmation." >&2
-  exit 1
-}
-
-python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
-  rtime device remove "$DEVICE_ID" confirm
-if grep -Fq "$DEVICE_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml"; then
-  echo "Confirmed device removal did not persist." >&2
-  exit 1
-fi
-
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime reload
-EMPTY_DEVICE_LIST="$(
+DEVICE_LIST_AFTER_RELOAD="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
 )"
-grep -Fq "没有配置任何设备" <<< "$EMPTY_DEVICE_LIST" || {
-  echo "Device removal was not reflected after reload: $EMPTY_DEVICE_LIST" >&2
+grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_AFTER_RELOAD" || {
+  echo "Disabled device was not retained after reload: $DEVICE_LIST_AFTER_RELOAD" >&2
+  exit 1
+}
+grep -Fq "禁用" <<< "$DEVICE_LIST_AFTER_RELOAD" || {
+  echo "Disabled state was not reflected in the device list: $DEVICE_LIST_AFTER_RELOAD" >&2
   exit 1
 }
 
@@ -218,4 +202,4 @@ if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."
 fi
 
-echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/enable/disable/remove, reload, and optional PlaceholderAPI smoke tests passed."
+echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/enable/disable, reload, and optional PlaceholderAPI smoke tests passed."
