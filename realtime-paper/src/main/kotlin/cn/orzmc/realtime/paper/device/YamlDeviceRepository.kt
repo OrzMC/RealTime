@@ -60,7 +60,7 @@ class YamlDeviceRepository(
                 linkedMapOf(
                     "id" to device.id.toString(),
                     "name" to device.name,
-                    "world-id" to device.worldId.toString(),
+                    "world" to device.worldName,
                     "enabled" to device.enabled,
                     "outputs" to
                         device.outputs.map { output ->
@@ -113,7 +113,7 @@ class YamlDeviceRepository(
         val positions =
             devices.flatMap { device ->
                 device.outputs.map { output ->
-                    Triple(device.worldId, output.x, output.z) to output.y
+                    Triple(device.worldName, output.x, output.z) to output.y
                 }
             }
         if (positions.toSet().size != positions.size) {
@@ -128,7 +128,7 @@ class YamlDeviceRepository(
         val context = "$DEVICE_FILE: devices[$index]"
         val id = parseUuid(requiredString(raw, "id", context), "$context.id")
         val name = requiredString(raw, "name", context)
-        val worldId = parseUuid(requiredString(raw, "world-id", context), "$context.world-id")
+        val worldName = requiredString(raw, "world", context)
         val enabled = raw["enabled"] as? Boolean
             ?: throw DeviceRepositoryException("$context.enabled must be true or false")
         val rawOutputs = raw["outputs"] as? List<*>
@@ -146,7 +146,7 @@ class YamlDeviceRepository(
             }
 
         return try {
-            RedstoneDevice(id, name, worldId, enabled, outputs)
+            RedstoneDevice(id, name, worldName, enabled, outputs)
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
         }
