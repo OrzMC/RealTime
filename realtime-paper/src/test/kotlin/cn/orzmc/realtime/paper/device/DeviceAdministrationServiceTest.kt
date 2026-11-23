@@ -70,31 +70,6 @@ class DeviceAdministrationServiceTest {
     }
 
     @Test
-    fun removesDeviceAndPersistsTheRemainingList() {
-        val first = device()
-        val second = device()
-        val initial = state(listOf(first, second))
-        var active = initial
-        var persisted: List<RedstoneDevice>? = null
-        var refreshCount = 0
-        val service =
-            DeviceAdministrationService(
-                stateLock = Any(),
-                stateProvider = { active },
-                persistDevices = { persisted = it },
-                replaceState = { active = it },
-                requestRefresh = { refreshCount += 1 },
-            )
-
-        val removed = service.remove(first.id)
-
-        assertEquals(first.id, removed.id)
-        assertEquals(listOf(second), active.devices)
-        assertEquals(listOf(second), persisted)
-        assertEquals(1, refreshCount)
-    }
-
-    @Test
     fun failedPersistenceKeepsTheActiveRuntimeStateUnchanged() {
         val initial = state(listOf(device(enabled = false)))
         var active = initial
@@ -132,7 +107,7 @@ class DeviceAdministrationServiceTest {
             )
 
         assertThrows(DeviceNotFoundException::class.java) {
-            service.remove(UUID.randomUUID())
+            service.setEnabled(UUID.randomUUID(), true)
         }
 
         assertEquals(initial, active)
