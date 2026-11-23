@@ -119,6 +119,20 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun deviceInfoRejectsMalformedAndUnknownIds() {
+        val administration = RecordingDeviceAdministration(listOf(device()))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "info", "not-a-uuid"))
+        handler.execute(target, arrayOf("device", "info", UUID.randomUUID().toString()))
+
+        assertTrue(target.messages.any { it.contains("invalid not-a-uuid") })
+        assertTrue(target.messages.any { it.contains("not found") })
+        assertEquals(0, administration.mutationCount)
+    }
+
+    @Test
     fun deviceMutationRequiresAdminPermission() {
         val device = device()
         val administration = RecordingDeviceAdministration(listOf(device))
