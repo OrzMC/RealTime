@@ -55,15 +55,10 @@ class DeviceCleanupManager(
     @EventHandler
     fun onChunkLoad(event: ChunkLoadEvent) {
         val world = event.world
-        val worldId = world.uid
-        val state = stateProvider()
-        state.cleanupJobs.forEach { job ->
-            if (!matchesWorld(job, world.name, worldId)) return@forEach
-            job.outputs
-                .asSequence()
-                .filter { it.status == DeviceCleanupStatus.PENDING }
-                .filter { it.output.x shr 4 == event.chunk.x && it.output.z shr 4 == event.chunk.z }
-                .forEach { output -> scheduleOutput(world, job, output) }
+        val chunkX = event.chunk.x
+        val chunkZ = event.chunk.z
+        scheduler.runGlobal {
+            if (attachWorldIdentity(world)) processChunk(world, chunkX, chunkZ)
         }
     }
 
@@ -71,15 +66,14 @@ class DeviceCleanupManager(
     fun onWorldLoad(event: WorldLoadEvent) {
         val world = event.world
         scheduler.runGlobal {
-            attachWorldIdentity(world)
-            processWorld(world)
+            if (attachWorldIdentity(world)) processWorld(world)
         }
     }
 
     private fun processAllLoadedWorlds() {
+        if (pendingResults.isNotEmpty()) scheduleResultDrain()
         server.worlds.forEach { world ->
-            attachWorldIdentity(world)
-            processWorld(world)
+            if (attachWorldIdentity(world)) processWorld(world)
         }
     }
 
@@ -87,7 +81,7 @@ class DeviceCleanupManager(
         val worldId = world.uid
         stateProvider().cleanupJobs
             .asSequence()
-            .filter { matchesWorld(it, world.name, worldId) }
+            .filter { it.worldId == worldId }
             .forEach { job ->
                 job.outputs
                     .asSequence()
@@ -96,7 +90,25 @@ class DeviceCleanupManager(
             }
     }
 
-    private fun attachWorldIdentity(world: World) {
+    private fun processChunk(
+        world: World,
+        chunkX: Int,
+        chunkZ: Int,
+    ) {
+        val worldId = world.uid
+        stateProvider().cleanupJobs
+            .asSequence()
+            .filter { it.worldId == worldId }
+            .forEach { job ->
+                job.outputs
+                    .asSequence()
+                    .filter { it.status == DeviceCleanupStatus.PENDING }
+                    .filter { it.output.x shr 4 == chunkX && it.output.z shr 4 == chunkZ }
+                    .forEach { output -> scheduleOutput(world, job, output) }
+            }
+    }
+
+    private fun attachWorldIdentity(world: World): Boolean =
         synchronized(stateLock) {
             val current = stateProvider()
             val updatedJobs =
@@ -107,18 +119,19 @@ class DeviceCleanupManager(
                         job
                     }
                 }
-            if (updatedJobs == current.cleanupJobs) return
+            if (updatedJobs == current.cleanupJobs) return@synchronized true
             val updated = current.copy(cleanupJobs = updatedJobs)
             try {
                 persistStore(DeviceStoreSnapshot(updated.devices, updated.cleanupJobs))
                 replaceState(updated)
+                true
             } catch (exception: Exception) {
                 logger.warning(
                     "Unable to persist world identity for deferred cleanup in '${world.name}': ${exception.message}",
                 )
+                false
             }
         }
-    }
 
     private fun scheduleOutput(
         world: World,
@@ -136,7 +149,8 @@ class DeviceCleanupManager(
                 output.y.toDouble(),
                 output.z.toDouble(),
             )
-        scheduler.runRegion(location) { target ->
+        try {
+            scheduler.runRegion(location) { target ->
             var resultQueued = false
             try {
                 val targetWorld = target.world ?: return@runRegion
@@ -185,13 +199,24 @@ class DeviceCleanupManager(
             } finally {
                 if (!resultQueued) inFlight.remove(key)
             }
+            }
+        } catch (exception: Exception) {
+            inFlight.remove(key)
+            logger.warning(
+                "Unable to schedule deferred cleanup for device '${job.deviceName}' output ${output.bitIndex}: ${exception.message}",
+            )
         }
     }
 
     private fun scheduleResultDrain() {
         if (!drainScheduled.compareAndSet(false, true)) return
-        scheduler.runGlobal {
-            drainResults()
+        try {
+            scheduler.runGlobal {
+                drainResults()
+            }
+        } catch (exception: Exception) {
+            drainScheduled.set(false)
+            logger.warning("Unable to schedule deferred cleanup result persistence: ${exception.message}")
         }
     }
 
@@ -242,17 +267,6 @@ class DeviceCleanupManager(
             if (pendingResults.isNotEmpty()) scheduleResultDrain()
         }
     }
-
-    private fun matchesWorld(
-        job: DeviceCleanupJob,
-        worldName: String,
-        worldId: UUID,
-    ): Boolean =
-        if (job.worldId != null) {
-            job.worldId == worldId
-        } else {
-            job.worldName == worldName
-        }
 
     private data class CleanupKey(
         val jobId: UUID,
