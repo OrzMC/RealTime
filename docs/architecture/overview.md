@@ -18,6 +18,8 @@ One distributable JAR is built by Shadow. Paper API remains compile-only; Kotlin
 
 Use `Instant` for absolute time, explicit `ZoneId` for configured timezone, and `ZonedDateTime` for local calendar representation. Inject `Clock`; never rely on the JVM default timezone.
 
+PR2 implements `RealTimeService`, `ClockRealTimeService`, and immutable `RealTimeSnapshot` in `realtime-core`. The service requires an explicit `Clock`, `ZoneId`, and `Locale`; the clock's own zone is ignored. A snapshot captures one instant and its zoned representation together. Formatting uses `DateTimeFormatter.ofPattern(pattern, locale)` and preserves the supplied snapshot's zone. Invalid patterns propagate as `IllegalArgumentException`; invalid zone identifiers are rejected by `ZoneId.of` with `DateTimeException`, which the Paper configuration adapter must turn into an actionable configuration error.
+
 ## Scheduler model
 
 Use the Folia global scheduler for global state, region scheduler for block/location work, and entity scheduler for entity work. Never access Bukkit world/block/entity objects from arbitrary async threads. Multi-region devices fan out to region-local tasks and must not force-load chunks to refresh displays.
@@ -28,4 +30,4 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-Initial scaffold only: plugin lifecycle, default config, and status command. Time service, schedulers, persistence, PlaceholderAPI, and redstone features are future tasks.
+PR1 scaffold is merged. PR2 implements the platform-independent Clock-backed time service and deterministic unit tests. The Paper command is not yet wired to the service; modular configuration, scheduler adapters, persistence, PlaceholderAPI, and redstone features remain future tasks.

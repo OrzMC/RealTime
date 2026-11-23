@@ -1,6 +1,6 @@
 # PR2 — Clock-backed RealTime Core
 
-- Status: Ready
+- Status: In Progress
 - Priority: P0
 - Depends on: PR1 merged
 
