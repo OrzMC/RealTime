@@ -9,4 +9,4 @@
 
 Time-dependent tests inject fixed `java.time.Clock`; avoid sleeps and assertions against the host clock. A successful compile is not proof of Paper/Folia compatibility. Runtime evidence must record exact server builds and exercised features.
 
-The initial scaffold has no implemented time service tests yet.
+PR2 adds deterministic core tests for configured-zone conversion, DST spring/fall transitions, locale-aware formatting, invalid patterns, and snapshot invariants. Keep tests based on `Clock.fixed`; do not use sleeps or the host clock.
