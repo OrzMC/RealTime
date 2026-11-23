@@ -2,6 +2,7 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.BcdHhmmEncoder
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.Location
