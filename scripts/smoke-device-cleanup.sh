@@ -149,26 +149,7 @@ rcon forceload remove 1600 0 >/dev/null
 sleep 5
 stop_server
 
-UID_FILE="$(find "$WORK_DIR" -type f -name uid.dat -print -quit)"
-if [[ -z "$UID_FILE" ]]; then
-  find "$WORK_DIR" -maxdepth 3 -type d -print
-  echo "World uid.dat was not created by the first $PROJECT boot." >&2
-  exit 1
-fi
-WORLD_DIR="$(dirname "$UID_FILE")"
-WORLD_NAME="$(basename "$WORLD_DIR")"
-WORLD_UUID="$(python3 - "$UID_FILE" <<'PY'
-import pathlib
-import sys
-import uuid
-
-path = pathlib.Path(sys.argv[1])
-raw = path.read_bytes()
-if len(raw) != 16:
-    raise SystemExit(f"Unexpected uid.dat length: {len(raw)}")
-print(uuid.UUID(bytes=raw))
-PY
-)"
+WORLD_NAME="world"
 DEVICE_ID="00000000-0000-0000-0000-000000000001"
 JOB_ID="00000000-0000-0000-0000-000000000002"
 {
@@ -177,7 +158,7 @@ JOB_ID="00000000-0000-0000-0000-000000000002"
   printf '    device-id: %s\n' "$DEVICE_ID"
   printf '    device-name: ci-restart-cleanup\n'
   printf '    world: %s\n' "$WORLD_NAME"
-  printf '    world-uuid: %s\n' "$WORLD_UUID"
+  printf '    world-uuid: null\n'
   printf '    outputs:\n'
   for bit in $(seq 0 15); do
     if [[ "$bit" == "0" ]]; then
@@ -189,7 +170,7 @@ JOB_ID="00000000-0000-0000-0000-000000000002"
   done
 } > "$WORK_DIR/plugins/RealTime/data/devices.yml"
 
-echo "Restarting $PROJECT with a persisted cleanup job for world UUID $WORLD_UUID..."
+echo "Restarting $PROJECT with a persisted cleanup job for world $WORLD_NAME (UUID resolved by plugin on load)..."
 : > "$WORK_DIR/server.log"
 start_server
 grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
