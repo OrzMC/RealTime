@@ -10,7 +10,8 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR4 | Paper/Folia scheduler adapter and runtime tests | Complete | PR3 |
 | PR5 | Device model, BCD encoder, redstone output | Complete | PR2, PR4 |
 | PR6 | Optional PlaceholderAPI integration | Complete | PR2, PR3 |
-| PR7 | Hangar/Modrinth release automation | In progress | PR4, PR5, PR6 |
+| PR7 | Hangar/Modrinth release automation | Complete | PR4, PR5, PR6 |
+| PR8 | Device administration commands and safe lifecycle | In progress | PR5, PR7 |
 
 ## Milestones
 

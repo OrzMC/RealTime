@@ -25,6 +25,19 @@ class RealTimeConfigurationLoaderTest {
         assertEquals(Locale.forLanguageTag("zh-CN"), configuration.locale)
         assertEquals(true, configuration.commandEnabled)
         assertEquals("uuuu-MM-dd HH:mm:ss XXX", configuration.commandFormat)
+        assertEquals("{prefix}devices {count}", configuration.messages["command.device.list.header"])
+    }
+
+    @Test
+    fun `loads default device messages when upgrading an older message file`() {
+        writeConfiguration()
+        val messagesFile = temporaryDirectory.resolve("messages.yml")
+        val legacyMessages = Files.readString(messagesFile).substringBefore("  device:")
+        Files.writeString(messagesFile, legacyMessages)
+
+        val configuration = RealTimeConfigurationLoader().load(temporaryDirectory.toFile())
+
+        assertEquals("{prefix}&b设备列表（{count}）", configuration.messages["command.device.list.header"])
     }
 
     @Test
@@ -135,6 +148,32 @@ class RealTimeConfigurationLoaderTest {
               no-permission: '{prefix}denied'
               disabled: '{prefix}disabled'
               usage: '{prefix}usage'
+              device:
+                unavailable: '{prefix}unavailable'
+                list:
+                  header: '{prefix}devices {count}'
+                  empty: '{prefix}empty'
+                  item: '{prefix}{name} {id} {world} {enabled}'
+                info:
+                  header: '{prefix}{name}'
+                  id: '{prefix}{id}'
+                  world: '{prefix}{world}'
+                  enabled: '{prefix}{enabled}'
+                  outputs: '{prefix}outputs {count}'
+                  output: '{prefix}bit {bit} at {x}, {y}, {z}'
+                state:
+                  enabled: 'enabled'
+                  disabled: 'disabled'
+                enable:
+                  success: '{prefix}enabled {name}'
+                disable:
+                  success: '{prefix}disabled {name}'
+                remove:
+                  confirm: '{prefix}remove {id} confirm'
+                  success: '{prefix}removed {name}'
+                invalid-id: '{prefix}invalid {id}'
+                not-found: '{prefix}not found {id}'
+                error: '{prefix}error {reason}'
             """.trimIndent(),
         )
     }

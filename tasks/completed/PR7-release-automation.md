@@ -1,6 +1,6 @@
 # PR7 — Release Automation
 
-- Status: In Progress
+- Status: Complete
 - Priority: P2
 - Depends on: PR4, PR5, PR6 (all merged)
 
@@ -39,6 +39,14 @@ Create a safe, tag-driven release pipeline for the independently buildable RealT
 - GitHub Release creation is disabled by default and requires both the explicit repository variable and the protected `release` environment.
 - Hangar/Modrinth tokens are never available to PR jobs; publishing remains disabled unless the required IDs/tokens are configured in the protected environment.
 - Local shell tests cover tag validation and changelog extraction.
+
+## Verification Evidence
+
+- Agent Project Validation: https://github.com/OrzMC/RealTime/actions/runs/45114703302 — passed.
+- Gradle CI: https://github.com/OrzMC/RealTime/actions/runs/45114703306 — passed, including release shell tests and shaded JAR inspection.
+- Paper/Folia Runtime Smoke: https://github.com/OrzMC/RealTime/actions/runs/45114703330 — all four jobs passed.
+- PR #7 merged: https://github.com/OrzMC/RealTime/pull/7 (merge commit `6fcbbbb0d9feb2eba66d911522ced51a8e72f335`).
+- No tag or external release was created; protected publishing remains opt-in.
 
 ## Deliverables
 

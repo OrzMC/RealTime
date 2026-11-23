@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR6 merged; PR7 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration are implemented.
+> **Status: PR1–PR7 merged; PR8 in progress.** Core time service, commands/configuration, Paper/Folia scheduler ownership, HHmm BCD encoding, versioned device persistence, region-safe redstone output, and optional PlaceholderAPI integration, plus device administration commands are implemented.
 
 ## Goals
 
@@ -55,6 +55,18 @@ The distributable shaded JAR is expected at `realtime-paper/build/libs/RealTime-
 Read [AGENTS.md](AGENTS.md), then [tasks/roadmap.md](tasks/roadmap.md). Agents must select only ready tasks, use isolated worktrees, run the shared verification scripts, and report observed evidence rather than assumptions.
 
 See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the multi-agent workspace helpers.
+
+## Device administration
+
+| Command | Permission | Purpose |
+|---|---|---|
+| `/rtime device list` | `realtime.command` | List configured device IDs and status |
+| `/rtime device info <uuid>` | `realtime.command` | Inspect the 16 output coordinates |
+| `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
+| `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
+
+Device records remain YAML-defined. In-game deletion is intentionally deferred until a persistent cleanup queue can safely clear outputs in unloaded chunks.
+
 
 ## Docs
 

@@ -60,7 +60,10 @@ class RealTimeConfigurationLoader {
         val messages =
             REQUIRED_MESSAGES.associateWith { key ->
                 requiredString(messagesYaml, key, MESSAGES_CONFIG)
-            }
+            } +
+                OPTIONAL_MESSAGES.mapValues { (key, fallback) ->
+                    if (messagesYaml.contains(key)) requiredString(messagesYaml, key, MESSAGES_CONFIG) else fallback
+                }
 
         return RealTimeConfiguration(
             generalEnabled = generalEnabled,
@@ -173,6 +176,27 @@ class RealTimeConfigurationLoader {
                 "command.no-permission",
                 "command.disabled",
                 "command.usage",
+            )
+
+        val OPTIONAL_MESSAGES =
+            mapOf(
+                "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",
+                "command.device.list.header" to "{prefix}&b设备列表（{count}）",
+                "command.device.list.empty" to "{prefix}&7当前没有配置任何设备。",
+                "command.device.list.item" to "{prefix}&f{name} &7[{id}] &8世界：&f{world} &8状态：{enabled}",
+                "command.device.info.header" to "{prefix}&b设备信息：&f{name}",
+                "command.device.info.id" to "{prefix}&7ID：&f{id}",
+                "command.device.info.world" to "{prefix}&7世界：&f{world}",
+                "command.device.info.enabled" to "{prefix}&7状态：{enabled}",
+                "command.device.info.outputs" to "{prefix}&7输出点（{count}）：",
+                "command.device.info.output" to "{prefix}&8位 {bit}：&f{x}, {y}, {z}",
+                "command.device.state.enabled" to "&a启用",
+                "command.device.state.disabled" to "&c禁用",
+                "command.device.enable.success" to "{prefix}&a设备 {name} 已启用。&7({id})",
+                "command.device.disable.success" to "{prefix}&e设备 {name} 已禁用。&7({id})",
+                "command.device.invalid-id" to "{prefix}&c设备 ID 格式无效：&f{id}",
+                "command.device.not-found" to "{prefix}&c未找到设备：&f{id}",
+                "command.device.error" to "{prefix}&c设备操作或刷新失败：&f{reason}",
             )
     }
 }

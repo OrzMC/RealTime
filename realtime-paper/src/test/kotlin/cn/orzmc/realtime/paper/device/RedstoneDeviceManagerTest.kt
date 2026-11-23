@@ -60,6 +60,29 @@ class RedstoneDeviceManagerTest {
     }
 
     @Test
+    fun `clears disabled device outputs when their chunk loads`() {
+        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialWirePower = 15)
+
+        fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
+
+        assertTrue(fixture.blockAccessed())
+        assertEquals(0, fixture.wirePower())
+        assertTrue(fixture.physicsApplied())
+    }
+
+    @Test
+    fun `clears disabled device outputs during scheduled refresh`() {
+        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialWirePower = 15)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+
+        assertTrue(fixture.blockAccessed())
+        assertEquals(0, fixture.wirePower())
+        assertTrue(fixture.physicsApplied())
+    }
+
+    @Test
     fun `skips unloaded chunk without accessing its blocks`() {
         val fixture = fixture(chunkLoaded = false)
         fixture.manager.start(fixture.plugin)
@@ -70,9 +93,13 @@ class RedstoneDeviceManagerTest {
         assertEquals(0, fixture.wirePower())
     }
 
-    private fun fixture(chunkLoaded: Boolean): Fixture {
+    private fun fixture(
+        chunkLoaded: Boolean,
+        deviceEnabled: Boolean = true,
+        initialWirePower: Int = 0,
+    ): Fixture {
         val worldName = "world"
-        var wirePower = 0
+        var wirePower = initialWirePower
         var blockAccessed = false
         var physicsApplied = false
 
@@ -176,7 +203,7 @@ class RedstoneDeviceManagerTest {
                             id = UUID.randomUUID(),
                             name = "test-clock",
                             worldName = worldName,
-                            enabled = true,
+                            enabled = deviceEnabled,
                             outputs =
                                 (0 until 16).map { bit ->
                                     DeviceOutput(bit, bit * 2, 64, 0)

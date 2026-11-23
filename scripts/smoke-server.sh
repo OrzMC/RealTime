@@ -42,6 +42,20 @@ echo "Server artifact checksum verified."
 
 mkdir -p "$WORK_DIR/plugins"
 cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.1.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
+
+DEVICE_ID="00000000-0000-0000-0000-000000000001"
+mkdir -p "$WORK_DIR/plugins/RealTime/data"
+{
+  printf 'schema-version: 1\ndevices:\n'
+  printf '  - id: %s\n' "$DEVICE_ID"
+  printf '    name: ci-clock\n'
+  printf '    world: world\n'
+  printf '    enabled: false\n'
+  printf '    outputs:\n'
+  for bit in $(seq 0 15); do
+    printf '      - { bit-index: %s, x: %s, y: 64, z: 0 }\n' "$bit" "$((bit * 2))"
+  done
+} > "$WORK_DIR/plugins/RealTime/data/devices.yml"
 if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   bash "$ROOT_DIR/scripts/download-placeholderapi.sh" "$WORK_DIR/plugins"
 fi
@@ -106,7 +120,52 @@ fi
 
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime info
+
+DEVICE_LIST_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
+)"
+grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" && grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_OUTPUT" || {
+  echo "Device list command did not return the configured device: $DEVICE_LIST_OUTPUT" >&2
+  exit 1
+}
+
+DEVICE_INFO_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+    rtime device info "$DEVICE_ID"
+)"
+grep -Fq "设备信息" <<< "$DEVICE_INFO_OUTPUT" && grep -Fq "位 15" <<< "$DEVICE_INFO_OUTPUT" || {
+  echo "Device info command did not return all bit mappings: $DEVICE_INFO_OUTPUT" >&2
+  exit 1
+}
+
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+  rtime device enable "$DEVICE_ID"
+grep -Eq 'enabled: true' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Device enable did not persist." >&2
+  exit 1
+}
+
+python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+  rtime device disable "$DEVICE_ID"
+grep -Eq 'enabled: false' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Device disable did not persist." >&2
+  exit 1
+}
+
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime reload
+DEVICE_LIST_AFTER_RELOAD="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
+)"
+grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_AFTER_RELOAD" || {
+  echo "Disabled device was not retained after reload: $DEVICE_LIST_AFTER_RELOAD" >&2
+  exit 1
+}
+grep -Fq "禁用" <<< "$DEVICE_LIST_AFTER_RELOAD" || {
+  echo "Disabled state was not reflected in the device list: $DEVICE_LIST_AFTER_RELOAD" >&2
+  exit 1
+}
 
 if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   PAPI_READY=0
@@ -143,4 +202,4 @@ if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."
 fi
 
-echo "$PROJECT $MC_VERSION startup, global scheduler, /rtime, info, reload, and optional PlaceholderAPI smoke tests passed."
+echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/enable/disable, reload, and optional PlaceholderAPI smoke tests passed."
