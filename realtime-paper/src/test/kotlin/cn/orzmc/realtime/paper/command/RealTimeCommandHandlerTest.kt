@@ -277,7 +277,8 @@ class RealTimeCommandHandlerTest {
                         "command.device.status.header" to "{prefix}device diagnostics",
                         "command.device.status.devices" to "{prefix}devices {configured} enabled {enabled} outputs {outputs}",
                         "command.device.status.checks" to "{prefix}checks {checks} unloaded {unloaded} stale {stale}",
-                        "command.device.status.outcomes" to "{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}",
+                        "command.device.status.outcomes" to
+                            "{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}",
                     ),
             )
         return RuntimeState(
