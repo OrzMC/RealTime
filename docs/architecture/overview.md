@@ -30,7 +30,7 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-PR1–PR7 are merged. PR5 adds the pure Kotlin HHmm BCD encoder and validated device model, versioned YAML persistence, and a Paper/Folia redstone manager. The manager calculates frames globally, updates REDSTONE_WIRE blocks only on owning regions, skips unloaded chunks, and refreshes outputs on chunk load. PR6 adds the optional PlaceholderAPI expansion behind an isolated bridge. PR7 adds tag-driven release automation with SemVer/Changelog validation, reproducible archives, checksums, and protected optional distribution publishing. PR8 adds in-game list/info/enable/disable/remove commands for existing YAML-defined devices; mutations serialize with reload and persist before replacing runtime state.
+PR1–PR7 are merged. PR5 adds the pure Kotlin HHmm BCD encoder and validated device model, versioned YAML persistence, and a Paper/Folia redstone manager. The manager calculates frames globally, updates REDSTONE_WIRE blocks only on owning regions, skips unloaded chunks, and refreshes outputs on chunk load. PR6 adds the optional PlaceholderAPI expansion behind an isolated bridge. PR7 adds tag-driven release automation with SemVer/Changelog validation, reproducible archives, checksums, and protected optional distribution publishing. PR8 adds in-game list/info/enable/disable commands for existing YAML-defined devices; mutations serialize with reload and persist before replacing runtime state.
 
 
 ### Paper/Folia scheduler ownership
