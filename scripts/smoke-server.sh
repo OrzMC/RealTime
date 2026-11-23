@@ -175,6 +175,38 @@ grep -Fq "禁用" <<< "$DEVICE_LIST_AFTER_RELOAD" || {
   exit 1
 }
 
+DEVICE_REMOVE_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+    rtime device remove "$DEVICE_ID"
+)"
+grep -Fq "已移出活动列表" <<< "$DEVICE_REMOVE_OUTPUT" || {
+  echo "Disabled-device retirement command did not report success: $DEVICE_REMOVE_OUTPUT" >&2
+  exit 1
+}
+JOB_ID="$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' <<< "$DEVICE_REMOVE_OUTPUT" | head -n1)"
+if [[ -z "$JOB_ID" ]]; then
+  echo "Device retirement did not return a cleanup job UUID: $DEVICE_REMOVE_OUTPUT" >&2
+  exit 1
+fi
+grep -Eq '^devices: *\[\]' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Retired device was not removed from the active device list." >&2
+  exit 1
+}
+grep -Fq "$JOB_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Retirement cleanup job was not persisted." >&2
+  exit 1
+}
+CLEANUP_LIST_OUTPUT="$(
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+    rtime device cleanup list
+)"
+grep -Fq "$JOB_ID" <<< "$CLEANUP_LIST_OUTPUT" || {
+  echo "Retired device cleanup job was not visible in queue inspection: $CLEANUP_LIST_OUTPUT" >&2
+  exit 1
+}
+
 if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   PAPI_READY=0
   for _ in $(seq 1 20); do
@@ -210,4 +242,4 @@ if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
   echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."
 fi
 
-echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/status/enable/disable, reload, and optional PlaceholderAPI smoke tests passed."
+echo "$PROJECT $MC_VERSION startup, scheduler, /rtime, device list/info/status/enable/disable/remove, cleanup queue inspection, reload, and optional PlaceholderAPI smoke tests passed."
