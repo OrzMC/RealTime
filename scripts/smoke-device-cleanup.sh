@@ -178,6 +178,19 @@ grep -q 'Enabling RealTime' "$WORK_DIR/server.log" || {
   echo "RealTime did not enable after restart on $PROJECT." >&2
   exit 1
 }
+WORLD_BOUND=0
+for _ in $(seq 1 15); do
+  if grep -Eq 'world-uuid: "?[0-9a-fA-F-]{36}"?' "$WORK_DIR/plugins/RealTime/data/devices.yml"; then
+    WORLD_BOUND=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$WORLD_BOUND" != "1" ]]; then
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Cleanup job world name was not bound to a UUID on $PROJECT." >&2
+  exit 1
+fi
 rcon forceload add 0 0 >/dev/null
 
 PENDING_READY=0
