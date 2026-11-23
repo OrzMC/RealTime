@@ -24,7 +24,8 @@ cleanup() {
 trap cleanup EXIT
 
 API_URL="https://fill.papermc.io/v3/projects/$PROJECT/versions/$MC_VERSION/builds"
-BUILDS="$(curl --fail --silent --show-error -H 'User-Agent: OrzMC-RealTime-CI/1.0 (https://github.com/OrzMC/RealTime)' "$API_URL")"
+echo "Resolving latest stable $PROJECT $MC_VERSION build..."
+BUILDS="$(curl --fail --silent --show-error --connect-timeout 15 --max-time 30 -H 'User-Agent: OrzMC-RealTime-CI/1.0 (https://github.com/OrzMC/RealTime)' "$API_URL")"
 DOWNLOAD_URL="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads."server:default".url) // empty' <<< "$BUILDS")"
 SHA256="$(jq -r 'first(.[] | select(.channel == "STABLE") | .downloads."server:default".checksums.sha256) // empty' <<< "$BUILDS")"
 
@@ -33,8 +34,10 @@ if [[ -z "$DOWNLOAD_URL" || -z "$SHA256" ]]; then
   exit 1
 fi
 
-curl --fail --location --silent --show-error "$DOWNLOAD_URL" -o "$WORK_DIR/server.jar"
+echo "Downloading server artifact..."
+curl --fail --location --silent --show-error --connect-timeout 15 --max-time 180 "$DOWNLOAD_URL" -o "$WORK_DIR/server.jar"
 echo "$SHA256  $WORK_DIR/server.jar" | sha256sum --check -
+echo "Server artifact checksum verified."
 
 mkdir -p "$WORK_DIR/plugins"
 cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.1.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
@@ -55,6 +58,7 @@ PROPERTIES
   java -Xms1G -Xmx2G -jar server.jar --nogui
 ) > "$WORK_DIR/server.log" 2>&1 &
 SERVER_PID=$!
+echo "Waiting for $PROJECT server startup..."
 
 READY=0
 for _ in $(seq 1 120); do
