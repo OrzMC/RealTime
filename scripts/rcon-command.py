@@ -5,19 +5,21 @@ import struct
 import sys
 
 
-def packet(sock: socket.socket, request_id: int, kind: int, body: str) -> tuple[int, int, str]:
-    payload = struct.pack("<ii", request_id, kind) + body.encode() + b"\0\0"
-    sock.sendall(struct.pack("<i", len(payload)) + payload)
-    size_data = sock.recv(4)
-    if len(size_data) != 4:
-        raise RuntimeError("RCON server closed the connection")
-    size = struct.unpack("<i", size_data)[0]
+def receive_exact(sock: socket.socket, size: int) -> bytes:
     data = b""
     while len(data) < size:
         chunk = sock.recv(size - len(data))
         if not chunk:
-            raise RuntimeError("Incomplete RCON response")
+            raise RuntimeError("RCON server closed the connection")
         data += chunk
+    return data
+
+
+def packet(sock: socket.socket, request_id: int, kind: int, body: str) -> tuple[int, int, str]:
+    payload = struct.pack("<ii", request_id, kind) + body.encode() + b"\0\0"
+    sock.sendall(struct.pack("<i", len(payload)) + payload)
+    size = struct.unpack("<i", receive_exact(sock, 4))[0]
+    data = receive_exact(sock, size)
     response_id, response_type = struct.unpack("<ii", data[:8])
     return response_id, response_type, data[8:-2].decode(errors="replace")
 
