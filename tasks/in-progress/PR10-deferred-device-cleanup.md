@@ -1,9 +1,10 @@
 # PR10 — Persistent Deferred Cleanup for Device Retirement
 
-- Status: In Progress
+- Status: In Progress (PR10b complete; PR10c active)
 - PR10a: Complete — [PR #15](https://github.com/OrzMC/RealTime/pull/15), merge `b9880c5fbf3e7eaf6a3f5326a23518f4c281a3b3`.
 - Verification: CI #89, Agent Validation #76, and Paper/Folia + PlaceholderAPI smoke #58 all passed; shaded JAR inspection passed.
-- Active implementation: PR10b — crash-safe retirement service and region-owned deferred cleanup/retry processor.
+- PR10b: Complete — [PR #17](https://github.com/OrzMC/RealTime/pull/17), merge `ea4b3fbe2cc9da3b431a7c111f10c266fe0f1b7d`.
+- Active implementation: PR10c — cleanup queue observability, retry/restart verification, and operator runbook.
 - Priority: P1
 - Depends on: PR5, PR8, PR9
 
@@ -18,8 +19,8 @@ Today, disabled device records remain in `data/devices.yml` so their outputs can
 ## Implementation slices
 
 - **PR10a (complete):** immutable cleanup-job/store models, schema v2 serialization, atomic v1-to-v2 migration, and store invariants (merged in PR #15).
-- **PR10b (current):** add crash-safe retirement service and region-owned deferred cleanup/retry processor.
-- **PR10c:** complete Paper/Folia restart/chunk-load runtime coverage and operator observability. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
+- **PR10b (complete):** crash-safe retirement service and region-owned deferred cleanup/retry processor (merged PR #17).
+- **PR10c (current):** complete Paper/Folia restart/chunk-load recovery verification, retry/retention diagnostics, and operator runbook. Keep the user-facing remove command in a separate follow-up PR after all acceptance criteria pass.
 
 ## Scope
 
