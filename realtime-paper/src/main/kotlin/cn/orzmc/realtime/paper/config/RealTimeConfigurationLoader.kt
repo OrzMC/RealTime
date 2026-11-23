@@ -193,8 +193,6 @@ class RealTimeConfigurationLoader {
                 "command.device.state.disabled" to "&c禁用",
                 "command.device.enable.success" to "{prefix}&a设备 {name} 已启用。&7({id})",
                 "command.device.disable.success" to "{prefix}&e设备 {name} 已禁用。&7({id})",
-                "command.device.remove.confirm" to "{prefix}&c删除设备 {id} 不可撤销。再次执行 /rtime device remove {id} confirm 确认。",
-                "command.device.remove.success" to "{prefix}&a设备 {name} 已删除。&7({id})",
                 "command.device.invalid-id" to "{prefix}&c设备 ID 格式无效：&f{id}",
                 "command.device.not-found" to "{prefix}&c未找到设备：&f{id}",
                 "command.device.error" to "{prefix}&c设备操作失败，运行状态未更改：&f{reason}",
