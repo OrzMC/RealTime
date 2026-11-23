@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR10 complete (PR10a/PR10b/PR10c merged).** RealTime provides the timezone-aware core, Paper/Folia scheduler adapters, HHmm BCD redstone devices, versioned persistence, optional PlaceholderAPI integration, device administration and diagnostics, crash-safe retirement, deferred cleanup, restart/chunk-load recovery, and cleanup queue inspection/retry. A guarded device remove command is available for disabled devices; it creates a durable cleanup job and never discards unresolved output coordinates.
+> **Status: PR1–PR10 complete; PR11 (guarded device retirement) is in review.** RealTime provides the timezone-aware core, Paper/Folia scheduler adapters, HHmm BCD redstone devices, versioned persistence, optional PlaceholderAPI integration, device administration and diagnostics, crash-safe retirement, deferred cleanup, restart/chunk-load recovery, and cleanup queue inspection/retry. PR11 adds `/rtime device remove <uuid>` for disabled devices; it creates a durable cleanup job and never discards unresolved output coordinates.
 
 ## Goals
 
