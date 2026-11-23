@@ -1,0 +1,12 @@
+.gradle/
+**/build/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+.env
+.env.*
+!.env.example
+run/
+server/
+logs/

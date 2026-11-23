@@ -1,0 +1,23 @@
+name: Agent Project Validation
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - '.agents/**'
+      - 'tasks/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - '.github/workflows/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-agent-environment.sh
+      - run: test -f tasks/roadmap.md && test -f .agents/workflows/development.md && test -f .agents/policies/isolation.md

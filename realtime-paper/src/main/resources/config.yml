@@ -1,0 +1,8 @@
+config-version: 1
+general:
+  enabled: true
+time:
+  timezone: Asia/Shanghai
+  locale: zh_CN
+logging:
+  debug: false
