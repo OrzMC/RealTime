@@ -9,7 +9,7 @@ This is the authoritative project instruction file for all coding agents. Read i
 - Platforms: Paper and Folia; minimum API line 26.3.
 - Language/build: Kotlin, JDK 25, Gradle Kotlin DSL.
 - Command: `/rtime`; default timezone: `Asia/Shanghai`.
-- RealTime must build/run independently. It must not require OrzMCPlugin or OrzMC/tools.
+- RealTime must build/run independently. It must not require OrzMCPlugin or the parent repository `OrzMC/OrzMC` at build time or runtime.
 
 ## Required reading
 
