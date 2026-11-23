@@ -71,7 +71,16 @@ class DeviceCleanupManagerTest {
 
         assertFalse(fixture.blockAccessed())
         assertTrue(fixture.persistedSnapshot() == null)
-        assertEquals(DeviceCleanupStatus.PENDING, fixture.currentState().cleanupJobs.single().outputs.first().status)
+        assertEquals(
+            DeviceCleanupStatus.PENDING,
+            fixture
+                .currentState()
+                .cleanupJobs
+                .single()
+                .outputs
+                .first()
+                .status,
+        )
     }
 
     private fun fixture(chunkLoaded: Boolean): Fixture {
