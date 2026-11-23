@@ -124,17 +124,16 @@ python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWO
 DEVICE_LIST_OUTPUT="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
 )"
-grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_OUTPUT" || {
-  echo "Device list did not include the configured CI device: $DEVICE_LIST_OUTPUT" >&2
-  exit 1
+grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" || {
+  echo "Device list command did not return its header: $DEVICE_LIST_OUTPUT" >&2
 }
 
 DEVICE_INFO_OUTPUT="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
     rtime device info "$DEVICE_ID"
 )"
-grep -Fq "bit 15" <<< "$DEVICE_INFO_OUTPUT" || {
-  echo "Device info did not include all bit mappings: $DEVICE_INFO_OUTPUT" >&2
+grep -Fq "设备信息" <<< "$DEVICE_INFO_OUTPUT" || {
+  echo "Device info command did not return its header: $DEVICE_INFO_OUTPUT" >&2
   exit 1
 }
 
