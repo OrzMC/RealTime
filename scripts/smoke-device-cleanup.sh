@@ -120,7 +120,8 @@ rcon forceload add 1600 0 >/dev/null
 for position in "0 64 0" "1600 64 0"; do
   LOADED=0
   for _ in $(seq 1 20); do
-    if rcon execute if loaded $position run say REALTIME_SEED_CHUNK_LOADED | grep -Fq 'REALTIME_SEED_CHUNK_LOADED'; then
+    rcon execute if loaded $position run say REALTIME_SEED_CHUNK_LOADED >/dev/null || true
+    if grep -Fq 'REALTIME_SEED_CHUNK_LOADED' "$WORK_DIR/server.log"; then
       LOADED=1
       break
     fi
@@ -213,8 +214,8 @@ if [[ "$PENDING_READY" != "1" ]]; then
   exit 1
 fi
 
-UNLOADED_CHECK="$(rcon execute unless loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_STILL_UNLOADED)"
-grep -Fq 'REALTIME_CLEANUP_CHUNK_STILL_UNLOADED' <<< "$UNLOADED_CHECK" || {
+rcon execute unless loaded 1600 64 0 run say REALTIME_CLEANUP_CHUNK_STILL_UNLOADED >/dev/null || true
+grep -Fq 'REALTIME_CLEANUP_CHUNK_STILL_UNLOADED' "$WORK_DIR/server.log" || {
   echo "Cleanup processing unexpectedly loaded the deferred output chunk on $PROJECT: $UNLOADED_CHECK" >&2
   exit 1
 }
@@ -238,8 +239,8 @@ if [[ "$ATTENTION_READY" != "1" ]]; then
   exit 1
 fi
 
-STONE_CHECK="$(rcon execute if block 1615 64 0 minecraft:stone run say REALTIME_CLEANUP_STONE_PRESERVED)"
-grep -Fq 'REALTIME_CLEANUP_STONE_PRESERVED' <<< "$STONE_CHECK" || {
+rcon execute if block 1615 64 0 minecraft:stone run say REALTIME_CLEANUP_STONE_PRESERVED >/dev/null || true
+grep -Fq 'REALTIME_CLEANUP_STONE_PRESERVED' "$WORK_DIR/server.log" || {
   echo "Cleanup overwrote the non-wire target on $PROJECT: $STONE_CHECK" >&2
   exit 1
 }
@@ -263,9 +264,9 @@ if [[ "$EMPTY_READY" != "1" ]]; then
 fi
 
 for x in 0 1601 1614 1615; do
-  CHECK="$(rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run say REALTIME_CLEANUP_POWER_ZERO)"
-  grep -Fq 'REALTIME_CLEANUP_POWER_ZERO' <<< "$CHECK" || {
-    echo "Output at x=$x was not cleared to power 0 on $PROJECT: $CHECK" >&2
+  rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run say "REALTIME_CLEANUP_POWER_ZERO_$x" >/dev/null || true
+  grep -Fq "REALTIME_CLEANUP_POWER_ZERO_$x" "$WORK_DIR/server.log" || {
+    echo "Output at x=$x was not cleared to power 0 on $PROJECT." >&2
     exit 1
   }
 done
