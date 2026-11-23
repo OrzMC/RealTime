@@ -2,7 +2,7 @@
 
 ## Product positioning
 
-RealTime is an independent Minecraft server plugin that provides real-world time as a reusable server capability. It is not a feature inside OrzMCPlugin. Its canonical source is `OrzMC/RealTime`; the repository may later be pinned as a Git Submodule in `OrzMC/tools`.
+RealTime is an independent Minecraft server plugin that provides real-world time as a reusable server capability. It is not a feature inside OrzMCPlugin. Its canonical source is `OrzMC/RealTime`; the parent repository `OrzMC/OrzMC` pins it as a Git Submodule at `tools/RealTime`.
 
 ## Initial compatibility target
 
