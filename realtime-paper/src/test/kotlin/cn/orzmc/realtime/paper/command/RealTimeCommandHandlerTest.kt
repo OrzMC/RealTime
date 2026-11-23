@@ -7,9 +7,9 @@ import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJob
-import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceCleanupOutput
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
+import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import org.junit.jupiter.api.Assertions.assertEquals
