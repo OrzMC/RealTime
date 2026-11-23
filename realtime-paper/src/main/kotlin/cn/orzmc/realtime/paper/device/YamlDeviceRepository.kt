@@ -17,8 +17,6 @@ class YamlDeviceRepository(
     private val file = File(dataFolder, DEVICE_FILE)
     private val backupFile = File(dataFolder, BACKUP_FILE)
 
-    fun load(): List<RedstoneDevice> = loadStore().devices
-
     fun loadStore(): DeviceStoreSnapshot {
         if (!file.isFile) {
             val empty = DeviceStoreSnapshot(emptyList())
@@ -58,8 +56,6 @@ class YamlDeviceRepository(
         if (schemaVersion == LEGACY_SCHEMA_VERSION) save(snapshot)
         return snapshot
     }
-
-    fun save(devices: List<RedstoneDevice>) = save(DeviceStoreSnapshot(devices))
 
     fun save(snapshot: DeviceStoreSnapshot) {
         validateStore(snapshot, "Device store")
