@@ -65,5 +65,4 @@ class DeviceAdministrationService(
             requestRefresh()
             updatedDevice
         }
-
 }
