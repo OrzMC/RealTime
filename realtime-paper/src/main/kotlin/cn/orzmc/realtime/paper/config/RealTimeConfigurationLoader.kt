@@ -213,7 +213,7 @@ class RealTimeConfigurationLoader {
                 "command.device.state.disabled" to "&c禁用",
                 "command.device.create.success" to
                     "{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{encoding} &8{world} &7{count} 个输出 " +
-                    "&8（默认禁用，确认接线后 device enable）",
+                    "&8（默认禁用，槽位每格间隔 1 空气，BCD 每 4 位一组；确认接线后 device enable）",
                 "command.device.create.invalid-resolution" to
                     "{prefix}&c分辨率无效：&f{value} &7（可用：minute、second）",
                 "command.device.create.invalid-encoding" to

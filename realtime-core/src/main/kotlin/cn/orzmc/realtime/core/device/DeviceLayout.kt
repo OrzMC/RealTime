@@ -83,13 +83,23 @@ data class DeviceLayout(
         /**
          * Default placement per encoding.
          *
-         * Analog slots are lecterns read by a comparator, so they always keep one
-         * empty block between neighbours. BCD slots are power sources and keep
-         * the compact layout they have had since 0.1.0.
+         * Every default leaves one empty block between two slots: adjacent power
+         * sources can leak into the neighbour's circuit, and an analog lectern
+         * needs room for the comparator that reads it.
+         *
+         * A BCD digit is four bits, so those four slots form one group and the
+         * extra [DeviceLayout.groupGap] makes the digit boundary visible in the
+         * world. A `minute` device therefore spans 34 blocks and a `second`
+         * device 52 blocks instead of 16/24.
          */
         fun default(encoding: OutputEncoding): DeviceLayout =
             when (encoding) {
-                OutputEncoding.BCD -> DeviceLayout()
+                OutputEncoding.BCD ->
+                    DeviceLayout(
+                        stride = 2,
+                        groupSize = OutputResolution.BITS_PER_DIGIT,
+                        groupGap = 1,
+                    )
                 OutputEncoding.ANALOG -> DeviceLayout(stride = 2)
             }
     }

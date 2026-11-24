@@ -50,7 +50,7 @@ command:
       enabled: '&a启用'
       disabled: '&c禁用'
     create:
-      success: '{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{encoding} &8{world} &7{count} 个输出 &8（默认禁用，确认接线后 device enable）'
+      success: '{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{encoding} &8{world} &7{count} 个输出 &8（默认禁用，槽位每格间隔 1 空气，BCD 每 4 位一组；确认接线后 device enable）'
       invalid-resolution: '{prefix}&c分辨率无效：&f{value} &7（可用：minute、second）'
       invalid-encoding: '{prefix}&c编码无效：&f{value} &7（可用：bcd、analog）'
       limit: '{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。'

@@ -170,7 +170,7 @@ The device records remain YAML-defined so each output position is explicit and r
 
 | Command | Permission | Behavior |
 |---|---|---|
-| `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <x+\|x-\|z+\|z-> [stride] [bcd\|analog]` | `realtime.device.edit` | Creates a disabled device whose slots run from the start position along the axis (default stride 1 for `bcd`, 2 for `analog`) |
+| `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <x+\|x-\|z+\|z-> [stride] [bcd\|analog]` | `realtime.device.edit` | Creates a disabled device whose slots run from the start position along the axis (default stride 2, BCD bits grouped four to a digit) |
 | `/rtime device set <uuid> <bit-index> <x> <y> <z>` | `realtime.device.edit` | Moves one output slot of an existing device |
 | `/rtime device list` | `realtime.device.view` | Lists configured devices, UUID, world, and enabled state |
 | `/rtime device info <uuid>` | `realtime.device.view` | Shows metadata, resolution, and every bit-to-coordinate mapping |
@@ -196,8 +196,8 @@ Device records are persisted in `data/devices.yml`; the plugin never loads a chu
 `device create` fills the layout for you; the physical slot positions are still yours to prepare:
 
 ```
-/rtime device create lobby-clock second world 39985 79 -32 x+            # 24 BCD slots at x=39985..40008
-/rtime device create lobby-clock minute world 40985 79 -32 z+ 2          # 16 BCD slots, 2 blocks apart
+/rtime device create lobby-clock second world 39985 79 -32 x+            # 24 BCD slots at x=39985..40036
+/rtime device create lobby-clock minute world 40985 79 -32 z+ 3          # 16 BCD slots, 3 blocks apart
 /rtime device create wall-clock second world 39985 79 -32 x+ analog     # 6 analog lecterns, 2 blocks apart
 /rtime device create wall-clock second world 39985 79 -32 x+ 3 analog   # same, 3 blocks apart
 /rtime device set 77777777-8888-9999-aaaa-bbbbbbbbbbbb 5 41000 79 -30
@@ -205,9 +205,32 @@ Device records are persisted in `data/devices.yml`; the plugin never loads a chu
 
 Both optional arguments may be given in either order; `bcd` (alias `binary`) is the default encoding.
 
+### Default layout
+
+The default spacing is `stride = 2`, so **every two neighbouring slots have one empty block between them**. Adjacent
+power sources can feed into each other's circuits, and a slot with air on both sides is also what a receiving
+repeater or comparator expects.
+
+BCD adds a group gap after each digit, so the four bits of a digit read as one visual block:
+
+```
+digit 1        digit 2        digit 3
+x  x  x  x  ··  x  x  x  x  ··  x  x  x  x
+0  2  4  6  7  9 11 13 15 16 18 20 22 24
+```
+
+Offsets are `index * stride + (index / 4) * 1`, so a `minute` device spans 34 blocks (offsets 0–33) and a `second`
+device 52 blocks (offsets 0–51). The grouping is applied to the BCD layout only — an analog slot is a whole digit, so
+its layout is a plain `stride = 2` row. An explicit `[stride]` changes the intra-group spacing but keeps the digit
+boundaries: `... x+ 3` puts bits 3 blocks apart and leaves a 4-block gap between digits.
+
+Existing devices are unaffected: the layout is only used to compute the coordinates of a **new** device, and every
+stored device keeps its own explicit slot list.
+
 What the commands validate (all without touching the world, so they are Folia-safe):
 
 - resolution must be `minute` or `second`, encoding `bcd` (`binary`) or `analog`, stride 1–16, axis one of `x+ x- z+ z-`
+- the whole layout must stay within 512 blocks from the origin block, so a device cannot walk across the world
 - every coordinate must fall inside `limits.allowed-areas` (when configured)
 - the new device must stay under `limits.max-devices`
 - no coordinate may overlap another device or a pending cleanup job

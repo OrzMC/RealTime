@@ -50,11 +50,18 @@ class DeviceLayoutTest {
     }
 
     @Test
-    fun `bcd default layout stays compact until it is grouped`() {
+    fun `bcd default layout separates slots and groups four bits per digit`() {
         val layout = DeviceLayout.default(OutputEncoding.BCD)
 
-        assertEquals(1, layout.stride)
-        assertEquals(DeviceLayout.NO_GROUPS, layout.groupSize)
+        assertEquals(2, layout.stride)
+        assertEquals(OutputResolution.BITS_PER_DIGIT, layout.groupSize)
+        assertEquals(1, layout.groupGap)
+        // One empty block between two bits, two between two digits.
+        assertEquals(1, layout.offset(1) - layout.offset(0) - 1)
+        assertEquals(2, layout.offset(4) - layout.offset(3) - 1)
+        // A minute device spans 34 blocks, a second device 52.
+        assertEquals(33, layout.offset(15))
+        assertEquals(51, layout.offset(23))
     }
 
     @Test
