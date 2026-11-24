@@ -13,6 +13,11 @@ command:
     failure: '{prefix}&c配置重新加载失败，旧配置继续生效：&f{reason}'
   device:
     unavailable: '{prefix}&c设备管理服务当前不可用。'
+    remove:
+      success: '{prefix}&a设备 &f{name} &a已退休，清理任务已入队：&f{job}'
+      must-disable: '{prefix}&c请先禁用设备再执行移除：&f{id}'
+      not-found: '{prefix}&c未找到设备：&f{id}'
+      error: '{prefix}&c设备移除失败：&f{reason}'
     cleanup:
       header: '{prefix}&b待清理设备队列（{count}）'
       empty: '{prefix}&7当前没有待清理设备。'
@@ -50,4 +55,4 @@ command:
     error: '{prefix}&c设备操作或刷新失败：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device cleanup list|device cleanup retry|device enable|device disable]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device cleanup list|device cleanup retry|device enable|device disable|device remove <uuid>]'
