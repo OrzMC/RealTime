@@ -147,6 +147,29 @@ class RedstoneDeviceManagerTest {
     }
 
     @Test
+    fun `slots skipped by an unloaded chunk are written once the chunk loads`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND, chunkLoaded = false)
+        fixture.startAndRefresh()
+        fixture.runPendingRegions()
+        assertEquals(0, fixture.blockAccesses())
+
+        // The chunk loads a second later: the skipped batch must still be pending.
+        fixture.setChunkLoaded(true)
+        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
+        fixture.tick()
+        fixture.runPendingRegions()
+
+        val expected = fixture.expectedBits()
+        for (bit in 0 until 24) {
+            assertEquals(
+                if (expected[bit]) Material.REDSTONE_BLOCK else Material.AIR,
+                fixture.typeAt(bit),
+                "slot $bit",
+            )
+        }
+    }
+
+    @Test
     fun `chunk load applies the current frame to that chunk only`() {
         val fixture = fixture(resolution = OutputResolution.SECOND)
 
@@ -234,11 +257,12 @@ class RedstoneDeviceManagerTest {
                 }
             }
 
+        var chunkLoadedNow = chunkLoaded
         val world =
             fake<World> { method, args ->
                 when (method.name) {
                     "getName" -> worldName
-                    "isChunkLoaded" -> chunkLoaded
+                    "isChunkLoaded" -> chunkLoadedNow
                     "getBlockAt" -> {
                         accesses += 1
                         blockAt(args!![0] as Int)
@@ -350,6 +374,7 @@ class RedstoneDeviceManagerTest {
             },
             typeAt = { types.getOrDefault(it, initialType) },
             setType = { bit, material -> types[bit] = material },
+            setChunkLoaded = { chunkLoadedNow = it },
             blockAccesses = { accesses },
             physicsWrites = { physicsWrites },
             expectedBits = {
@@ -376,6 +401,7 @@ class RedstoneDeviceManagerTest {
         val runPendingRegions: () -> Unit,
         val typeAt: (Int) -> Material,
         val setType: (Int, Material) -> Unit,
+        val setChunkLoaded: (Boolean) -> Unit,
         val blockAccesses: () -> Int,
         val physicsWrites: () -> Int,
         val expectedBits: () -> List<Boolean>,

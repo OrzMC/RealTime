@@ -181,7 +181,6 @@ class RedstoneDeviceManager(
                     device.outputs.indices.toList()
                 else -> desired.indices.filter { index -> desired[index] != previous.bits[index] }
             }
-        lastWritten[device.id] = WrittenFrame(device, desired)
         if (changedIndexes.isEmpty()) return
 
         val world =
@@ -212,6 +211,8 @@ class RedstoneDeviceManager(
                 scheduler.runRegion(location) { target ->
                     val targetWorld = target.world ?: return@runRegion
                     if (!targetWorld.isChunkLoaded(chunk.first, chunk.second)) {
+                        // Do not record these slots as written: keep them queued for
+                        // the next change, the chunk-load refresh or the full re-check.
                         unloadedChunkSkips.addAndGet(indexes.size.toLong())
                         return@runRegion
                     }
@@ -245,8 +246,29 @@ class RedstoneDeviceManager(
                                     currentState.isPowered(currentDevice, output.bitIndex, effectiveBits),
                         )
                     }
+                    recordWritten(device, effectiveBits, indexes)
                 }
             }
+    }
+
+    /**
+     * Marks the slots this batch actually applied so the next diff only schedules
+     * real changes. Slots skipped by an unloaded chunk stay unrecorded on purpose.
+     */
+    private fun recordWritten(
+        device: RedstoneDevice,
+        bits: List<Boolean>,
+        indexes: List<Int>,
+    ) {
+        lastWritten.compute(device.id) { _, previous ->
+            if (previous == null || previous.device !== device || previous.bits.size != bits.size) {
+                WrittenFrame(device, bits)
+            } else {
+                val updated = previous.bits.toMutableList()
+                indexes.forEach { index -> updated[index] = bits[index] }
+                WrittenFrame(device, updated)
+            }
+        }
     }
 
     private fun RuntimeState.isPowered(

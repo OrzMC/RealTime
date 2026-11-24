@@ -48,7 +48,7 @@ Requirements: JDK 25.
 
 The Gradle Wrapper pins Gradle 9.2.1. The first build downloads the Gradle distribution and project dependencies.
 
-The distributable shaded JAR is expected at `realtime-paper/build/libs/RealTime-0.1.0-SNAPSHOT.jar` for the initial development version.
+The distributable shaded JAR is expected at `realtime-paper/build/libs/RealTime-0.2.0-SNAPSHOT.jar` for the initial development version.
 
 ## AI-agent development
 
@@ -60,16 +60,18 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 
 | Command | Permission | Purpose |
 |---|---|---|
-| `/rtime device list` | `realtime.command` | List configured device IDs and status |
-| `/rtime device info <uuid>` | `realtime.command` | Inspect resolution and every output coordinate |
-| `/rtime device status` | `realtime.command` | View aggregate redstone output diagnostics |
-| `/rtime device cleanup list` | `realtime.command` | Inspect deferred cleanup queue |
-| `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Retry manually corrected `NEEDS_ATTENTION` outputs |
-| `/rtime device remove <uuid>` | `realtime.admin` | Retire a disabled device and enqueue crash-safe deferred cleanup |
-| `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
-| `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
+| `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <axis> [stride]` | `realtime.device.edit` | Create a device slot layout along an axis |
+| `/rtime device set <uuid> <bit> <x> <y> <z>` | `realtime.device.edit` | Move one output slot |
+| `/rtime device list` | `realtime.device.view` | List configured device IDs and status |
+| `/rtime device info <uuid>` | `realtime.device.view` | Inspect resolution and every output coordinate |
+| `/rtime device status` | `realtime.device.view` | View aggregate redstone output diagnostics |
+| `/rtime device cleanup list` | `realtime.device.view` | Inspect deferred cleanup queue |
+| `/rtime device cleanup retry <job-uuid>` | `realtime.device.retire` | Retry manually corrected `NEEDS_ATTENTION` outputs |
+| `/rtime device remove <uuid>` | `realtime.device.retire` | Retire a disabled device and enqueue crash-safe deferred cleanup |
+| `/rtime device enable <uuid>` | `realtime.device.toggle` | Enable a device and refresh outputs |
+| `/rtime device disable <uuid>` | `realtime.device.toggle` | Disable a device and clear loaded outputs |
 
-Each device declares `resolution: minute` (HHmm, 16 outputs) or `resolution: second` (HHmmss, 24 outputs); minute clocks are rewritten when the minute changes, second clocks every second, and only slots whose state changed are written. Every output is a **power-source slot**: bit 1 places a `redstone_block`, bit 0 leaves the slot empty, so vanilla redstone switches the connected circuit. Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is admin-only, disabled-device-only, and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output is cleared.
+Each device declares `resolution: minute` (HHmm, 16 outputs) or `resolution: second` (HHmmss, 24 outputs); minute clocks are rewritten when the minute changes, second clocks every second, and only slots whose state changed are written. Every output is a **power-source slot**: bit 1 places a `redstone_block`, bit 0 leaves the slot empty, so vanilla redstone switches the connected circuit. Devices can be created in game (`device create`, `realtime.device.edit`, default op) or kept YAML-defined; authoring limits live in `modules/redstone.yml` (`max-devices`, `edit-cooldown-seconds`, `allowed-areas`). The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is admin-only, disabled-device-only, and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output is cleared.
 
 ## Docs
 

@@ -6,9 +6,16 @@
 
 ```yaml
 enabled: false
+limits:
+  max-devices: 50
+  edit-cooldown-seconds: 3
+  allowed-areas: []
+  # - { world: world, min-x: 39000, max-x: 41000, min-z: -200, max-z: 200 }
 ```
 
-The module is disabled by default. Each device output slot is a **power-source slot**: a logical 1 places a `minecraft:redstone_block` in the slot, a logical 0 leaves the slot empty (`minecraft:air`). Signals are therefore full strength (15) and vanilla redstone reacts to every change, so the surrounding circuit actually switches.
+The module is disabled by default. `limits` only affects the in-game authoring commands (`device create` / `device set`): an empty `allowed-areas` list means "no area restriction" (the commands still require `realtime.device.edit`, default op), `max-devices` caps how many devices may exist, and `edit-cooldown-seconds` throttles each player's authoring actions.
+
+Each device output slot is a **power-source slot**: a logical 1 places a `minecraft:redstone_block` in the slot, a logical 0 leaves the slot empty (`minecraft:air`). Signals are therefore full strength (15) and vanilla redstone reacts to every change, so the surrounding circuit actually switches.
 
 > Why not forced dust power: writing `power` onto a `redstone_wire` cannot work on the 26.x API surface. With physics the wire recalculates from its inputs and drops back to 0; without physics the value sticks but no consumer ever notices, and `World.updateNeighborsAt` no longer exists. Pre-release builds accepted an `output-power` value (1–15); that key is now ignored because a block cannot emit partial strength.
 
@@ -117,14 +124,18 @@ The device records remain YAML-defined so each output position is explicit and r
 
 | Command | Permission | Behavior |
 |---|---|---|
-| `/rtime device list` | `realtime.command` | Lists configured devices, UUID, world, and enabled state |
-| `/rtime device info <uuid>` | `realtime.command` | Shows metadata, resolution, and every bit-to-coordinate mapping |
-| `/rtime device status` | `realtime.command` | Shows aggregate output health and refresh counters |
-| `/rtime device cleanup list` | `realtime.command` | Lists durable cleanup jobs with pending and operator-attention counts |
-| `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Requeues only `NEEDS_ATTENTION` outputs after an operator has corrected their blocks |
-| `/rtime device remove <uuid>` | `realtime.admin` | Retires a disabled device and atomically creates its deferred cleanup job |
-| `/rtime device enable <uuid>` | `realtime.admin` | Persists enabled state and schedules a redstone refresh |
-| `/rtime device disable <uuid>` | `realtime.admin` | Persists disabled state and schedules a redstone refresh |
+| `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <x+\|x-\|z+\|z-> [stride]` | `realtime.device.edit` | Creates a disabled device whose slots run from the start position along the axis (default stride 1) |
+| `/rtime device set <uuid> <bit-index> <x> <y> <z>` | `realtime.device.edit` | Moves one output slot of an existing device |
+| `/rtime device list` | `realtime.device.view` | Lists configured devices, UUID, world, and enabled state |
+| `/rtime device info <uuid>` | `realtime.device.view` | Shows metadata, resolution, and every bit-to-coordinate mapping |
+| `/rtime device status` | `realtime.device.view` | Shows aggregate output health and refresh counters |
+| `/rtime device cleanup list` | `realtime.device.view` | Lists durable cleanup jobs with pending and operator-attention counts |
+| `/rtime device cleanup retry <job-uuid>` | `realtime.device.retire` | Requeues only `NEEDS_ATTENTION` outputs after an operator has corrected their blocks |
+| `/rtime device remove <uuid>` | `realtime.device.retire` | Retires a disabled device and atomically creates its deferred cleanup job |
+| `/rtime device enable <uuid>` | `realtime.device.toggle` | Persists enabled state and schedules a redstone refresh |
+| `/rtime device disable <uuid>` | `realtime.device.toggle` | Persists disabled state and schedules a redstone refresh |
+
+Permission defaults: `realtime.command` and `realtime.device.view` are `true` for everyone, `realtime.device.toggle` / `realtime.device.edit` / `realtime.device.retire` are `op`, and `realtime.admin` (op) grants reload plus all of the above. Grant `realtime.device.edit` only to people who may place redstone blocks at chosen coordinates; combine it with `limits.allowed-areas` on public servers.
 
 Use the full UUID shown by `device list`; device names are labels and are not identifiers. A failed persistence operation leaves the current in-memory state unchanged. Mutations and `/rtime reload` share a runtime-state lock so one operation cannot overwrite the other's device list.
 
@@ -133,6 +144,29 @@ These commands never inspect or mutate world blocks directly. The redstone manag
 Device retirement is available through the admin-only `/rtime device remove <uuid>` command, but only after the device has been disabled. The command atomically removes the active record and persists every output coordinate (16 or 24, matching the device resolution) as a durable cleanup job. Do not manually delete device records or cleanup jobs from YAML. Operators can inspect the durable queue and retry `NEEDS_ATTENTION` outputs after correcting the affected target block. Paper/Folia restart, unloaded-chunk, chunk-load, and retirement behavior has automated runtime coverage; production deployment still requires the real-server acceptance checklist in [Production acceptance 0.1.0](../operations/production-acceptance-0.1.0.md).
 
 Device creation and coordinate editing remain in `data/devices.yml`; no automatic chunk loading or block-selection workflow is provided.
+
+## In-game authoring
+
+`device create` fills the layout for you; the physical slot positions are still yours to prepare:
+
+```
+/rtime device create lobby-clock second world 39985 79 -32 x+      # 24 slots at x=39985..40008
+/rtime device create lobby-clock minute world 40985 79 -32 z+ 2    # 16 slots, 2 blocks apart
+/rtime device set 77777777-8888-9999-aaaa-bbbbbbbbbbbb 5 41000 79 -30
+```
+
+What the commands validate (all without touching the world, so they are Folia-safe):
+
+- resolution must be `minute` (16 slots) or `second` (24 slots), stride 1–16, axis one of `x+ x- z+ z-`
+- every coordinate must fall inside `limits.allowed-areas` (when configured)
+- the new device must stay under `limits.max-devices`
+- no coordinate may overlap another device or a pending cleanup job
+- `device set` must use a bit index that exists for that device's resolution
+- each player is throttled by `limits.edit-cooldown-seconds`; console commands are not throttled
+
+They do **not** inspect blocks. A slot that already contains something else is reported as an invalid output and left alone — clear it first. Each create/set is written to the plugin log with the acting player, device UUID and coordinates.
+
+New devices start disabled: review `/rtime device info <uuid>`, then `/rtime device enable <uuid>`.
 
 ## Output diagnostics
 

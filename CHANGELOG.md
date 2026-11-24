@@ -4,7 +4,10 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
-- No unreleased changes.
+- Add in-game device authoring: `/rtime device create <name> <minute|second> <world> <x> <y> <z> <axis> [stride]`
+  and `/rtime device set <uuid> <bit> <x> <y> <z>`, with area whitelist, device cap, per-player cooldown and audit logging.
+- Split permissions: `realtime.device.view` (default true), `realtime.device.toggle` / `realtime.device.edit` /
+  `realtime.device.retire` (default op); `realtime.admin` still grants everything including `reload`.
 
 ## [0.1.0]
 
