@@ -1,17 +1,25 @@
 package cn.orzmc.realtime.paper.command
 
+import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
+import cn.orzmc.realtime.paper.device.DeviceAreaNotAllowedException
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
+import cn.orzmc.realtime.paper.device.DeviceCreateRequest
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
+import cn.orzmc.realtime.paper.device.DeviceLimitReachedException
 import cn.orzmc.realtime.paper.device.DeviceMustBeDisabledException
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
+import cn.orzmc.realtime.paper.device.DeviceOutputConflictException
+import cn.orzmc.realtime.paper.device.DeviceOutputIndexException
 import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import java.util.Locale
 import java.util.UUID
+import java.util.logging.Logger
 
 class RealTimeCommandHandler(
     private val pluginVersion: String,
@@ -21,7 +29,11 @@ class RealTimeCommandHandler(
     private val deviceDiagnostics: DeviceDiagnostics? = null,
     private val cleanupAdministration: DeviceCleanupAdministration? = null,
     private val deviceRetirement: DeviceRetirementAdministration? = null,
+    private val logger: Logger? = null,
+    private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
+    private val lastEditAt = mutableMapOf<UUID, Long>()
+
     fun execute(
         target: CommandTarget,
         args: Array<out String>,
@@ -64,8 +76,8 @@ class RealTimeCommandHandler(
             return emptyList()
         }
 
-        val isAdmin = target.hasPermission(ADMIN_PERMISSION)
-        val canRead = target.hasPermission(COMMAND_PERMISSION)
+        val isAdmin = target.hasPermission(TOGGLE_PERMISSION)
+        val canRead = target.hasPermission(VIEW_PERMISSION)
         if (args.size == 2) {
             val candidates =
                 buildList {
@@ -75,10 +87,16 @@ class RealTimeCommandHandler(
                         add("status")
                         if (cleanupAdministration != null) add("cleanup")
                     }
+                    if (target.hasPermission(EDIT_PERMISSION)) {
+                        add("create")
+                        add("set")
+                    }
                     if (isAdmin) {
                         add("enable")
                         add("disable")
-                        if (deviceRetirement != null) add("remove")
+                    }
+                    if (deviceRetirement != null && target.hasPermission(RETIRE_PERMISSION)) {
+                        add("remove")
                     }
                 }
             return candidates.filter { it.startsWith(args[1].lowercase(Locale.ROOT)) }
@@ -89,12 +107,16 @@ class RealTimeCommandHandler(
             val candidates =
                 buildList {
                     if (canRead) add("list")
-                    if (isAdmin) add("retry")
+                    if (target.hasPermission(RETIRE_PERMISSION)) add("retry")
                 }
             return candidates.filter { it.startsWith(args[2].lowercase(Locale.ROOT)) }
         }
 
-        if (args.size == 4 && subcommand == "cleanup" && args[2].equals("retry", true) && isAdmin) {
+        if (args.size == 4 &&
+            subcommand == "cleanup" &&
+            args[2].equals("retry", true) &&
+            target.hasPermission(RETIRE_PERMISSION)
+        ) {
             val prefix = args[3].lowercase(Locale.ROOT)
             return cleanupAdministration
                 ?.list()
@@ -105,7 +127,10 @@ class RealTimeCommandHandler(
         }
 
         val canReadIds = canRead && subcommand == "info"
-        val canMutateIds = isAdmin && subcommand in setOf("enable", "disable", "remove")
+        val canMutateIds =
+            (isAdmin && subcommand in setOf("enable", "disable")) ||
+                (target.hasPermission(RETIRE_PERMISSION) && subcommand == "remove") ||
+                (target.hasPermission(EDIT_PERMISSION) && subcommand == "set")
         if (args.size == 3 && (canReadIds || canMutateIds)) {
             val prefix = args[2].lowercase(Locale.ROOT)
             return deviceAdministration
@@ -131,12 +156,12 @@ class RealTimeCommandHandler(
         when (action) {
             "list" -> {
                 if (args.size != 1) return sendUsage(target, state)
-                if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
+                if (!target.hasPermission(VIEW_PERMISSION)) return sendNoPermission(target, state)
                 showDeviceList(target, state, administration.list())
             }
             "info" -> {
                 if (args.size != 2) return sendUsage(target, state)
-                if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
+                if (!target.hasPermission(VIEW_PERMISSION)) return sendNoPermission(target, state)
                 val id = parseDeviceId(target, state, args[1]) ?: return
                 val device = administration.find(id)
                 if (device == null) {
@@ -149,7 +174,7 @@ class RealTimeCommandHandler(
             "remove" -> handleDeviceRemove(target, args.drop(1), state)
             "status" -> {
                 if (args.size != 1) return sendUsage(target, state)
-                if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
+                if (!target.hasPermission(VIEW_PERMISSION)) return sendNoPermission(target, state)
                 val diagnostics = deviceDiagnostics
                 if (diagnostics == null) {
                     target.sendMessage(state.messages.render("command.device.unavailable"))
@@ -157,9 +182,11 @@ class RealTimeCommandHandler(
                     showDeviceStatus(target, state, diagnostics.snapshot())
                 }
             }
+            "create" -> handleDeviceCreate(target, args.drop(1), state, administration)
+            "set" -> handleDeviceSet(target, args.drop(1), state, administration)
             "enable", "disable" -> {
                 if (args.size != 2) return sendUsage(target, state)
-                if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
+                if (!target.hasPermission(TOGGLE_PERMISSION)) return sendNoPermission(target, state)
                 val id = parseDeviceId(target, state, args[1]) ?: return
                 val enabled = action == "enable"
                 runCatching { administration.setEnabled(id, enabled) }
@@ -194,7 +221,7 @@ class RealTimeCommandHandler(
         when (args.firstOrNull()?.lowercase(Locale.ROOT)) {
             "list" -> {
                 if (args.size != 1) return sendUsage(target, state)
-                if (!target.hasPermission(COMMAND_PERMISSION)) return sendNoPermission(target, state)
+                if (!target.hasPermission(VIEW_PERMISSION)) return sendNoPermission(target, state)
                 val jobs = administration.list()
                 if (jobs.isEmpty()) {
                     target.sendMessage(state.messages.render("command.device.cleanup.empty"))
@@ -223,7 +250,7 @@ class RealTimeCommandHandler(
             }
             "retry" -> {
                 if (args.size != 2) return sendUsage(target, state)
-                if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
+                if (!target.hasPermission(RETIRE_PERMISSION)) return sendNoPermission(target, state)
                 val id = parseCleanupJobId(target, state, args[1]) ?: return
                 runCatching { administration.retry(id) }
                     .fold(
@@ -266,7 +293,7 @@ class RealTimeCommandHandler(
             return
         }
         if (args.size != 1) return sendUsage(target, state)
-        if (!target.hasPermission(ADMIN_PERMISSION)) return sendNoPermission(target, state)
+        if (!target.hasPermission(RETIRE_PERMISSION)) return sendNoPermission(target, state)
         val id = parseDeviceId(target, state, args[0]) ?: return
 
         runCatching { retirement.retire(id) }
@@ -347,6 +374,184 @@ class RealTimeCommandHandler(
                 ),
             ),
         )
+    }
+
+    private fun handleDeviceCreate(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+        administration: DeviceAdministration,
+    ) {
+        if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
+        // args: <name> <minute|second> <world> <x> <y> <z> <x+|x-|z+|z-> [stride]
+        if (args.size !in 7..8) return sendUsage(target, state)
+
+        val name = args[0]
+        val resolution = OutputResolution.fromConfig(args[1].lowercase(Locale.ROOT))
+        if (resolution == null) {
+            target.sendMessage(
+                state.messages.render(
+                    "command.device.create.invalid-resolution",
+                    mapOf("value" to args[1]),
+                ),
+            )
+            return
+        }
+        val worldName = args[2]
+        val x = args[3].toIntOrNull()
+        val y = args[4].toIntOrNull()
+        val z = args[5].toIntOrNull()
+        val axis = args[6].lowercase(Locale.ROOT)
+        val stride = args.getOrNull(7)?.toIntOrNull() ?: 1
+        if (x == null || y == null || z == null || axis !in AXES || stride !in 1..MAX_STRIDE) {
+            return sendUsage(target, state)
+        }
+        if (!acquireEditSlot(target, state)) return
+
+        val outputs =
+            (0 until resolution.outputCount).map { bit ->
+                when (axis) {
+                    "x+" -> DeviceOutput(bit, x + bit * stride, y, z)
+                    "x-" -> DeviceOutput(bit, x - bit * stride, y, z)
+                    "z+" -> DeviceOutput(bit, x, y, z + bit * stride)
+                    else -> DeviceOutput(bit, x, y, z - bit * stride)
+                }
+            }
+
+        runCatching {
+            administration.create(
+                DeviceCreateRequest(
+                    name = name,
+                    worldName = worldName,
+                    resolution = resolution,
+                    outputs = outputs,
+                ),
+            )
+        }.fold(
+            onSuccess = { device ->
+                logger?.info(
+                    "RealTime device '${device.name}' (${device.id}) created by ${target.actorName}: " +
+                        "${device.worldName} ${device.resolution.configValue} ${device.outputs.size} outputs " +
+                        "starting at ${device.outputs.first().x},${device.outputs.first().y},${device.outputs.first().z}",
+                )
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.create.success",
+                        mapOf(
+                            "name" to device.name,
+                            "id" to device.id.toString(),
+                            "resolution" to device.resolution.label,
+                            "world" to device.worldName,
+                            "count" to device.outputs.size.toString(),
+                        ),
+                    ),
+                )
+            },
+            onFailure = { exception -> sendEditFailure(target, state, exception) },
+        )
+    }
+
+    private fun handleDeviceSet(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+        administration: DeviceAdministration,
+    ) {
+        if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
+        // device set <uuid> <bit-index> <x> <y> <z>
+        if (args.size != 5) return sendUsage(target, state)
+        val id = parseDeviceId(target, state, args[0]) ?: return
+        val bitIndex = args[1].toIntOrNull() ?: return sendUsage(target, state)
+        val x = args[2].toIntOrNull() ?: return sendUsage(target, state)
+        val y = args[3].toIntOrNull() ?: return sendUsage(target, state)
+        val z = args[4].toIntOrNull() ?: return sendUsage(target, state)
+        if (!acquireEditSlot(target, state)) return
+
+        runCatching { administration.setOutput(id, bitIndex, x, y, z) }.fold(
+            onSuccess = { device ->
+                logger?.info(
+                    "RealTime device '${device.name}' (${device.id}) output $bitIndex moved to " +
+                        "$x,$y,$z by ${target.actorName}",
+                )
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.set.success",
+                        mapOf("bit" to bitIndex.toString(), "x" to x.toString(), "y" to y.toString(), "z" to z.toString()),
+                    ),
+                )
+            },
+            onFailure = { exception -> sendEditFailure(target, state, exception) },
+        )
+    }
+
+    private fun acquireEditSlot(
+        target: CommandTarget,
+        state: RuntimeState,
+    ): Boolean {
+        val actor = target.actorId ?: return true
+        val cooldown = state.redstoneConfiguration.limits.editCooldownSeconds
+        if (cooldown <= 0) return true
+        val now = nowMillis()
+        val previous = lastEditAt[actor]
+        if (previous != null) {
+            val remaining = cooldown * 1000L - (now - previous)
+            if (remaining > 0) {
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.edit.cooldown",
+                        mapOf("seconds" to ((remaining + 999) / 1000).toString()),
+                    ),
+                )
+                return false
+            }
+        }
+        lastEditAt[actor] = now
+        return true
+    }
+
+    private fun sendEditFailure(
+        target: CommandTarget,
+        state: RuntimeState,
+        exception: Throwable,
+    ) {
+        val message =
+            when (exception) {
+                is DeviceLimitReachedException ->
+                    state.messages.render(
+                        "command.device.create.limit",
+                        mapOf("limit" to exception.limit.toString()),
+                    )
+                is DeviceAreaNotAllowedException ->
+                    state.messages.render(
+                        "command.device.create.area",
+                        mapOf(
+                            "world" to exception.worldName,
+                            "x" to exception.x.toString(),
+                            "z" to exception.z.toString(),
+                        ),
+                    )
+                is DeviceOutputConflictException ->
+                    state.messages.render(
+                        "command.device.create.conflict",
+                        mapOf(
+                            "x" to exception.x.toString(),
+                            "y" to exception.y.toString(),
+                            "z" to exception.z.toString(),
+                        ),
+                    )
+                is DeviceOutputIndexException ->
+                    state.messages.render(
+                        "command.device.set.index",
+                        mapOf("bit" to exception.bitIndex.toString(), "max" to exception.maxIndex.toString()),
+                    )
+                is DeviceNotFoundException -> state.messages.render("command.device.not-found", mapOf("id" to exception.message.orEmpty()))
+                else ->
+                    state.messages.render(
+                        "command.device.error",
+                        mapOf("reason" to (exception.message ?: "unknown error")),
+                    )
+            }
+        target.sendMessage(message)
     }
 
     private fun showDeviceList(
@@ -565,7 +770,14 @@ class RealTimeCommandHandler(
     }
 
     companion object {
+        private val AXES = setOf("x+", "x-", "z+", "z-")
+        private const val MAX_STRIDE = 16
+
         const val COMMAND_PERMISSION = "realtime.command"
+        const val VIEW_PERMISSION = "realtime.device.view"
+        const val TOGGLE_PERMISSION = "realtime.device.toggle"
+        const val EDIT_PERMISSION = "realtime.device.edit"
+        const val RETIRE_PERMISSION = "realtime.device.retire"
         const val ADMIN_PERMISSION = "realtime.admin"
     }
 }

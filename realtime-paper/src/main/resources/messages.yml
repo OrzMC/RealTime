@@ -47,6 +47,17 @@ command:
     state:
       enabled: '&a启用'
       disabled: '&c禁用'
+    create:
+      success: '{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{world} &7{count} 个输出'
+      invalid-resolution: '{prefix}&c分辨率无效：&f{value} &7（可用：minute、second）'
+      limit: '{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。'
+      area: '{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}'
+      conflict: '{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}'
+    set:
+      success: '{prefix}&a位 {bit} 已改为 &f{x}, {y}, {z}'
+      index: '{prefix}&c位号超出范围（0–{max}）：&f{bit}'
+    edit:
+      cooldown: '{prefix}&c操作太快，请 &f{seconds} &c秒后再试。'
     enable:
       success: '{prefix}&a设备 {name} 已启用。&7({id})'
     disable:
@@ -56,4 +67,4 @@ command:
     error: '{prefix}&c设备操作或刷新失败：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device cleanup list|device cleanup retry|device enable|device disable|device remove <uuid>]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info|device status|device create|device set|device enable|device disable|device remove <uuid>|device cleanup list|device cleanup retry]'

@@ -14,10 +14,31 @@ commands:
     permission: realtime.command
 permissions:
   realtime.command:
-    description: Allows use of the RealTime command.
+    description: Allows querying the current time and plugin info.
     default: true
+  realtime.device.view:
+    description: Allows listing devices, inspecting them and reading diagnostics and the cleanup queue.
+    default: true
+  realtime.device.toggle:
+    description: Allows enabling and disabling existing devices.
+    default: op
+    children:
+      realtime.device.view: true
+  realtime.device.edit:
+    description: Allows creating devices and moving their output slots (writes blocks in the world).
+    default: op
+    children:
+      realtime.device.view: true
+  realtime.device.retire:
+    description: Allows retiring a disabled device and retrying deferred cleanup.
+    default: op
+    children:
+      realtime.device.view: true
   realtime.admin:
-    description: Allows administration of RealTime.
+    description: Allows reloading the configuration and every device administration action.
     default: op
     children:
       realtime.command: true
+      realtime.device.toggle: true
+      realtime.device.edit: true
+      realtime.device.retire: true

@@ -19,9 +19,11 @@ import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabExecutor
+import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 import java.time.Clock
+import java.util.UUID
 
 class RealTimePlugin :
     JavaPlugin(),
@@ -125,6 +127,7 @@ class RealTimePlugin :
                 deviceDiagnostics = redstoneDeviceManager,
                 cleanupAdministration = cleanupAdministration,
                 deviceRetirement = deviceRetirementService,
+                logger = logger,
             )
 
         val command = getCommand("rtime")
@@ -227,6 +230,10 @@ class RealTimePlugin :
     private class BukkitCommandTarget(
         private val sender: CommandSender,
     ) : CommandTarget {
+        override val actorName: String = if (sender is Player) sender.name else "console"
+
+        override val actorId: UUID? = (sender as? Player)?.uniqueId
+
         override fun hasPermission(permission: String): Boolean = sender.hasPermission(permission)
 
         override fun sendMessage(message: String) {
