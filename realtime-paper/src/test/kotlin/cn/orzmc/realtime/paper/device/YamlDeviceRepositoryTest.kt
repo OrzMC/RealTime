@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import org.bukkit.configuration.file.YamlConfiguration
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,7 +24,7 @@ class YamlDeviceRepositoryTest {
         assertTrue(repository.loadStore().devices.isEmpty())
         val yaml = YamlConfiguration()
         yaml.load(temporaryDirectory.resolve("data/devices.yml").toFile())
-        assertEquals(2, yaml.getInt("schema-version"))
+        assertEquals(3, yaml.getInt("schema-version"))
         assertTrue(yaml.getList("cleanup-jobs").orEmpty().isEmpty())
     }
 
@@ -40,6 +41,61 @@ class YamlDeviceRepositoryTest {
         assertEquals(device.worldName, loaded.worldName)
         assertEquals(device.enabled, loaded.enabled)
         assertEquals(device.outputs, loaded.outputs)
+        assertEquals(OutputResolution.MINUTE, loaded.resolution)
+    }
+
+    @Test
+    fun `persists and reloads second resolution devices`() {
+        val repository = YamlDeviceRepository(temporaryDirectory.toFile())
+        val device = device(resolution = OutputResolution.SECOND)
+
+        repository.save(DeviceStoreSnapshot(listOf(device)))
+
+        val loaded = repository.loadStore().devices.single()
+        assertEquals(OutputResolution.SECOND, loaded.resolution)
+        assertEquals(24, loaded.outputs.size)
+        assertEquals(device.outputs, loaded.outputs)
+        assertEquals(0, loaded.outputs.first().bitIndex)
+        assertEquals(23, loaded.outputs.last().bitIndex)
+    }
+
+    @Test
+    fun `persists second resolution cleanup jobs`() {
+        val repository = YamlDeviceRepository(temporaryDirectory.toFile())
+        val job = DeviceCleanupJob.fromDevice(device(resolution = OutputResolution.SECOND), null)
+
+        repository.save(DeviceStoreSnapshot(devices = emptyList(), cleanupJobs = listOf(job)))
+
+        val loaded = repository.loadStore().cleanupJobs.single()
+        assertEquals(OutputResolution.SECOND, loaded.resolution)
+        assertEquals(24, loaded.outputs.size)
+    }
+
+    @Test
+    fun `rejects unsupported resolutions`() {
+        val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
+        val device = device()
+        val yaml = YamlConfiguration()
+        yaml.set("schema-version", 3)
+        yaml.set(
+            "devices",
+            listOf(
+                linkedMapOf(
+                    "id" to device.id.toString(),
+                    "name" to device.name,
+                    "world" to device.worldName,
+                    "enabled" to device.enabled,
+                    "resolution" to "hourly",
+                    "outputs" to emptyList<Any>(),
+                ),
+            ),
+        )
+        yaml.set("cleanup-jobs", emptyList<Any>())
+        yaml.save(dataDirectory.resolve("devices.yml").toFile())
+
+        assertThrows(DeviceRepositoryException::class.java) {
+            YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
+        }
     }
 
     @Test
@@ -68,7 +124,7 @@ class YamlDeviceRepositoryTest {
     }
 
     @Test
-    fun `migrates schema v1 devices to schema v2 without data loss`() {
+    fun `migrates schema v1 devices to the current schema without data loss`() {
         val device = device()
         val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
         val legacy = YamlConfiguration()
@@ -103,10 +159,12 @@ class YamlDeviceRepositoryTest {
         assertEquals(device.worldName, migratedDevice.worldName)
         assertEquals(device.enabled, migratedDevice.enabled)
         assertEquals(device.outputs, migratedDevice.outputs)
+        assertEquals(OutputResolution.MINUTE, migratedDevice.resolution)
         assertTrue(migrated.cleanupJobs.isEmpty())
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(2, stored.getInt("schema-version"))
+        assertEquals(3, stored.getInt("schema-version"))
+        assertEquals("minute", stored.getMapList("devices").single()["resolution"])
         assertTrue(stored.getList("cleanup-jobs").orEmpty().isEmpty())
     }
 
@@ -149,15 +207,18 @@ class YamlDeviceRepositoryTest {
         }
     }
 
-    private fun device(name: String = "clock") =
-        RedstoneDevice(
-            id = UUID.randomUUID(),
-            name = name,
-            worldName = "world",
-            enabled = true,
-            outputs =
-                (0 until 16).map { index ->
-                    DeviceOutput(bitIndex = index, x = index * 2, y = 64, z = 0)
-                },
-        )
+    private fun device(
+        name: String = "clock",
+        resolution: OutputResolution = OutputResolution.MINUTE,
+    ) = RedstoneDevice(
+        id = UUID.randomUUID(),
+        name = name,
+        worldName = "world",
+        enabled = true,
+        outputs =
+            (0 until resolution.outputCount).map { index ->
+                DeviceOutput(bitIndex = index, x = index * 2, y = 64, z = 0)
+            },
+        resolution = resolution,
+    )
 }

@@ -41,6 +41,7 @@ command:
       id: '{prefix}&7ID：&f{id}'
       world: '{prefix}&7世界：&f{world}'
       enabled: '{prefix}&7状态：{enabled}'
+      resolution: '{prefix}&7分辨率：&f{resolution}'
       outputs: '{prefix}&7输出点（{count}）：'
       output: '{prefix}&8位 {bit}：&f{x}, {y}, {z}'
     state:

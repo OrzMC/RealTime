@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -139,17 +140,77 @@ class RedstoneDeviceManagerTest {
         assertEquals(1, fixture.manager.snapshot().unloadedChunkSkips)
     }
 
+    @Test
+    fun `second resolution devices expose twenty four outputs`() {
+        val fixture = fixture(chunkLoaded = true, resolution = OutputResolution.SECOND)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+
+        assertEquals(24, fixture.regionCallbacks.size)
+        assertEquals(24, fixture.manager.snapshot().configuredOutputs)
+    }
+
+    @Test
+    fun `second resolution devices refresh every second and power the changed second bits`() {
+        val fixture = fixture(chunkLoaded = true, resolution = OutputResolution.SECOND)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        assertEquals(24, fixture.regionCallbacks.size)
+
+        // At 23:59:00 the second ones digit is 0, so bit 20 stays unpowered.
+        fixture.regionCallbacks[20].accept(fixture.scheduledTask)
+        assertEquals(0, fixture.wirePower())
+
+        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
+        fixture.tick()
+        assertEquals(48, fixture.regionCallbacks.size)
+
+        // Second ones digit is now 1, so bit 20 (LSB) must be powered.
+        fixture.regionCallbacks[44].accept(fixture.scheduledTask)
+        assertEquals(15, fixture.wirePower())
+        assertEquals(1, fixture.manager.snapshot().powerChanges)
+    }
+
+    @Test
+    fun `minute resolution devices are not rewritten while only the second changes`() {
+        val fixture = fixture(chunkLoaded = true)
+        fixture.manager.start(fixture.plugin)
+        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        assertEquals(16, fixture.regionCallbacks.size)
+
+        fixture.tick()
+        assertEquals(16, fixture.regionCallbacks.size)
+
+        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
+        fixture.tick()
+        assertEquals(16, fixture.regionCallbacks.size)
+
+        fixture.setInstant(Instant.parse("2026-11-23T16:00:00Z"))
+        fixture.tick()
+        assertEquals(32, fixture.regionCallbacks.size)
+    }
+
     private fun fixture(
         chunkLoaded: Boolean,
         deviceEnabled: Boolean = true,
         initialWirePower: Int = 0,
         blockType: Material = Material.REDSTONE_WIRE,
         failWrite: Boolean = false,
+        resolution: OutputResolution = OutputResolution.MINUTE,
     ): Fixture {
         val worldName = "world"
         var wirePower = initialWirePower
         var blockAccessed = false
         var physicsApplied = false
+        var currentInstant = Instant.parse("2026-11-23T15:59:00Z")
+        val clock =
+            object : Clock() {
+                override fun getZone(): ZoneId = ZoneOffset.UTC
+
+                override fun withZone(zone: ZoneId): Clock = this
+
+                override fun instant(): Instant = currentInstant
+            }
 
         val wire =
             fake<RedstoneWire> { method, args ->
@@ -207,11 +268,13 @@ class RedstoneDeviceManagerTest {
                 }
             }
         var globalCallback: Consumer<ScheduledTask>? = null
+        var periodicCallback: Consumer<ScheduledTask>? = null
         val scheduledTask = fakeScheduledTask()
         val globalScheduler =
             fake<GlobalRegionScheduler> { method, args ->
-                if (method.name == "run") {
-                    globalCallback = args!![1] as Consumer<ScheduledTask>
+                when (method.name) {
+                    "run" -> globalCallback = args!![1] as Consumer<ScheduledTask>
+                    "runAtFixedRate" -> periodicCallback = args!![1] as Consumer<ScheduledTask>
                 }
                 scheduledTask
             }
@@ -240,7 +303,7 @@ class RedstoneDeviceManagerTest {
                 configuration = configuration,
                 timeService =
                     ClockRealTimeService(
-                        Clock.fixed(Instant.parse("2026-11-23T15:59:00Z"), ZoneOffset.UTC),
+                        clock,
                         configuration.zoneId,
                         configuration.locale,
                     ),
@@ -254,9 +317,10 @@ class RedstoneDeviceManagerTest {
                             worldName = worldName,
                             enabled = deviceEnabled,
                             outputs =
-                                (0 until 16).map { bit ->
+                                (0 until resolution.outputCount).map { bit ->
                                     DeviceOutput(bit, bit * 2, 64, 0)
                                 },
+                            resolution = resolution,
                         ),
                     ),
             )
@@ -280,6 +344,8 @@ class RedstoneDeviceManagerTest {
             physicsApplied = { physicsApplied },
             initialState = runtimeState,
             replaceState = { runtimeState = it },
+            setInstant = { currentInstant = it },
+            tick = { periodicCallback!!.accept(scheduledTask) },
         )
     }
 
@@ -295,6 +361,8 @@ class RedstoneDeviceManagerTest {
         val physicsApplied: () -> Boolean,
         val initialState: RuntimeState,
         val replaceState: (RuntimeState) -> Unit,
+        val setInstant: (Instant) -> Unit,
+        val tick: () -> Unit,
     )
 
     private fun fakeScheduledTask(): ScheduledTask =

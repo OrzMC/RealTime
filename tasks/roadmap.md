@@ -15,6 +15,7 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR9 | Redstone device diagnostics and output observability | Complete | PR5, PR8 |
 | PR10 | Persistent deferred cleanup for safely retiring devices (PR10a store, PR10b processor, PR10c runtime/ops) | Complete — PR10a/PR10b/PR10c merged | PR5, PR8, PR9 |
 | PR11 | Admin-only disabled-device retirement command | Complete — PR #23 merged and Paper/Folia runtime smoke passed | PR10 |
+| PR12 | Second-resolution output (HHmmss, 24 outputs) and schema v3 | Implemented — pending verification and PR | PR5, PR10, PR11 |
 
 ## Milestones
 

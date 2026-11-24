@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -119,6 +120,36 @@ class DeviceRetirementServiceTest {
         assertEquals(0, refreshCount)
     }
 
+    @Test
+    fun `retires second resolution devices with all twenty four cleanup outputs`() {
+        val device = device(enabled = false, resolution = OutputResolution.SECOND)
+        var active = state(listOf(device))
+        var persisted: DeviceStoreSnapshot? = null
+        val service =
+            DeviceRetirementService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistStore = { persisted = it },
+                replaceState = { active = it },
+                requestCleanup = {},
+            )
+
+        val job = service.retire(device.id, null)
+
+        assertEquals(OutputResolution.SECOND, job.resolution)
+        assertEquals(24, job.outputs.size)
+        assertEquals((0 until 24).toSet(), job.outputs.map { it.output.bitIndex }.toSet())
+        assertEquals(
+            24,
+            persisted
+                ?.cleanupJobs
+                ?.single()
+                ?.outputs
+                ?.size,
+        )
+        assertTrue(active.devices.isEmpty())
+    }
+
     private fun state(devices: List<RedstoneDevice>): RuntimeState {
         val configuration =
             RealTimeConfiguration(
@@ -143,15 +174,18 @@ class DeviceRetirementServiceTest {
         )
     }
 
-    private fun device(enabled: Boolean) =
-        RedstoneDevice(
-            id = UUID.randomUUID(),
-            name = "clock",
-            worldName = "world",
-            enabled = enabled,
-            outputs =
-                (0 until 16).map { bit ->
-                    DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
-                },
-        )
+    private fun device(
+        enabled: Boolean,
+        resolution: OutputResolution = OutputResolution.MINUTE,
+    ) = RedstoneDevice(
+        id = UUID.randomUUID(),
+        name = "clock",
+        worldName = "world",
+        enabled = enabled,
+        outputs =
+            (0 until resolution.outputCount).map { bit ->
+                DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
+            },
+        resolution = resolution,
+    )
 }

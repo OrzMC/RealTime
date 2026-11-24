@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import org.bukkit.configuration.InvalidConfigurationException
 import org.bukkit.configuration.file.YamlConfiguration
@@ -52,8 +53,8 @@ class YamlDeviceRepository(
         val snapshot = DeviceStoreSnapshot(devices, cleanupJobs)
         validateStore(snapshot, "$DEVICE_FILE")
 
-        // Schema v1 is migrated in-place through the same atomic replacement path.
-        if (schemaVersion == LEGACY_SCHEMA_VERSION) save(snapshot)
+        // Older schemas are migrated in-place through the same atomic replacement path.
+        if (schemaVersion < SUPPORTED_SCHEMA_VERSION) save(snapshot)
         return snapshot
     }
 
@@ -71,6 +72,7 @@ class YamlDeviceRepository(
                     "name" to device.name,
                     "world" to device.worldName,
                     "enabled" to device.enabled,
+                    "resolution" to device.resolution.configValue,
                     "outputs" to
                         device.outputs.map { output ->
                             linkedMapOf(
@@ -92,6 +94,7 @@ class YamlDeviceRepository(
                     "device-name" to job.deviceName,
                     "world" to job.worldName,
                     "world-uuid" to job.worldId?.toString(),
+                    "resolution" to job.resolution.configValue,
                     "outputs" to
                         job.outputs.map { cleanupOutput ->
                             linkedMapOf(
@@ -216,6 +219,7 @@ class YamlDeviceRepository(
         val rawOutputs =
             raw["outputs"] as? List<*>
                 ?: throw DeviceRepositoryException("$context.outputs must be a list")
+        val resolution = parseResolution(raw, context)
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
                 val output =
@@ -230,7 +234,7 @@ class YamlDeviceRepository(
             }
 
         return try {
-            RedstoneDevice(id, name, worldName, enabled, outputs)
+            RedstoneDevice(id, name, worldName, enabled, outputs, resolution)
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
         }
@@ -250,6 +254,7 @@ class YamlDeviceRepository(
         val rawOutputs =
             raw["outputs"] as? List<*>
                 ?: throw DeviceRepositoryException("$context.outputs must be a list")
+        val resolution = parseResolution(raw, context)
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
                 val output =
@@ -291,10 +296,29 @@ class YamlDeviceRepository(
                 worldName = requiredString(raw, "world", context),
                 worldId = worldId,
                 outputs = outputs,
+                resolution = resolution,
             )
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
         }
+    }
+
+    private fun parseResolution(
+        values: Map<*, *>,
+        context: String,
+    ): OutputResolution {
+        val value =
+            when (val raw = values["resolution"]) {
+                null -> return OutputResolution.MINUTE
+                is String -> raw
+                else -> throw DeviceRepositoryException("$context.resolution must be a string")
+            }
+        return OutputResolution.fromConfig(value)
+            ?: throw DeviceRepositoryException(
+                "$context.resolution is unsupported: $value (supported: " +
+                    OutputResolution.entries.joinToString { it.configValue } +
+                    ")",
+            )
     }
 
     private fun requiredString(
@@ -334,6 +358,6 @@ class YamlDeviceRepository(
         const val DEVICE_FILE = "data/devices.yml"
         const val BACKUP_FILE = "backups/devices.yml.bak"
         const val LEGACY_SCHEMA_VERSION = 1
-        const val SUPPORTED_SCHEMA_VERSION = 2
+        const val SUPPORTED_SCHEMA_VERSION = 3
     }
 }

@@ -204,6 +204,7 @@ class RealTimeConfigurationLoader {
                 "command.device.info.id" to "{prefix}&7ID：&f{id}",
                 "command.device.info.world" to "{prefix}&7世界：&f{world}",
                 "command.device.info.enabled" to "{prefix}&7状态：{enabled}",
+                "command.device.info.resolution" to "{prefix}&7分辨率：&f{resolution}",
                 "command.device.info.outputs" to "{prefix}&7输出点（{count}）：",
                 "command.device.info.output" to "{prefix}&8位 {bit}：&f{x}, {y}, {z}",
                 "command.device.state.enabled" to "&a启用",

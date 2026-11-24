@@ -44,7 +44,7 @@ echo "$SHA256  $WORK_DIR/server.jar" | sha256sum --check -
 mkdir -p "$WORK_DIR/plugins/RealTime/data"
 cp "$PLUGIN_JAR" "$WORK_DIR/plugins/RealTime.jar"
 cat > "$WORK_DIR/plugins/RealTime/data/devices.yml" <<'YAML'
-schema-version: 2
+schema-version: 3
 devices: []
 cleanup-jobs: []
 YAML
@@ -154,13 +154,14 @@ CLEANUP_DEVICE_ID="00000000-0000-0000-0000-000000000001"
 JOB_ID="00000000-0000-0000-0000-000000000002"
 RETIRE_DEVICE_ID="00000000-0000-0000-0000-000000000003"
 {
-  printf 'schema-version: 2\ndevices:\n'
+  printf 'schema-version: 3\ndevices:\n'
   printf '  - id: %s\n' "$RETIRE_DEVICE_ID"
   printf '    name: ci-remove-command\n'
   printf '    world: %s\n' "$WORLD_NAME"
   printf '    enabled: false\n'
+  printf '    resolution: second\n'
   printf '    outputs:\n'
-  for bit in $(seq 0 15); do
+  for bit in $(seq 0 23); do
     x=$((3200 + bit))
     printf '      - bit-index: %s\n        x: %s\n        y: 64\n        z: 0\n' "$bit" "$x"
   done
@@ -252,10 +253,15 @@ if [[ "$ATTENTION_READY" != "1" ]]; then
   exit 1
 fi
 
-STONE_PROBE="$(rcon execute if block 1615 64 0 minecraft:stone run time query daytime)"
-echo "Non-wire target probe: $STONE_PROBE"
-if [[ -z "$STONE_PROBE" ]]; then
-  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+# The durable cleanup job records the block type it actually observed, which
+# proves the plugin read the stone target and refused to overwrite it. Vanilla
+# probe commands are avoided here: their output differs between Paper and Folia
+# and the 26.x command surface changed (time query / data get block).
+DEVICES_YML="$WORK_DIR/plugins/RealTime/data/devices.yml"
+ATTENTION_DETAIL="$(grep -F 'Expected REDSTONE_WIRE, found STONE' "$DEVICES_YML" || true)"
+echo "Non-wire target evidence: ${ATTENTION_DETAIL:-<missing>}"
+if [[ -z "$ATTENTION_DETAIL" ]]; then
+  cat "$DEVICES_YML"
   echo "Cleanup overwrote the non-wire target on $PROJECT." >&2
   exit 1
 fi
@@ -290,11 +296,14 @@ rcon forceload remove 1600 0 >/dev/null
 rcon forceload remove 0 0 >/dev/null
 
 # Exercise the actual admin retirement command against a disabled active device.
+# The device uses second resolution, so its 24 outputs span two chunks.
 rcon forceload add 3200 0 >/dev/null
+rcon forceload add 3216 0 >/dev/null
 RETIRE_CHUNK_READY=0
 for _ in $(seq 1 20); do
-  RETIRE_CHUNK_PROBE="$(rcon execute if loaded 3200 64 0 run list)"
-  if [[ -n "$RETIRE_CHUNK_PROBE" ]]; then
+  RETIRE_CHUNK_FIRST="$(rcon execute if loaded 3200 64 0 run list)"
+  RETIRE_CHUNK_SECOND="$(rcon execute if loaded 3220 64 0 run list)"
+  if [[ -n "$RETIRE_CHUNK_FIRST" && -n "$RETIRE_CHUNK_SECOND" ]]; then
     RETIRE_CHUNK_READY=1
     break
   fi
@@ -304,7 +313,7 @@ if [[ "$RETIRE_CHUNK_READY" != "1" ]]; then
   echo "Could not load retirement command test chunk on $PROJECT." >&2
   exit 1
 fi
-for bit in $(seq 0 15); do
+for bit in $(seq 0 23); do
   x=$((3200 + bit))
   rcon setblock "$x" 63 0 minecraft:stone >/dev/null
   rcon setblock "$x" 64 0 'minecraft:redstone_wire[power=15]' >/dev/null
@@ -328,7 +337,7 @@ done
 if [[ "$RETIRE_QUEUE_EMPTY" != "1" ]]; then
   cat "$WORK_DIR/server.log"
   cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
-  echo "Retirement command did not complete all 16 outputs on $PROJECT: $QUEUE" >&2
+  echo "Retirement command did not complete all 24 outputs on $PROJECT: $QUEUE" >&2
   exit 1
 fi
 
@@ -337,7 +346,7 @@ if ! grep -Fq '当前没有配置任何设备' <<< "$DEVICE_LIST"; then
   echo "Retired device is still present in the active device list on $PROJECT: $DEVICE_LIST" >&2
   exit 1
 fi
-for bit in 0 7 15; do
+for bit in 0 7 15 20 23; do
   x=$((3200 + bit))
   POWER_PROBE="$(rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run list)"
   if [[ -z "$POWER_PROBE" ]]; then
@@ -346,5 +355,6 @@ for bit in 0 7 15; do
   fi
 done
 
+rcon forceload remove 3216 0 >/dev/null
 rcon forceload remove 3200 0 >/dev/null
-echo "$PROJECT cleanup and retirement runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, admin remove command, and power-zero cleanup."
+echo "$PROJECT cleanup and retirement runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, admin remove command, and power-zero cleanup of all 24 second-resolution outputs."
