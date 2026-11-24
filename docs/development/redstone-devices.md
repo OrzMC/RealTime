@@ -38,7 +38,7 @@ cleanup-jobs:
       - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
 ```
 
-The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. No in-game remove command is available yet.
+The complete job contains all 16 outputs. Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service.
 
 ## HHmm BCD output layout
 
@@ -109,6 +109,7 @@ The device records remain YAML-defined so each of the 16 output positions is exp
 | `/rtime device status` | `realtime.command` | Shows aggregate output health and refresh counters |
 | `/rtime device cleanup list` | `realtime.command` | Lists durable cleanup jobs with pending and operator-attention counts |
 | `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Requeues only `NEEDS_ATTENTION` outputs after an operator has corrected their blocks |
+| `/rtime device remove <uuid>` | `realtime.admin` | Retires a disabled device and atomically creates its deferred cleanup job |
 | `/rtime device enable <uuid>` | `realtime.admin` | Persists enabled state and schedules a redstone refresh |
 | `/rtime device disable <uuid>` | `realtime.admin` | Persists disabled state and schedules a redstone refresh |
 
