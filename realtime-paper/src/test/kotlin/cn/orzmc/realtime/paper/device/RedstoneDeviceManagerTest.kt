@@ -16,7 +16,6 @@ import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
 import org.bukkit.block.Block
-import org.bukkit.block.data.type.RedstoneWire
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.PluginManager
@@ -46,7 +45,7 @@ class RedstoneDeviceManagerTest {
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
         assertTrue(fixture.blockAccessed())
-        assertEquals(15, fixture.wirePower())
+        assertEquals(Material.REDSTONE_BLOCK, fixture.blockType())
         assertTrue(fixture.physicsApplied())
         assertEquals(1, fixture.manager.snapshot().outputChecks)
         assertEquals(1, fixture.manager.snapshot().powerChanges)
@@ -64,30 +63,30 @@ class RedstoneDeviceManagerTest {
 
     @Test
     fun `clears disabled device outputs when their chunk loads`() {
-        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialWirePower = 15)
+        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialType = Material.REDSTONE_BLOCK)
 
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
 
         assertTrue(fixture.blockAccessed())
-        assertEquals(0, fixture.wirePower())
+        assertEquals(Material.AIR, fixture.blockType())
         assertTrue(fixture.physicsApplied())
     }
 
     @Test
     fun `clears disabled device outputs during scheduled refresh`() {
-        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialWirePower = 15)
+        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialType = Material.REDSTONE_BLOCK)
         fixture.manager.start(fixture.plugin)
         fixture.globalCallback()!!.accept(fixture.scheduledTask)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
         assertTrue(fixture.blockAccessed())
-        assertEquals(0, fixture.wirePower())
+        assertEquals(Material.AIR, fixture.blockType())
         assertTrue(fixture.physicsApplied())
     }
 
     @Test
     fun `counts outputs that already have the expected power`() {
-        val fixture = fixture(chunkLoaded = true, initialWirePower = 15)
+        val fixture = fixture(chunkLoaded = true, initialType = Material.REDSTONE_BLOCK)
         fixture.manager.start(fixture.plugin)
         fixture.globalCallback()!!.accept(fixture.scheduledTask)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
@@ -98,7 +97,7 @@ class RedstoneDeviceManagerTest {
 
     @Test
     fun `counts invalid output blocks`() {
-        val fixture = fixture(chunkLoaded = true, blockType = Material.STONE)
+        val fixture = fixture(chunkLoaded = true, initialType = Material.STONE)
         fixture.manager.start(fixture.plugin)
         fixture.globalCallback()!!.accept(fixture.scheduledTask)
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
@@ -124,7 +123,7 @@ class RedstoneDeviceManagerTest {
         fixture.replaceState(fixture.initialState.copy(devices = emptyList()))
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
-        assertEquals(0, fixture.wirePower())
+        assertEquals(Material.AIR, fixture.blockType())
         assertEquals(1, fixture.manager.snapshot().staleOutputUpdates)
     }
 
@@ -136,7 +135,7 @@ class RedstoneDeviceManagerTest {
         fixture.regionCallbacks[1].accept(fixture.scheduledTask)
 
         assertFalse(fixture.blockAccessed())
-        assertEquals(0, fixture.wirePower())
+        assertEquals(Material.AIR, fixture.blockType())
         assertEquals(1, fixture.manager.snapshot().unloadedChunkSkips)
     }
 
@@ -159,7 +158,7 @@ class RedstoneDeviceManagerTest {
 
         // At 23:59:00 the second ones digit is 0, so bit 20 stays unpowered.
         fixture.regionCallbacks[20].accept(fixture.scheduledTask)
-        assertEquals(0, fixture.wirePower())
+        assertEquals(Material.AIR, fixture.blockType())
 
         fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
         fixture.tick()
@@ -167,7 +166,7 @@ class RedstoneDeviceManagerTest {
 
         // Second ones digit is now 1, so bit 20 (LSB) must be powered.
         fixture.regionCallbacks[44].accept(fixture.scheduledTask)
-        assertEquals(15, fixture.wirePower())
+        assertEquals(Material.REDSTONE_BLOCK, fixture.blockType())
         assertEquals(1, fixture.manager.snapshot().powerChanges)
     }
 
@@ -193,13 +192,12 @@ class RedstoneDeviceManagerTest {
     private fun fixture(
         chunkLoaded: Boolean,
         deviceEnabled: Boolean = true,
-        initialWirePower: Int = 0,
-        blockType: Material = Material.REDSTONE_WIRE,
+        initialType: Material = Material.AIR,
         failWrite: Boolean = false,
         resolution: OutputResolution = OutputResolution.MINUTE,
     ): Fixture {
         val worldName = "world"
-        var wirePower = initialWirePower
+        var currentType = initialType
         var blockAccessed = false
         var physicsApplied = false
         var currentInstant = Instant.parse("2026-11-23T15:59:00Z")
@@ -212,24 +210,13 @@ class RedstoneDeviceManagerTest {
                 override fun instant(): Instant = currentInstant
             }
 
-        val wire =
-            fake<RedstoneWire> { method, args ->
-                when (method.name) {
-                    "getPower" -> wirePower
-                    "setPower" -> {
-                        wirePower = args!![0] as Int
-                        null
-                    }
-                    else -> null
-                }
-            }
         val block =
             fake<Block> { method, args ->
                 when (method.name) {
-                    "getType" -> blockType
-                    "getBlockData" -> wire
-                    "setBlockData" -> {
+                    "getType" -> currentType
+                    "setType" -> {
                         if (failWrite) throw IllegalStateException("simulated block write failure")
+                        currentType = args!![0] as Material
                         physicsApplied = args!![1] as Boolean
                         null
                     }
@@ -308,7 +295,7 @@ class RedstoneDeviceManagerTest {
                         configuration.locale,
                     ),
                 messages = MessageCatalog(emptyMap()),
-                redstoneConfiguration = RedstoneConfiguration(enabled = true, outputPower = 15),
+                redstoneConfiguration = RedstoneConfiguration(enabled = true),
                 devices =
                     listOf(
                         RedstoneDevice(
@@ -340,7 +327,7 @@ class RedstoneDeviceManagerTest {
             regionCallbacks = regionCallbacks,
             scheduledTask = scheduledTask,
             blockAccessed = { blockAccessed },
-            wirePower = { wirePower },
+            blockType = { currentType },
             physicsApplied = { physicsApplied },
             initialState = runtimeState,
             replaceState = { runtimeState = it },
@@ -357,7 +344,7 @@ class RedstoneDeviceManagerTest {
         val regionCallbacks: List<Consumer<ScheduledTask>>,
         val scheduledTask: ScheduledTask,
         val blockAccessed: () -> Boolean,
-        val wirePower: () -> Int,
+        val blockType: () -> Material,
         val physicsApplied: () -> Boolean,
         val initialState: RuntimeState,
         val replaceState: (RuntimeState) -> Unit,

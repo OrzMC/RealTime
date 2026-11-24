@@ -16,8 +16,9 @@ All notable changes to RealTime are documented here. Release automation requires
 - Add optional PlaceholderAPI integration with timezone-aware date/time, epoch, BCD, and device placeholders.
 - Add device list/info/enable/disable/status commands and aggregate output diagnostics.
 - Add schema-v2 deferred cleanup jobs and crash-safe retirement persistence; active-device removal and all cleanup coordinates are atomically persisted.
-- Add Paper/Folia region-owned cleanup with startup/world/chunk-load retry, no forced chunk loading, REDSTONE_WIRE-only power-zero cleanup, and durable `NEEDS_ATTENTION` states for non-wire targets.
+- Add Paper/Folia region-owned cleanup with startup/world/chunk-load retry, no forced chunk loading, redstone-block removal, and durable `NEEDS_ATTENTION` states for slots that hold anything else.
 - Add cleanup queue inspection and admin retry commands, plus admin-only disabled-device retirement through `/rtime device remove <uuid>`.
 - Add second-resolution devices: 24 BCD outputs (HHmmss) refreshed every second, schema v3 with `resolution: minute|second`, and automatic migration of earlier device stores.
+- Output slots are now real power sources (`REDSTONE_BLOCK` / air) instead of forced `REDSTONE_WIRE` power, so connected redstone actually switches; the pre-release `output-power` key is ignored and `device enable|disable` keeps the device resolution.
 - Verify restart recovery, unloaded-chunk deferral, chunk-load retry, non-wire preservation, operator retry, and full retirement on both Paper and Folia.
 - Add protected tag-based release automation, reproducible shaded JAR packaging, and SHA-256 checksums.

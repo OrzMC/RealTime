@@ -69,7 +69,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
 | `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
 
-Each device declares `resolution: minute` (HHmm, 16 outputs) or `resolution: second` (HHmmss, 24 outputs); minute clocks are rewritten when the minute changes, second clocks every second, and only bits whose power changed are written. Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is admin-only, disabled-device-only, and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output is cleared.
+Each device declares `resolution: minute` (HHmm, 16 outputs) or `resolution: second` (HHmmss, 24 outputs); minute clocks are rewritten when the minute changes, second clocks every second, and only slots whose state changed are written. Every output is a **power-source slot**: bit 1 places a `redstone_block`, bit 0 leaves the slot empty, so vanilla redstone switches the connected circuit. Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is admin-only, disabled-device-only, and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output is cleared.
 
 ## Docs
 

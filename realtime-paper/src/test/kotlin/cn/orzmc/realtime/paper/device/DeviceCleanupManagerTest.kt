@@ -15,7 +15,6 @@ import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
 import org.bukkit.block.Block
-import org.bukkit.block.data.type.RedstoneWire
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -45,7 +44,7 @@ class DeviceCleanupManagerTest {
         fixture.regionCallbacks.first().accept(fixture.scheduledTask)
 
         assertTrue(fixture.blockAccessed())
-        assertEquals(0, fixture.wirePower())
+        assertEquals(Material.AIR, fixture.blockType())
         assertTrue(fixture.globalCallbacks.isNotEmpty())
         fixture.globalCallbacks.last().accept(fixture.scheduledTask)
 
@@ -83,27 +82,21 @@ class DeviceCleanupManagerTest {
         )
     }
 
-    private fun fixture(chunkLoaded: Boolean): Fixture {
+    private fun fixture(
+        chunkLoaded: Boolean,
+        initialType: Material = Material.REDSTONE_BLOCK,
+    ): Fixture {
         val worldId = UUID.randomUUID()
-        var wirePower = 15
+        var currentType = initialType
         var blockAccessed = false
-        val wire =
-            fake<RedstoneWire> { method, args ->
+        val block =
+            fake<Block> { method, args ->
                 when (method.name) {
-                    "getPower" -> wirePower
-                    "setPower" -> {
-                        wirePower = args!![0] as Int
+                    "getType" -> currentType
+                    "setType" -> {
+                        currentType = args!![0] as Material
                         null
                     }
-                    else -> null
-                }
-            }
-        val block =
-            fake<Block> { method, _ ->
-                when (method.name) {
-                    "getType" -> Material.REDSTONE_WIRE
-                    "getBlockData" -> wire
-                    "setBlockData" -> null
                     else -> null
                 }
             }
@@ -182,7 +175,7 @@ class DeviceCleanupManagerTest {
             globalCallbacks = globalCallbacks,
             scheduledTask = scheduledTask,
             blockAccessed = { blockAccessed },
-            wirePower = { wirePower },
+            blockType = { currentType },
             persistedSnapshot = { persisted },
             currentState = { activeState },
         )
@@ -219,7 +212,7 @@ class DeviceCleanupManagerTest {
         val globalCallbacks: List<Consumer<ScheduledTask>>,
         val scheduledTask: ScheduledTask,
         val blockAccessed: () -> Boolean,
-        val wirePower: () -> Int,
+        val blockType: () -> Material,
         val persistedSnapshot: () -> DeviceStoreSnapshot?,
         val currentState: () -> RuntimeState,
     )

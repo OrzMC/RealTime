@@ -6,10 +6,11 @@
 
 ```yaml
 enabled: false
-output-power: 15
 ```
 
-The module is disabled by default. `output-power` must be 1–15. A logical 1 is emitted at that power; a logical 0 is emitted at power 0.
+The module is disabled by default. Each device output slot is a **power-source slot**: a logical 1 places a `minecraft:redstone_block` in the slot, a logical 0 leaves the slot empty (`minecraft:air`). Signals are therefore full strength (15) and vanilla redstone reacts to every change, so the surrounding circuit actually switches.
+
+> Why not forced dust power: writing `power` onto a `redstone_wire` cannot work on the 26.x API surface. With physics the wire recalculates from its inputs and drops back to 0; without physics the value sticks but no consumer ever notices, and `World.updateNeighborsAt` no longer exists. Pre-release builds accepted an `output-power` value (1–15); that key is now ignored because a block cannot emit partial strength.
 
 `data/devices.yml` stores versioned device records. It is separate from feature configuration and is backed up before repository writes.
 
@@ -22,8 +23,8 @@ Each device record declares `resolution: minute` or `resolution: second`. A `min
 A cleanup job records the retired device identity, world name, optional world UUID, resolution, and every output coordinate of that device. Each output has one of three states:
 
 - `PENDING`: not yet safely processed (including unloaded chunks or unavailable worlds).
-- `CLEARED`: confirmed redstone wire is at power 0, or was already at power 0.
-- `NEEDS_ATTENTION`: target is not redstone wire or another terminal condition requires operator inspection; it is not considered fully cleaned.
+- `CLEARED`: the slot was empty, or a `redstone_block` was removed from it.
+- `NEEDS_ATTENTION`: the slot holds something other than air or a redstone block (it is never overwritten), so an operator must inspect it.
 
 Example shape (abbreviated):
 
@@ -56,7 +57,7 @@ Digits are always ordered hour → minute → second, and each digit is emitted 
 | 16–19 | Second tens | `second` only | LSB → MSB |
 | 20–23 | Second ones | `second` only | LSB → MSB |
 
-A `minute` device must define exactly 16 unique output blocks and a `second` device exactly 24; bit indexes must cover `0` through `outputs - 1` exactly once. All output blocks must be `minecraft:redstone_wire`.
+A `minute` device must define exactly 16 unique output slots and a `second` device exactly 24; bit indexes must cover `0` through `outputs - 1` exactly once. Slots must contain `minecraft:air` or `minecraft:redstone_block`; anything else is reported as an invalid output and never overwritten.
 
 For example, 23:59:47 is encoded as digits `2, 3, 5, 9, 4, 7`; each digit occupies four bits, least-significant bit first.
 
@@ -97,18 +98,19 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 ## Runtime safety
 
 - Time and BCD frames are calculated on the global scheduler once per second.
-- Every output block update is dispatched through the owning region scheduler; minute devices refresh when the minute changes, second devices refresh every second and only write bits whose power changed.
+- Every output slot update is dispatched through the owning region scheduler; minute devices refresh when the minute changes, second devices refresh every second and only write slots whose state changed. Writes use block physics, which is what notifies the surrounding redstone network.
+- A slot containing anything other than air or a redstone block is left untouched and counted as an invalid output, so player builds are never overwritten.
 - Before `getBlockAt`, the owning-region callback checks `World.isChunkLoaded` for the target chunk.
 - Unloaded chunks are skipped and their outputs are refreshed on `ChunkLoadEvent`.
 - The manager never calls `getChunkAt`, chunk load APIs, or world generation APIs.
-- Output wire blocks should be physically isolated to prevent adjacent redstone wire networks from coupling.
+- Output slots should be physically isolated from unrelated redstone so two devices cannot couple; connect the receiving circuit next to the slot.
 - The current MVP is configured through YAML; in-game device creation/editing commands are not included.
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 
 ## In-game device administration
 
-The device records remain YAML-defined so each output position is explicit and reviewable. After the plugin loads the file, operators can inspect and manage existing records in-game:
+The device records remain YAML-defined so each output position is explicit and reviewable; a slot is a power source, not a display wire. After the plugin loads the file, operators can inspect and manage existing records in-game:
 
 | Command | Permission | Behavior |
 |---|---|---|

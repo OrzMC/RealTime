@@ -39,6 +39,10 @@ tasks.test {
 
 tasks.processResources {
     filteringCharset = "UTF-8"
+    // Declare the version as an input so an incremental build cannot reuse a
+    // plugin.yml expanded from a different version (e.g. a stale 0.1.0-SNAPSHOT
+    // descriptor inside a RealTime-0.1.0.jar).
+    inputs.property("version", project.version.toString())
     filesMatching("plugin.yml") {
         expand("project" to mapOf("version" to project.version))
     }

@@ -1,6 +1,6 @@
 # RealTime 0.1.0 acceptance report
 
-> Status: **executed on the local test servers — BLOCKED by two defects (see §5).**
+> Status: **BLOCKED on the 0.1.0 artifact `379b2a7d…`; both blockers are fixed in PR13 and re-verified on the same servers (§7).**
 > Companion checklist: [production-acceptance-0.1.0.md](production-acceptance-0.1.0.md).
 > Only observed evidence is recorded here. RCON passwords, world data and player identities are omitted.
 
@@ -112,3 +112,26 @@ First boot writes `data/devices.yml` with `schema-version: 1` (from the bundled 
 ## 6. Recommendation
 
 - **BLOCKED** — do not tag `v0.1.0` or publish. Fix F1, decide and implement the F2 output mechanism, then extend the runtime smoke with an assertion that a powered output is actually powered, and re-run this checklist on Paper and Folia.
+
+## 7. Re-verification after the fixes (PR13)
+
+Artifact under test: `RealTime-0.1.0.jar` rebuilt from the PR13 branch,
+SHA-256 `5a4113375ccfc3ce765c51594180ce135cab2554384f3e1198722ca7db8c64d8`
+(`plugin.yml` reports `version: '0.1.0'`; the descriptor is now an input of `processResources`).
+
+| Check | Result | Evidence |
+|---|---|---|
+| F1 regression: `/rtime device enable`/`disable` on a 24-output device | PASS | both platforms accepted the command and persisted `enabled` without a resolution error |
+| F2 regression: output slots are real power sources | PASS (Paper) | slot types matched the HHmm digits of `%realtime_bcd%` exactly; a lamp placed above the seconds-LSB slot followed it every second (`LIT`/`dark` alternating) |
+| F2 regression: Folia | PASS (counters) | 24 outputs, `功率变更` growing every second, `非红石线：0`; block probes are not answerable through Folia's RCON |
+| Disable clears powered slots | PASS | after `device disable`, 24/24 slots were air on Paper, including previously powered ones |
+| Retirement + cleanup | PASS | `device remove` returned a job UUID, the queue drained within 1 s, and the store returned to `devices: []`, `cleanup-jobs: []` on both platforms |
+| Runtime smoke (CI script, local run) | PASS | Paper and Folia `scripts/smoke-device-cleanup.sh` green, including the new live-device guard (slots must be redstone blocks while enabled, air after disable) |
+
+Known behaviour after the fix: a receiver built while a slot is already powered picks up
+the state on that slot's next change (`≤1 s` for `second` devices; minute/hour digits on
+their boundary), because dust/lamps only re-evaluate on a block update.
+
+Remaining work before release: re-run the full §4 matrix once more on the final artifact and
+let an operator confirm a downstream circuit visually (the block-level assertions above are
+per-block; the lamp check covered one bit).

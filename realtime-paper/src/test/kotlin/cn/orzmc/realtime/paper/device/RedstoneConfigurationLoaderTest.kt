@@ -12,18 +12,26 @@ class RedstoneConfigurationLoaderTest {
     lateinit var temporaryDirectory: Path
 
     @Test
-    fun `loads enabled flag and output power`() {
+    fun `loads the enabled flag and ignores the retired output power key`() {
         writeConfiguration("enabled: true\noutput-power: 12\n")
 
         val configuration = RedstoneConfigurationLoader().load(temporaryDirectory.toFile())
 
         assertEquals(true, configuration.enabled)
-        assertEquals(12, configuration.outputPower)
     }
 
     @Test
-    fun `rejects output power outside redstone range`() {
-        writeConfiguration("enabled: true\noutput-power: 16\n")
+    fun `loads a configuration without the retired output power key`() {
+        writeConfiguration("enabled: false\n")
+
+        val configuration = RedstoneConfigurationLoader().load(temporaryDirectory.toFile())
+
+        assertEquals(false, configuration.enabled)
+    }
+
+    @Test
+    fun `rejects a missing enabled flag`() {
+        writeConfiguration("output-power: 15\n")
 
         assertThrows(DeviceRepositoryException::class.java) {
             RedstoneConfigurationLoader().load(temporaryDirectory.toFile())

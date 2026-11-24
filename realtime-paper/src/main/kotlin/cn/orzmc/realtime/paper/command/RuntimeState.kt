@@ -11,7 +11,7 @@ data class RuntimeState(
     val configuration: RealTimeConfiguration,
     val timeService: RealTimeService,
     val messages: MessageCatalog,
-    val redstoneConfiguration: RedstoneConfiguration = RedstoneConfiguration(enabled = false, outputPower = 15),
+    val redstoneConfiguration: RedstoneConfiguration = RedstoneConfiguration(enabled = false),
     val devices: List<RedstoneDevice> = emptyList(),
     val cleanupJobs: List<DeviceCleanupJob> = emptyList(),
 )

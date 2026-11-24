@@ -11,7 +11,6 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
-import org.bukkit.block.data.type.RedstoneWire
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
@@ -27,9 +26,14 @@ import java.util.logging.Logger
  * to the owning region. Chunk-load events refresh outputs that were previously
  * skipped because their chunks were unloaded.
  *
+ * A logical 1 is materialised as a `minecraft:redstone_block` in the output slot
+ * and a logical 0 as air, so vanilla redstone reacts to the change and downstream
+ * circuits keep working. Anything else in a slot is left untouched and reported
+ * as an invalid output.
+ *
  * Minute-resolution devices are only rewritten when the minute changes;
  * second-resolution devices are rewritten on every tick of the one-second
- * refresh period, and only bits whose power actually changed reach the world.
+ * refresh period, and only slots whose state actually changed are written.
  */
 class RedstoneDeviceManager(
     private val server: Server,
@@ -102,7 +106,6 @@ class RedstoneDeviceManager(
                     device = device,
                     output = output,
                     powered = state.isPowered(device, output.bitIndex, frame.bits(device.resolution)),
-                    outputPower = state.redstoneConfiguration.outputPower,
                 )
             }
     }
@@ -194,7 +197,6 @@ class RedstoneDeviceManager(
                             powered =
                                 outputStillConfigured &&
                                     currentState.isPowered(currentDevice, output.bitIndex, effectiveBits),
-                            outputPower = currentState.redstoneConfiguration.outputPower,
                         )
                     }
                 }
@@ -216,36 +218,32 @@ class RedstoneDeviceManager(
         device: RedstoneDevice,
         output: DeviceOutput,
         powered: Boolean,
-        outputPower: Int,
     ) {
         outputChecks.incrementAndGet()
         try {
             val block = world.getBlockAt(output.x, output.y, output.z)
-            if (block.type != Material.REDSTONE_WIRE) {
+            val expectedType = if (powered) POWERED_TYPE else Material.AIR
+            val currentType = block.type
+            if (currentType == expectedType) {
+                unchangedOutputs.incrementAndGet()
+                return
+            }
+            if (currentType != Material.AIR && currentType != POWERED_TYPE) {
                 invalidOutputBlocks.incrementAndGet()
                 val warningKey = "${device.id}:${output.bitIndex}"
                 if (warnedOutputs.add(warningKey)) {
                     logger.warning(
                         "RealTime device '${device.name}' output ${output.bitIndex} at " +
-                            "${world.name}:${output.x},${output.y},${output.z} is not redstone wire.",
+                            "${world.name}:${output.x},${output.y},${output.z} is $currentType, " +
+                            "expected AIR or $POWERED_TYPE.",
                     )
                 }
                 return
             }
 
-            val wire = block.blockData as? RedstoneWire
-            if (wire == null) {
-                invalidOutputBlocks.incrementAndGet()
-                return
-            }
-            val targetPower = if (powered) outputPower else 0
-            if (wire.power == targetPower) {
-                unchangedOutputs.incrementAndGet()
-                return
-            }
-
-            wire.power = targetPower
-            block.setBlockData(wire, true)
+            // Physics is required here: the slot becomes a real power source so
+            // vanilla redstone notifies and powers the surrounding circuit.
+            block.setType(expectedType, true)
             powerChanges.incrementAndGet()
         } catch (exception: Exception) {
             writeFailures.incrementAndGet()
@@ -257,5 +255,6 @@ class RedstoneDeviceManager(
 
     private companion object {
         const val SECONDS_PER_MINUTE = 60L
+        val POWERED_TYPE: Material = Material.REDSTONE_BLOCK
     }
 }
