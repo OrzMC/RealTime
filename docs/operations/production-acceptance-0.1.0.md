@@ -53,12 +53,16 @@ Record the following in the acceptance report:
 
 ## 4. Install and first-boot checks
 
-1. Obtain the shaded JAR built from the merged RealTime main commit. Prefer the CI artifact; do not build from an uncommitted local tree.
-2. Verify the downloaded artifact checksum against its accompanying `.sha256` file:
+1. Check out the exact merged RealTime main commit in a clean worktree with JDK 25. The ordinary CI workflow does **not** upload a distributable JAR artifact; do not assume one exists.
+2. Run the full verification and build a versioned shaded JAR:
    ```bash
-   sha256sum --check RealTime-0.1.0.jar.sha256
+   ./scripts/verify.sh
+   PROJECT_VERSION=0.1.0 ./scripts/package.sh
+   sha256sum realtime-paper/build/libs/RealTime-0.1.0.jar \\
+     > realtime-paper/build/libs/RealTime-0.1.0.jar.sha256
+   sha256sum --check realtime-paper/build/libs/RealTime-0.1.0.jar.sha256
    ```
-   Use the actual artifact filename if the workflow names it differently; do not rename a file before verifying the matching checksum.
+   Preserve the exact commit SHA and generated checksum in the report. Do not build from an uncommitted tree or use an artifact from a different commit.
 3. Stop the staging server cleanly, place the JAR in `plugins/`, and start it through the normal server manager.
 4. Confirm the console reports RealTime enabled and no linkage, scheduler, configuration, or persistence errors.
 5. Confirm the plugin creates its independent files under `plugins/RealTime/`:
