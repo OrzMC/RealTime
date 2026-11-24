@@ -87,7 +87,7 @@ class RealTimePlaceholderExpansionTest {
                     locale = configuration.locale,
                 ),
             messages = MessageCatalog(emptyMap()),
-            redstoneConfiguration = RedstoneConfiguration(enabled = true, outputPower = 15),
+            redstoneConfiguration = RedstoneConfiguration(enabled = true),
             devices = listOf(testDevice()),
         )
     }

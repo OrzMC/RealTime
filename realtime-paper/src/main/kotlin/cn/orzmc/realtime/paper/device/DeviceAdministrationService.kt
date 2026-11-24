@@ -54,6 +54,7 @@ class DeviceAdministrationService(
                     worldName = currentDevice.worldName,
                     enabled = enabled,
                     outputs = currentDevice.outputs,
+                    resolution = currentDevice.resolution,
                 )
             val updatedDevices =
                 currentState.devices.map { device ->

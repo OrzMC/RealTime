@@ -6,7 +6,6 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
-import org.bukkit.block.data.type.RedstoneWire
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
@@ -173,19 +172,15 @@ class DeviceCleanupManager(
 
                     val block = targetWorld.getBlockAt(output.x, output.y, output.z)
                     val outcome =
-                        if (block.type != Material.REDSTONE_WIRE) {
-                            DeviceCleanupStatus.NEEDS_ATTENTION to "Expected REDSTONE_WIRE, found ${block.type}"
-                        } else {
-                            val wire = block.blockData as? RedstoneWire
-                            if (wire == null) {
-                                DeviceCleanupStatus.NEEDS_ATTENTION to "Block data is not RedstoneWire"
-                            } else {
-                                if (wire.power != 0) {
-                                    wire.power = 0
-                                    block.setBlockData(wire, true)
-                                }
+                        when (block.type) {
+                            Material.AIR -> DeviceCleanupStatus.CLEARED to null
+                            Material.REDSTONE_BLOCK -> {
+                                block.setType(Material.AIR, true)
                                 DeviceCleanupStatus.CLEARED to null
                             }
+                            else ->
+                                DeviceCleanupStatus.NEEDS_ATTENTION to
+                                    "Expected AIR or REDSTONE_BLOCK, found ${block.type}"
                         }
                     pendingResults.add(
                         CleanupResult(

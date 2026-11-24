@@ -102,7 +102,7 @@ The redstone module is disabled by default. Enable it only after the first-boot 
 
 ### 6.1 Prepare a test device
 
-- Choose the device resolution: `minute` (HHmm, 16 outputs) or `second` (HHmmss, 24 outputs). Create exactly that many isolated `minecraft:redstone_wire` output positions. Keep them separated from unrelated redstone networks so adjacent wires cannot couple.
+- Choose the device resolution: `minute` (HHmm, 16 outputs) or `second` (HHmmss, 24 outputs). Create exactly that many isolated output **slots** (leave them as `minecraft:air`). Keep them separated from unrelated redstone; connect a receiving circuit (wire → lamp/piston/etc.) next to each slot so you can see it switch.
 - Record the world name and all 16 coordinates.
 - Configure one device in `plugins/RealTime/data/devices.yml` using schema version 3 and an explicit `resolution`. Each output must have one unique `bit-index` from 0 through 15 (`minute`) or 0 through 23 (`second`); coordinates must be unique.
 - Back up `devices.yml` before editing, then use `/rtime reload`.
@@ -123,7 +123,7 @@ The output is BCD in hour → minute → second order, with least-significant bi
 | 16–19 | Second tens (`second` only) |
 | 20–23 | Second ones (`second` only) |
 
-For each digit, bit value 1 is emitted at configured `output-power` (1–15); bit value 0 is power 0. Observe the actual server-local time and independently calculate its BCD digits. Verify every wire strength. For a `minute` device, observe at least one minute boundary and confirm only the expected bits change; for a `second` device, confirm the second digits advance once per second and that only the changed bits are rewritten (adjacent bits must not flicker). Do not infer correctness from the plugin status counters alone.
+Bit value 1 places a `minecraft:redstone_block` in the slot; bit value 0 leaves it as `minecraft:air`. Observe the actual server-local time and independently calculate its BCD digits, then verify every slot's block type **and** that the connected circuit actually switched. For a `minute` device, observe at least one minute boundary and confirm only the expected slots change; for a `second` device, confirm the second digits advance once per second and that only changed slots are rewritten. Do not infer correctness from the plugin status counters alone.
 
 Check `/rtime device status` before and after. Record output checks, unloaded-chunk skips, invalid outputs, power changes, unchanged outputs, and write failures. Investigate any invalid output or write failure before proceeding.
 
@@ -137,7 +137,7 @@ Use only the disposable test device.
 4. As admin, run `/rtime device remove <uuid>` only after confirming the UUID and test coordinates. The command is disabled-device-only.
 5. Record the returned cleanup job UUID. Confirm the active device disappears from `/rtime device list` and the job appears in `/rtime device cleanup list`.
 6. Confirm the cleanup job is durable in `data/devices.yml` with the same `resolution` and every output coordinate (16 for `minute`, 24 for `second`).
-7. Confirm cleanup only clears `REDSTONE_WIRE` outputs to power 0. It must not overwrite a different block type.
+7. Confirm cleanup removes `REDSTONE_BLOCK` from the slots and leaves them as `minecraft:air`. It must not overwrite a different block type.
 8. Wait for the job to finish; record the final queue state. Do not manually remove the job from YAML.
 
 ## 8. Deferred cleanup edge cases

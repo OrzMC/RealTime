@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -184,15 +185,39 @@ class DeviceAdministrationServiceTest {
         )
     }
 
-    private fun device(enabled: Boolean = true) =
-        RedstoneDevice(
-            id = UUID.randomUUID(),
-            name = "clock",
-            worldName = "world",
-            enabled = enabled,
-            outputs =
-                (0 until 16).map { bit ->
-                    DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
-                },
-        )
+    private fun device(
+        enabled: Boolean = true,
+        resolution: OutputResolution = OutputResolution.MINUTE,
+    ) = RedstoneDevice(
+        id = UUID.randomUUID(),
+        name = "clock",
+        worldName = "world",
+        enabled = enabled,
+        outputs =
+            (0 until resolution.outputCount).map { bit ->
+                DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
+            },
+        resolution = resolution,
+    )
+
+    @Test
+    fun keepsSecondResolutionWhenTogglingEnabledState() {
+        val initial = state(listOf(device(resolution = OutputResolution.SECOND)))
+        var active = initial
+        val service =
+            DeviceAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistDevices = {},
+                replaceState = { active = it },
+                requestRefresh = {},
+            )
+
+        val updated = service.setEnabled(initial.devices.single().id, false)
+
+        assertFalse(updated.enabled)
+        assertEquals(OutputResolution.SECOND, updated.resolution)
+        assertEquals(24, updated.outputs.size)
+        assertEquals(updated, active.devices.single())
+    }
 }

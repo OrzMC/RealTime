@@ -139,7 +139,7 @@ class DeviceCleanupAdministrationServiceTest {
                             DeviceCleanupOutput(
                                 output.output,
                                 DeviceCleanupStatus.NEEDS_ATTENTION,
-                                "Expected REDSTONE_WIRE, found STONE",
+                                "Expected AIR or REDSTONE_BLOCK, found STONE",
                             )
                         1 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.CLEARED)
                         else -> output

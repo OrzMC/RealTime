@@ -136,14 +136,20 @@ for position in "0 64 0" "1600 64 0"; do
 done
 
 rcon setblock 0 63 0 minecraft:stone
-rcon setblock 0 64 0 'minecraft:redstone_wire[power=15]'
+rcon setblock 0 64 0 minecraft:redstone_block
 for bit in $(seq 1 14); do
   x=$((1600 + bit))
   rcon setblock "$x" 63 0 minecraft:stone
-  rcon setblock "$x" 64 0 'minecraft:redstone_wire[power=15]'
+  rcon setblock "$x" 64 0 minecraft:redstone_block
 done
 rcon setblock 1615 63 0 minecraft:stone
 rcon setblock 1615 64 0 minecraft:stone
+# The live second-resolution device needs empty slots; clear whatever terrain or
+# water is at the test coordinates before the plugin starts writing.
+for bit in $(seq 0 23); do
+  x=$((3200 + bit))
+  rcon setblock "$x" 100 0 minecraft:air >/dev/null
+done
 rcon forceload remove 0 0 >/dev/null
 rcon forceload remove 1600 0 >/dev/null
 sleep 5
@@ -153,6 +159,7 @@ WORLD_NAME="world"
 CLEANUP_DEVICE_ID="00000000-0000-0000-0000-000000000001"
 JOB_ID="00000000-0000-0000-0000-000000000002"
 RETIRE_DEVICE_ID="00000000-0000-0000-0000-000000000003"
+LIVE_DEVICE_ID="00000000-0000-0000-0000-000000000004"
 {
   printf 'schema-version: 3\ndevices:\n'
   printf '  - id: %s\n' "$RETIRE_DEVICE_ID"
@@ -164,6 +171,16 @@ RETIRE_DEVICE_ID="00000000-0000-0000-0000-000000000003"
   for bit in $(seq 0 23); do
     x=$((3200 + bit))
     printf '      - bit-index: %s\n        x: %s\n        y: 64\n        z: 0\n' "$bit" "$x"
+  done
+  printf '  - id: %s\n' "$LIVE_DEVICE_ID"
+  printf '    name: ci-live-clock\n'
+  printf '    world: %s\n' "$WORLD_NAME"
+  printf '    enabled: true\n'
+  printf '    resolution: second\n'
+  printf '    outputs:\n'
+  for bit in $(seq 0 23); do
+    x=$((3200 + bit))
+    printf '      - bit-index: %s\n        x: %s\n        y: 100\n        z: 0\n' "$bit" "$x"
   done
   printf 'cleanup-jobs:\n'
   printf '  - id: %s\n' "$JOB_ID"
@@ -258,7 +275,7 @@ fi
 # probe commands are avoided here: their output differs between Paper and Folia
 # and the 26.x command surface changed (time query / data get block).
 DEVICES_YML="$WORK_DIR/plugins/RealTime/data/devices.yml"
-ATTENTION_DETAIL="$(grep -F 'Expected REDSTONE_WIRE, found STONE' "$DEVICES_YML" || true)"
+ATTENTION_DETAIL="$(grep -F 'Expected AIR or REDSTONE_BLOCK, found STONE' "$DEVICES_YML" || true)"
 echo "Non-wire target evidence: ${ATTENTION_DETAIL:-<missing>}"
 if [[ -z "$ATTENTION_DETAIL" ]]; then
   cat "$DEVICES_YML"
@@ -266,7 +283,7 @@ if [[ -z "$ATTENTION_DETAIL" ]]; then
   exit 1
 fi
 
-rcon setblock 1615 64 0 'minecraft:redstone_wire[power=15]' replace >/dev/null
+rcon setblock 1615 64 0 minecraft:air >/dev/null
 rtime device cleanup retry "$JOB_ID" >/dev/null
 EMPTY_READY=0
 for _ in $(seq 1 30); do
@@ -285,15 +302,108 @@ if [[ "$EMPTY_READY" != "1" ]]; then
 fi
 
 for x in 0 1601 1614 1615; do
-  POWER_PROBE="$(rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run list)"
-  if [[ -z "$POWER_PROBE" ]]; then
-    echo "Output at x=$x was not cleared to power 0 on $PROJECT." >&2
+  CLEARED_PROBE="$(rcon execute if block "$x" 64 0 minecraft:air run list)"
+  if [[ -z "$CLEARED_PROBE" ]]; then
+    echo "Output at x=$x was not cleared to air on $PROJECT." >&2
     exit 1
   fi
 done
 
 rcon forceload remove 1600 0 >/dev/null
 rcon forceload remove 0 0 >/dev/null
+
+# Enabled second-resolution device: its slots must become real power sources, and
+# disabling it must leave every slot empty. This is the regression guard for
+# "forced dust power" (which could never hold or propagate a signal).
+rcon forceload add 3200 0 >/dev/null
+rcon forceload add 3216 0 >/dev/null
+
+probe_slots() {
+  local base=$1
+  POWERED_SLOTS=0
+  EMPTY_SLOTS=0
+  UNKNOWN_SLOTS=0
+  local bit x out
+  for bit in $(seq 0 23); do
+    x=$((base + bit))
+    out="$(rcon execute if block "$x" 100 0 minecraft:redstone_block run list)"
+    if [[ -n "$out" ]]; then
+      POWERED_SLOTS=$((POWERED_SLOTS + 1))
+      continue
+    fi
+    out="$(rcon execute if block "$x" 100 0 minecraft:air run list)"
+    if [[ -n "$out" ]]; then
+      EMPTY_SLOTS=$((EMPTY_SLOTS + 1))
+    else
+      UNKNOWN_SLOTS=$((UNKNOWN_SLOTS + 1))
+    fi
+  done
+}
+
+SLOT_PROBES_USABLE=0
+LIVE_POWERED=0
+for _ in $(seq 1 25); do
+  probe_slots 3300
+  if [[ "$UNKNOWN_SLOTS" -ne 0 ]]; then
+    SLOT_PROBES_USABLE=0
+    break
+  fi
+  SLOT_PROBES_USABLE=1
+  if [[ "$POWERED_SLOTS" -ge 1 ]]; then
+    LIVE_POWERED=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$SLOT_PROBES_USABLE" == "1" ]]; then
+  if [[ "$LIVE_POWERED" != "1" ]]; then
+    rtime device status >&2
+    cat "$WORK_DIR/plugins/RealTime/data/devices.yml" >&2
+    tail -40 "$WORK_DIR/server.log" >&2
+    echo "No output slot held a redstone block while the device was enabled on $PROJECT." >&2
+    exit 1
+  fi
+else
+  # Folia runs region-owned commands asynchronously and sometimes answers RCON with
+  # an empty body, so block probes are only trusted when all 24 slots answered.
+  echo "Block probes unreliable on $PROJECT; asserting the enabled device through plugin counters."
+  COUNTERS_OK=0
+  for _ in $(seq 1 25); do
+    if rtime device status | grep -Eq '功率变更：.*[1-9]' && rtime device status | grep -Eq '非红石线：.*0'; then
+      COUNTERS_OK=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$COUNTERS_OK" != "1" ]]; then
+    rtime device status
+    echo "Enabled device never wrote a valid output slot on $PROJECT." >&2
+    exit 1
+  fi
+fi
+
+rtime device disable "$LIVE_DEVICE_ID" >/dev/null
+grep -A4 -F "id: $LIVE_DEVICE_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml" | grep -Fq 'enabled: false' || {
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
+  echo "Disabling the live device was not persisted on $PROJECT." >&2
+  exit 1
+}
+if [[ "$SLOT_PROBES_USABLE" == "1" ]]; then
+  LIVE_CLEARED=0
+  for _ in $(seq 1 20); do
+    probe_slots 3300
+    if [[ "$EMPTY_SLOTS" -eq 24 ]]; then
+      LIVE_CLEARED=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$LIVE_CLEARED" != "1" ]]; then
+    echo "Disabled device did not clear its output slots on $PROJECT." >&2
+    exit 1
+  fi
+fi
+rtime device remove "$LIVE_DEVICE_ID" >/dev/null
 
 # Exercise the actual admin retirement command against a disabled active device.
 # The device uses second resolution, so its 24 outputs span two chunks.
@@ -316,7 +426,7 @@ fi
 for bit in $(seq 0 23); do
   x=$((3200 + bit))
   rcon setblock "$x" 63 0 minecraft:stone >/dev/null
-  rcon setblock "$x" 64 0 'minecraft:redstone_wire[power=15]' >/dev/null
+  rcon setblock "$x" 64 0 minecraft:redstone_block >/dev/null
 done
 
 REMOVE_RESULT="$(rtime device remove "$RETIRE_DEVICE_ID")"
@@ -348,13 +458,13 @@ if ! grep -Fq '当前没有配置任何设备' <<< "$DEVICE_LIST"; then
 fi
 for bit in 0 7 15 20 23; do
   x=$((3200 + bit))
-  POWER_PROBE="$(rcon execute if block "$x" 64 0 'minecraft:redstone_wire[power=0]' run list)"
-  if [[ -z "$POWER_PROBE" ]]; then
-    echo "Retired output at x=$x was not cleared to power 0 on $PROJECT." >&2
+  CLEARED_PROBE="$(rcon execute if block "$x" 64 0 minecraft:air run list)"
+  if [[ -z "$CLEARED_PROBE" ]]; then
+    echo "Retired output at x=$x was not cleared to air on $PROJECT." >&2
     exit 1
   fi
 done
 
 rcon forceload remove 3216 0 >/dev/null
 rcon forceload remove 3200 0 >/dev/null
-echo "$PROJECT cleanup and retirement runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, admin remove command, and power-zero cleanup of all 24 second-resolution outputs."
+echo "$PROJECT cleanup and retirement runtime smoke passed: restart recovery, unloaded-chunk deferral, chunk-load retry, NEEDS_ATTENTION preservation, operator retry, admin remove command, and air cleanup of all 24 second-resolution outputs (including a live device that must place and clear real power sources)."
