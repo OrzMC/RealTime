@@ -206,6 +206,8 @@ class RealTimeConfigurationLoader {
                 "command.device.state.disabled" to "&c禁用",
                 "command.device.enable.success" to "{prefix}&a设备 {name} 已启用。&7({id})",
                 "command.device.disable.success" to "{prefix}&e设备 {name} 已禁用。&7({id})",
+                "command.device.remove.success" to "{prefix}&a设备 {name} 已移出活动列表，清理任务：&f{job}&7（设备 {id}）",
+                "command.device.remove.must-disable" to "{prefix}&c请先禁用设备后再移除：&f{id}",
                 "command.device.invalid-id" to "{prefix}&c设备 ID 格式无效：&f{id}",
                 "command.device.not-found" to "{prefix}&c未找到设备：&f{id}",
                 "command.device.error" to "{prefix}&c设备操作或刷新失败：&f{reason}",
