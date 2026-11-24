@@ -1,6 +1,6 @@
 # RealTime 0.1.0 acceptance report
 
-> Status: **ACCEPTED for the local test servers.** The initial artifact (`379b2a7d…`) was BLOCKED by two defects; PR13 fixed them and the final artifact (`5a411337…`, commit `f31e7ce`) passed the full matrix on Paper and Folia (§7, §8).
+> Status: **RELEASED as `v0.1.0`** (GitHub Release, artifact `RealTime-0.1.0.jar`, sha256 `d0c352ca…`) after acceptance on the local test servers. The initial artifact (`379b2a7d…`) was BLOCKED by two defects; PR13 fixed them and the final artifact (`5a411337…`, commit `f31e7ce`) passed the full matrix on Paper and Folia (§7, §8).
 > Companion checklist: [production-acceptance-0.1.0.md](production-acceptance-0.1.0.md).
 > Only observed evidence is recorded here. RCON passwords, world data and player identities are omitted.
 
@@ -172,3 +172,13 @@ Notes:
 - **ACCEPTED for the local test servers** (`STAGING ACCEPTED`). Remaining before tagging `v0.1.0`:
   one operator visual check of a real circuit, then the release tag (release environment + reviewer as
   described in `docs/release/process.md`).
+
+## 10. Release record
+
+- Tag `v0.1.0` created from `195fb69` (main after the release-notes PR) and pushed on 2026-11-24.
+- Release workflow: build job green; `release` environment (required reviewer, `v*` tag policy) approved; `Create GitHub Release` green.
+- Published asset `RealTime-0.1.0.jar` — 2,053,327 bytes, sha256 `d0c352cabb5165bd1e0b92bbe0158e72517a999db01d9b851058c33e15d4456f`,
+  identical to the locally verified build (reproducible).
+- Hangar and Modrinth steps were **skipped by design** (`HANGAR_PROJECT_ID` / `MODRINTH_PROJECT_ID` unset); the maintainer
+  will evaluate those channels after the release has been stable in production.
+- Release notes are generated from the `## [0.1.0]` changelog section, including the install/upgrade guidance.

@@ -38,9 +38,12 @@ All distribution credentials are read only inside the protected `release` job. N
 
 ## First public release readiness
 
-The initial release target is `v0.1.0`. The changelog section now records the complete PR1–PR11 feature set, including the deferred-cleanup and safe-retirement runtime verification.
+`v0.1.0` was released on 2026-11-24 (see [acceptance report](../operations/acceptance-report-0.1.0.md) §10). The
+`release` environment now exists with a required reviewer and a `v*` tag policy, and `RELEASE_PUBLISH_ENABLED`
+is `true`. Hangar and Modrinth publishing are intentionally left unconfigured until the release has proven stable
+in production; the workflow skips both steps while their project IDs are unset.
 
-Before creating the tag, complete this checklist:
+Checklist used for the first release (keep for future releases):
 
 1. Confirm the exact `main` commit contains PR11 and all Paper/Folia runtime checks are green.
 2. Review `CHANGELOG.md` section `## [0.1.0]` and the generated shaded JAR contents.
