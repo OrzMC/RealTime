@@ -81,6 +81,7 @@ Device records remain YAML-defined. The cleanup queue is durable and inspectable
 - [Redstone time devices](docs/development/redstone-devices.md)
 - [PlaceholderAPI integration](docs/development/placeholderapi.md)
 - [Release process](docs/release/process.md)
+- [0.1.0 production acceptance handoff](docs/operations/production-acceptance-0.1.0.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
