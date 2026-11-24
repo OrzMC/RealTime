@@ -36,6 +36,21 @@ Modrinth publishing is skipped unless `MODRINTH_PROJECT_ID` and the environment 
 
 All distribution credentials are read only inside the protected `release` job. Never add them to pull-request workflows, repository files, Gradle properties, or logs. Do not enable `RELEASE_PUBLISH_ENABLED` until the environment protection and project identifiers have been reviewed.
 
+## First public release readiness
+
+The initial release target is `v0.1.0`. The changelog section now records the complete PR1–PR11 feature set, including the deferred-cleanup and safe-retirement runtime verification.
+
+Before creating the tag, complete this checklist:
+
+1. Confirm the exact `main` commit contains PR11 and all Paper/Folia runtime checks are green.
+2. Review `CHANGELOG.md` section `## [0.1.0]` and the generated shaded JAR contents.
+3. Create the GitHub Actions `release` environment. Require at least one independent reviewer and restrict deployments to `v*` tags.
+4. Configure `HANGAR_PROJECT_ID` and `MODRINTH_PROJECT_ID` as environment variables, and `HANGAR_API_TOKEN` / `MODRINTH_TOKEN` as environment secrets with project-scoped version-create permissions.
+5. Keep `RELEASE_PUBLISH_ENABLED` unset or `false` until the environment protection and external project identities have been reviewed. Enabling it allows the protected job to create a GitHub Release and publish to whichever external platforms have both project IDs and tokens configured.
+6. Only after explicit release approval, create and push the annotated `v0.1.0` tag.
+
+If publishing is not enabled, a tag run only validates/builds the artifact and uploads the JAR, checksum, and release notes as a workflow artifact. It does not create a GitHub Release or publish to Hangar/Modrinth.
+
 ## Reproducibility and artifact integrity
 
 Gradle archive tasks disable preserved file timestamps and use reproducible file ordering. Each release artifact is named `RealTime-VERSION.jar` and is accompanied by a `.sha256` file. Verify it after download with:
