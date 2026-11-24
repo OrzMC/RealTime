@@ -1,6 +1,6 @@
 # PR17 — Default Device Layout: Gaps and Digit Groups
 
-- Status: Implemented and locally verified
+- Status: Implemented, locally verified, and accepted on the Paper test instance (2026-11-25)
 - Depends on: PR15 (`device create`), PR16 (`DeviceLayout`)
 
 ## Why
@@ -42,4 +42,5 @@ Requested after building the 0.1.0 acceptance clock by hand.
 - `RealTimeCommandHandlerTest`: default `create` produces the grouped layout, explicit stride produces
   `index * stride + digit gap`, unknown resolution/encoding still rejected.
 - `./scripts/verify.sh` green (119 tests).
-- In-game: create a `minute` device on the test instance, confirm the in-world gaps, then enable it.
+- In-game: created a `minute` device on the test instance — slots at `200 202 204 206 209 211 213 215 …`, i.e. the
+documented gaps; see [analog acceptance](../operations/analog-acceptance-2026-11-25.md).

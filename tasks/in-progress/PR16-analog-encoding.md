@@ -1,6 +1,6 @@
 # PR16 — Analog (lectern) Output Encoding
 
-- Status: Implemented and locally verified
+- Status: Implemented, locally verified, and accepted on the Paper test instance (2026-11-25)
 - Depends on: PR13 (power-source outputs), PR14 (diff scheduling), PR15 (`device create`)
 
 ## Why
@@ -56,8 +56,10 @@ The two optional arguments are order-independent; `bcd` remains the default.
   disabling removes the books; foreign blocks and foreign books are reported and untouched; analog cleanup removes
   the lectern only for its own book; schema v4 round-trip, v3 migration to `bcd`, unsupported encoding rejected;
   `create` accepts `analog` and unknown encodings are rejected.
-- `./scripts/verify.sh`, then a real-server run on the Paper test instance with an operator online (comparator reading
-  the lectern) before merge.
+- `./scripts/verify.sh`, then a real-server run on the Paper test instance (comparator reading the lectern) before
+  merge — done, see [analog acceptance](../operations/analog-acceptance-2026-11-25.md). It found one defect: retiring
+  an analog device after a `disable` reported `NEEDS_ATTENTION` for every slot because the book was already gone;
+  fixed in PR #38 (a blank lectern counts as the device's slot).
 
 ## Known limitations
 

@@ -63,6 +63,9 @@ Writing a digit is a single block-entity operation (`setPage`), far cheaper than
 
 **Comparator direction:** `facing` points *toward the input*. Place the comparator with `facing` set towards the lectern; the output is on the opposite side. `comparator[facing=west]` therefore reads the lectern to its west and drives dust to its east.
 
+Real-server evidence for this section (page/level table, disable, tamper self-heal, retirement) is recorded in
+[analog acceptance 2026-11-25](../operations/analog-acceptance-2026-11-25.md).
+
 Retirement follows the same rule as BCD slots: the cleanup job removes the lectern (after clearing its book, so no item drops) whether it still holds this device's book or is already blank, because the slot belongs to the device — disabling a device only removes the book. A lectern that holds **someone else's** book, or any other block, is left in place and reported as `NEEDS_ATTENTION`.
 
 ## Device store schema v4
