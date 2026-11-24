@@ -8,6 +8,9 @@ All notable changes to RealTime are documented here. Release automation requires
   BCD digit's four bits behind an extra gap, so a signal cannot leak into the neighbouring slot and the four bits of a
   digit are visually separated. A `minute` device now spans 34 blocks and a `second` device 52; existing devices keep
   their stored coordinates. An explicit `[stride]` still overrides the intra-group spacing.
+- Retiring an analog device now clears a lectern that a previous `disable` had left blank (it empties the book first,
+  so no item drops) instead of asking an operator to remove it by hand; a lectern holding someone else's book is still
+  left untouched and reported.
 - Add an optional `analog` output encoding: each digit becomes one lectern holding a plugin-created 15-page book,
   so a comparator reads level `digit + 1` and `HHmmss` needs 6 lines instead of 24. `device create ... [stride] [bcd|analog]`,
   schema v4 (`encoding` on devices and cleanup jobs, earlier stores migrate to `bcd`), lectern/book counters in

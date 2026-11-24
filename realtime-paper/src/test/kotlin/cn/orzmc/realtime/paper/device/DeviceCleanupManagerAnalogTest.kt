@@ -62,6 +62,28 @@ class DeviceCleanupManagerAnalogTest {
     }
 
     @Test
+    fun `clears a blank lectern left behind by a disabled device`() {
+        // Disabling a device removes its book but keeps the lectern, so
+        // retirement has to recognise a blank lectern as this device's slot.
+        val fixture = fixture(initialType = Material.LECTERN, bookOwner = null)
+
+        fixture.runFirstChunkLoad()
+
+        assertEquals(Material.AIR, fixture.currentType())
+        assertNull(fixture.remainingJobStatus(), "the job is fully resolved")
+    }
+
+    @Test
+    fun `empties the book before removing the lectern`() {
+        val fixture = fixture(initialType = Material.LECTERN, bookOwner = OWN_DEVICE)
+
+        fixture.runFirstChunkLoad()
+
+        assertEquals(1, fixture.books.clears, "the book is cleared so no item entity drops")
+        assertEquals(Material.AIR, fixture.currentType())
+    }
+
+    @Test
     fun `treats an empty analog slot as cleared`() {
         val fixture = fixture(initialType = Material.AIR)
 
@@ -235,7 +257,8 @@ class DeviceCleanupManagerAnalogTest {
     }
 
     private class RecordingBooks : AnalogBookFactory {
-        private val owners = mutableMapOf<Int, UUID?>()
+        /** Lectern inventory identity -> the device that owns the book in it. */
+        private val owners = mutableMapOf<Int, UUID>()
         var clears: Int = 0
 
         fun register(
@@ -243,7 +266,12 @@ class DeviceCleanupManagerAnalogTest {
             owner: UUID?,
             foreignBook: Boolean,
         ) {
-            owners[System.identityHashCode(inventory)] = if (foreignBook) null else owner
+            val key = System.identityHashCode(inventory)
+            when {
+                foreignBook -> owners[key] = FOREIGN_OWNER
+                owner != null -> owners[key] = owner
+                else -> owners.remove(key)
+            }
         }
 
         override fun install(
@@ -258,10 +286,10 @@ class DeviceCleanupManagerAnalogTest {
             deviceId: UUID,
         ): Boolean = owners[System.identityHashCode(inventory)] == deviceId
 
-        override fun isSlotEmpty(inventory: Inventory): Boolean = false
+        override fun isSlotEmpty(inventory: Inventory): Boolean = !owners.containsKey(System.identityHashCode(inventory))
 
         override fun clear(inventory: Inventory) {
-            owners[System.identityHashCode(inventory)] = null
+            owners.remove(System.identityHashCode(inventory))
             clears += 1
         }
     }
@@ -307,5 +335,6 @@ class DeviceCleanupManagerAnalogTest {
 
     private companion object {
         val OWN_DEVICE: UUID = UUID.fromString("11111111-2222-3333-4444-555555555555")
+        val FOREIGN_OWNER: UUID = UUID.fromString("99999999-8888-7777-6666-555555555555")
     }
 }
