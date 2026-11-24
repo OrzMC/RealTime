@@ -1,6 +1,6 @@
 # PR12 — Second-Resolution Redstone Output (HHmmss)
 
-- Status: Implemented, pending verification and PR
+- Status: Implemented and locally verified — PR [#26](https://github.com/OrzMC/RealTime/pull/26) open
 - Depends on: PR5 (BCD encoder and device model), PR8/PR9 (administration and diagnostics), PR10/PR11 (persistent cleanup and retirement)
 - Scope: make redstone clocks able to display seconds without breaking Paper/Folia thread ownership, the durable device store, or the crash-safe retirement/cleanup path.
 
@@ -24,6 +24,16 @@ An operator can define a redstone clock with second precision: 24 output wire po
 - `realtime-paper` tests cover device/store/cleanup-job validation for both resolutions, v1/v2 → v3 migration, second-resolution retirement, per-second refresh scheduling, and that minute devices are not rewritten while only the second changes.
 - `./scripts/verify.sh` passes (build, tests, spotless, release-script checks).
 - Paper and Folia runtime smoke exercise a `second` device with 24 real wire positions through retirement and cleanup.
+
+## Result
+
+- `./scripts/verify.sh` passed locally (build, unit tests, spotless, release-script checks).
+- Paper 26.3 stable and Folia 26.3 stable `scripts/smoke-device-cleanup.sh` passed, retiring a 24-output
+  `second` device spread over two chunks and clearing all second bits.
+- Paper and Folia `scripts/smoke-server.sh` passed.
+- Runtime smoke probe change: `time query daytime` no longer exists on the 26.x command surface and
+  `execute ... run <plugin command>` produces no output on Folia, so the non-wire assertion now requires the
+  durable `NEEDS_ATTENTION` detail `Expected REDSTONE_WIRE, found STONE`.
 
 ## Notes
 
