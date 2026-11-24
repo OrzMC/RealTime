@@ -180,7 +180,7 @@ Run these only in a disposable staging world. Each case must have its own test d
 
 ## 10. Acceptance report — required output
 
-The AI agent must create a report (Markdown) with:
+The AI agent must create a report (Markdown). The prepared skeleton lives in [acceptance-report-0.1.0.md](acceptance-report-0.1.0.md); fill it with observed evidence and do not overwrite the preflight section. It must contain:
 
 - Server platform/build, Minecraft version, Java version, RealTime artifact version and SHA-256.
 - Production vs staging designation and backup/restore evidence.
