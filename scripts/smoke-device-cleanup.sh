@@ -144,12 +144,6 @@ for bit in $(seq 1 14); do
 done
 rcon setblock 1615 63 0 minecraft:stone
 rcon setblock 1615 64 0 minecraft:stone
-# The live second-resolution device needs empty slots; clear whatever terrain or
-# water is at the test coordinates before the plugin starts writing.
-for bit in $(seq 0 23); do
-  x=$((3200 + bit))
-  rcon setblock "$x" 100 0 minecraft:air >/dev/null
-done
 rcon forceload remove 0 0 >/dev/null
 rcon forceload remove 1600 0 >/dev/null
 sleep 5
@@ -317,6 +311,14 @@ rcon forceload remove 0 0 >/dev/null
 # "forced dust power" (which could never hold or propagate a signal).
 rcon forceload add 3200 0 >/dev/null
 rcon forceload add 3216 0 >/dev/null
+sleep 3
+# The live device needs empty slots; clear whatever terrain is at y=100 now that
+# its chunks are loaded (the plugin refuses to overwrite foreign blocks).
+for bit in $(seq 0 23); do
+  x=$((3200 + bit))
+  rcon setblock "$x" 100 0 minecraft:air >/dev/null
+done
+sleep 2
 
 probe_slots() {
   local base=$1
