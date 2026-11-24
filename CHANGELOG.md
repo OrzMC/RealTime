@@ -23,3 +23,15 @@ All notable changes to RealTime are documented here. Release automation requires
 - Detect frame changes every tick (≤50 ms) instead of on a 1 Hz task, dispatch only the slots whose state changed, group them per chunk (two region tasks instead of twenty-four per device) and re-check every slot every 30 s, so hundreds of devices stay cheap.
 - Verify restart recovery, unloaded-chunk deferral, chunk-load retry, non-wire preservation, operator retry, and full retirement on both Paper and Folia.
 - Add protected tag-based release automation, reproducible shaded JAR packaging, and SHA-256 checksums.
+
+### 安装与升级须知（0.1.0 首个公开版本）
+
+- **环境要求**：Java 25 + Paper 或 Folia **26.3** 及以上（插件声明 `api-version: 26.3`，低于此版本请勿安装）。
+- **首次安装**：把 `RealTime-0.1.0.jar` 放进 `plugins/` 后启动，会自动生成 `plugins/RealTime/`
+  （`config.yml`、`messages.yml`、`modules/command.yml`、`modules/redstone.yml`、`data/devices.yml`）。
+- **红石模块默认关闭**（`modules/redstone.yml: enabled: false`）：确认测试区无误后再改成 `true`。
+- **输出槽位必须是空位或红石方块**：设备里配置的每个坐标由插件放/撤 `redstone_block` 表示 1/0；
+  槽位里若有其他方块，插件只告警、**不会覆盖**，需要先清空。
+- **从开发快照升级**：`data/devices.yml` 会自动迁移到 schema 3（原文件备份到 `backups/devices.yml.bak`）；
+  旧的 `output-power` 键会被忽略（输出固定满强度 15）。
+- 设备/清理数据结构请勿手工编辑，用 `/rtime device ...` 命令操作。
