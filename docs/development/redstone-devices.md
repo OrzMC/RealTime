@@ -97,9 +97,12 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 
 ## Runtime safety
 
-- Time and BCD frames are calculated on the global scheduler once per second.
-- Every output slot update is dispatched through the owning region scheduler; minute devices refresh when the minute changes, second devices refresh every second and only write slots whose state changed. Writes use block physics, which is what notifies the surrounding redstone network.
-- A slot containing anything other than air or a redstone block is left untouched and counted as an invalid output, so player builds are never overwritten.
+- The global task runs **every tick** and only compares the wall-clock second with the last one it acted on, so a frame change is picked up on the first tick after it happens (≤ 50 ms at 20 TPS) instead of at an arbitrary phase of a one-second task. The extra runs cost one clock read each; they never iterate devices unless a second actually changed.
+- Frame work is diffed per device: only slots whose desired state changed are dispatched, and the changed slots are grouped **per chunk** (one region task per chunk instead of one per slot — a 24-output device costs two region tasks instead of twenty-four). Minute devices therefore still only touch the world when their minute changes.
+- Every 30 s a full re-check walks all slots of every device so player edits, invalid blocks and missed writes are still detected, without paying that cost every second.
+- Block writes use physics, which is what notifies and powers the surrounding redstone network. Downstream redstone (repeaters, pistons, mechanical displays) adds its own tick delays, so a physical display always lags the plugin by a few ticks.
+- A slot containing anything other than air or a redstone block is left untouched and counted as an invalid output, so player builds are never overwritten. Because writes are diffed, such a slot is reported on the next change of its bit or on the 30 s full re-check.
+- Measured on the test server (Paper 26.3, 24 plugins, 240 outputs across 10 devices): tick impact is below measurement noise, and the display follows a wall-clock second within 60–80 ms end to end.
 - Before `getBlockAt`, the owning-region callback checks `World.isChunkLoaded` for the target chunk.
 - Unloaded chunks are skipped and their outputs are refreshed on `ChunkLoadEvent`.
 - The manager never calls `getChunkAt`, chunk load APIs, or world generation APIs.
@@ -133,4 +136,4 @@ Device creation and coordinate editing remain in `data/devices.yml`; no automati
 
 ## Output diagnostics
 
-Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, completed output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual power changes, unchanged outputs, and caught write failures. Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Diagnostics never load chunks and do not change output behavior.
+Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, dispatched output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual power changes, unchanged outputs, and caught write failures. Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Because writes are diffed and batched, `输出检查` counts slots that were actually dispatched (changed slots plus the 30 s full re-check), not a per-second poll of every slot. Diagnostics never load chunks and do not change output behavior.

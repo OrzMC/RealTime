@@ -15,6 +15,7 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.logging.Logger
@@ -31,9 +32,16 @@ import java.util.logging.Logger
  * circuits keep working. Anything else in a slot is left untouched and reported
  * as an invalid output.
  *
- * Minute-resolution devices are only rewritten when the minute changes;
- * second-resolution devices are rewritten on every tick of the one-second
- * refresh period, and only slots whose state actually changed are written.
+ * The global task runs every tick and only compares the wall-clock second with the
+ * last one it acted on, so a change is picked up on the first tick after it
+ * happens (<= 50 ms at 20 TPS) instead of at an arbitrary phase of a one-second
+ * task. Scheduling only happens when a frame actually changed.
+ *
+ * Writes are diffed per device: only slots whose desired state changed are
+ * dispatched, grouped per chunk so a 24-output device costs two region tasks
+ * instead of twenty-four. A full re-check of every slot runs every
+ * [FULL_CHECK_INTERVAL_SECONDS] so manual edits and invalid blocks are still
+ * noticed without paying that cost every second.
  */
 class RedstoneDeviceManager(
     private val server: Server,
@@ -53,6 +61,14 @@ class RedstoneDeviceManager(
     private val writeFailures = AtomicLong()
     private var lastMinuteEpoch: Long? = null
     private var lastSecondEpoch: Long? = null
+    private var lastFullCheckEpoch: Long? = null
+    private val lastWritten = ConcurrentHashMap<UUID, WrittenFrame>()
+
+    /** Device state captured when a write batch was dispatched. */
+    private data class WrittenFrame(
+        val device: RedstoneDevice,
+        val bits: List<Boolean>,
+    )
 
     override fun snapshot(): RedstoneDiagnosticsSnapshot {
         val devices = stateProvider().devices
@@ -72,7 +88,7 @@ class RedstoneDeviceManager(
 
     fun start(plugin: Plugin) {
         server.pluginManager.registerEvents(this, plugin)
-        scheduler.repeatGlobal(initialDelayTicks = 20, periodTicks = 20) {
+        scheduler.repeatGlobal(initialDelayTicks = REFRESH_PERIOD_TICKS, periodTicks = REFRESH_PERIOD_TICKS) {
             refreshCurrentFrame(force = false)
         }
         scheduler.runGlobal {
@@ -84,6 +100,8 @@ class RedstoneDeviceManager(
         scheduler.runGlobal {
             lastMinuteEpoch = null
             lastSecondEpoch = null
+            lastFullCheckEpoch = null
+            lastWritten.clear()
             refreshCurrentFrame(force = true)
         }
     }
@@ -116,18 +134,22 @@ class RedstoneDeviceManager(
         val epochSecond = snapshot.epochSecond
         val epochMinute = epochSecond / SECONDS_PER_MINUTE
 
+        val previousCheck = lastFullCheckEpoch
+        val fullCheckDue = force || previousCheck == null || epochSecond - previousCheck >= FULL_CHECK_INTERVAL_SECONDS
         val secondChanged = force || lastSecondEpoch != epochSecond
         val minuteChanged = force || lastMinuteEpoch != epochMinute
-        if (!secondChanged && !minuteChanged) return
+        if (!secondChanged && !minuteChanged && !fullCheckDue) return
 
         lastSecondEpoch = epochSecond
         lastMinuteEpoch = epochMinute
+        if (fullCheckDue) lastFullCheckEpoch = epochSecond
         if (!force && (!state.configuration.generalEnabled || !state.redstoneConfiguration.enabled)) return
 
+        if (force || fullCheckDue) lastWritten.clear()
         val resolutions =
             buildSet {
-                if (secondChanged) add(OutputResolution.SECOND)
-                if (minuteChanged) add(OutputResolution.MINUTE)
+                if (secondChanged || fullCheckDue) add(OutputResolution.SECOND)
+                if (minuteChanged || fullCheckDue) add(OutputResolution.MINUTE)
             }
         val frame = BcdTimeEncoder.encode(snapshot.zonedDateTime.toLocalTime())
         scheduleOutputs(state, frame, resolutions, includeDisabled = force)
@@ -143,37 +165,69 @@ class RedstoneDeviceManager(
             .asSequence()
             .filter { includeDisabled || it.enabled }
             .filter { it.resolution in resolutions }
-            .forEach { device ->
-                val world = server.getWorld(device.worldName)
-                if (world == null) {
+            .forEach { device -> scheduleDeviceOutputs(state, frame, device) }
+    }
+
+    private fun scheduleDeviceOutputs(
+        state: RuntimeState,
+        frame: BcdTimeFrame,
+        device: RedstoneDevice,
+    ) {
+        val desired = frame.bits(device.resolution)
+        val previous = lastWritten[device.id]
+        val changedIndexes =
+            when {
+                previous == null || previous.device !== device || previous.bits.size != desired.size ->
+                    device.outputs.indices.toList()
+                else -> desired.indices.filter { index -> desired[index] != previous.bits[index] }
+            }
+        lastWritten[device.id] = WrittenFrame(device, desired)
+        if (changedIndexes.isEmpty()) return
+
+        val world =
+            server.getWorld(device.worldName)
+                ?: run {
                     if (warnedWorlds.add(device.worldName)) {
                         logger.warning(
                             "RealTime device '${device.name}' references an unloaded or missing world " +
                                 device.worldName + ".",
                         )
                     }
-                    return@forEach
+                    return
                 }
-                val scheduledBits = frame.bits(device.resolution)
-                device.outputs.forEach { output ->
-                    val location =
-                        Location(
-                            world,
-                            output.x.toDouble(),
-                            output.y.toDouble(),
-                            output.z.toDouble(),
-                        )
-                    scheduler.runRegion(location) { target ->
-                        val targetWorld = target.world ?: return@runRegion
-                        val chunkX = output.x shr 4
-                        val chunkZ = output.z shr 4
-                        if (!targetWorld.isChunkLoaded(chunkX, chunkZ)) {
-                            unloadedChunkSkips.incrementAndGet()
-                            return@runRegion
-                        }
 
-                        val currentState = stateProvider()
-                        val currentDevice = currentState.devices.firstOrNull { it.id == device.id }
+        changedIndexes
+            .groupBy { index ->
+                val output = device.outputs[index]
+                (output.x shr 4) to (output.z shr 4)
+            }.forEach { (chunk, indexes) ->
+                val anchor = device.outputs[indexes.first()]
+                val location =
+                    Location(
+                        world,
+                        anchor.x.toDouble(),
+                        anchor.y.toDouble(),
+                        anchor.z.toDouble(),
+                    )
+                scheduler.runRegion(location) { target ->
+                    val targetWorld = target.world ?: return@runRegion
+                    if (!targetWorld.isChunkLoaded(chunk.first, chunk.second)) {
+                        unloadedChunkSkips.addAndGet(indexes.size.toLong())
+                        return@runRegion
+                    }
+
+                    val currentState = stateProvider()
+                    val currentDevice = currentState.devices.firstOrNull { it.id == device.id }
+                    val effectiveBits =
+                        if (currentState === state) {
+                            desired
+                        } else {
+                            BcdTimeEncoder
+                                .encode(currentState.timeService.now().toLocalTime())
+                                .bits(device.resolution)
+                        }
+                    indexes.forEach { index ->
+                        val output = device.outputs[index]
                         val outputStillConfigured =
                             currentDevice?.outputs?.any { currentOutput ->
                                 currentOutput.bitIndex == output.bitIndex &&
@@ -182,14 +236,6 @@ class RedstoneDeviceManager(
                                     currentOutput.z == output.z
                             } == true
                         if (currentDevice == null || !outputStillConfigured) staleOutputUpdates.incrementAndGet()
-                        val effectiveBits =
-                            if (currentState === state) {
-                                scheduledBits
-                            } else {
-                                BcdTimeEncoder
-                                    .encode(currentState.timeService.now().toLocalTime())
-                                    .bits(device.resolution)
-                            }
                         applyOutput(
                             world = targetWorld,
                             device = currentDevice ?: device,
@@ -254,7 +300,9 @@ class RedstoneDeviceManager(
     }
 
     private companion object {
+        const val REFRESH_PERIOD_TICKS = 1L
         const val SECONDS_PER_MINUTE = 60L
+        const val FULL_CHECK_INTERVAL_SECONDS = 30L
         val POWERED_TYPE: Material = Material.REDSTONE_BLOCK
     }
 }
