@@ -1,6 +1,6 @@
 # PR11 — Safe Device Retirement Command
 
-- Status: In Progress
+- Status: Complete — merged PR #23 (`6f87d712b6f1451aa525ea55da0e6c58196b305b`)
 - Depends on: PR10 (complete)
 - Scope: expose the existing crash-safe retirement service through an admin-only command without weakening Paper/Folia thread ownership or cleanup invariants.
 
@@ -24,5 +24,9 @@ An operator can retire a disabled redstone clock with `/rtime device remove <uui
 
 - Unit tests cover permission denial, enabled-device rejection, missing device, successful service invocation, and command completion.
 - Existing retirement service tests continue to prove disabled-only validation, persist-before-publish ordering, and persistence-failure atomicity.
-- Paper and Folia runtime smoke invokes the actual `/rtime device remove <uuid>` command and verifies a cleanup job is durably enqueued and processed without force-loading unloaded chunks.
+- Paper and Folia runtime smoke invokes the actual `/rtime device remove <uuid>` command and verifies a cleanup job is durably enqueued and processed without force-loading unloaded chunks. Passed in runtime smoke run #94.
 - Gradle CI, shaded JAR inspection, Agent Project Validation, generic Paper/Folia smoke, and the cleanup runtime matrix pass.
+
+## Result
+
+- PR #23 merged successfully. Gradle CI #136, Agent Project Validation #103, Paper/Folia + PlaceholderAPI smoke, and Paper/Folia cleanup + device removal smoke #94 passed.
