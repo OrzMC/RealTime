@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import org.bukkit.configuration.InvalidConfigurationException
@@ -73,6 +74,7 @@ class YamlDeviceRepository(
                     "world" to device.worldName,
                     "enabled" to device.enabled,
                     "resolution" to device.resolution.configValue,
+                    "encoding" to device.encoding.configValue,
                     "outputs" to
                         device.outputs.map { output ->
                             linkedMapOf(
@@ -95,6 +97,7 @@ class YamlDeviceRepository(
                     "world" to job.worldName,
                     "world-uuid" to job.worldId?.toString(),
                     "resolution" to job.resolution.configValue,
+                    "encoding" to job.encoding.configValue,
                     "outputs" to
                         job.outputs.map { cleanupOutput ->
                             linkedMapOf(
@@ -220,6 +223,7 @@ class YamlDeviceRepository(
             raw["outputs"] as? List<*>
                 ?: throw DeviceRepositoryException("$context.outputs must be a list")
         val resolution = parseResolution(raw, context)
+        val encoding = parseEncoding(raw, context)
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
                 val output =
@@ -234,7 +238,7 @@ class YamlDeviceRepository(
             }
 
         return try {
-            RedstoneDevice(id, name, worldName, enabled, outputs, resolution)
+            RedstoneDevice(id, name, worldName, enabled, outputs, resolution, encoding)
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
         }
@@ -255,6 +259,7 @@ class YamlDeviceRepository(
             raw["outputs"] as? List<*>
                 ?: throw DeviceRepositoryException("$context.outputs must be a list")
         val resolution = parseResolution(raw, context)
+        val encoding = parseEncoding(raw, context)
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
                 val output =
@@ -297,6 +302,7 @@ class YamlDeviceRepository(
                 worldId = worldId,
                 outputs = outputs,
                 resolution = resolution,
+                encoding = encoding,
             )
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
@@ -317,6 +323,24 @@ class YamlDeviceRepository(
             ?: throw DeviceRepositoryException(
                 "$context.resolution is unsupported: $value (supported: " +
                     OutputResolution.entries.joinToString { it.configValue } +
+                    ")",
+            )
+    }
+
+    private fun parseEncoding(
+        values: Map<*, *>,
+        context: String,
+    ): OutputEncoding {
+        val value =
+            when (val raw = values["encoding"]) {
+                null -> return OutputEncoding.BCD
+                is String -> raw
+                else -> throw DeviceRepositoryException("$context.encoding must be a string")
+            }
+        return OutputEncoding.fromConfig(value)
+            ?: throw DeviceRepositoryException(
+                "$context.encoding is unsupported: $value (supported: " +
+                    OutputEncoding.entries.joinToString { it.configValue } +
                     ")",
             )
     }
@@ -358,6 +382,6 @@ class YamlDeviceRepository(
         const val DEVICE_FILE = "data/devices.yml"
         const val BACKUP_FILE = "backups/devices.yml.bak"
         const val LEGACY_SCHEMA_VERSION = 1
-        const val SUPPORTED_SCHEMA_VERSION = 3
+        const val SUPPORTED_SCHEMA_VERSION = 4
     }
 }

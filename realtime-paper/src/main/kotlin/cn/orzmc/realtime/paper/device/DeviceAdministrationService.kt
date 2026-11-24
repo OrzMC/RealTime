@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -34,6 +35,7 @@ data class DeviceCreateRequest(
     val worldName: String,
     val resolution: OutputResolution,
     val outputs: List<DeviceOutput>,
+    val encoding: OutputEncoding = OutputEncoding.BCD,
 )
 
 class DeviceNotFoundException(
@@ -97,6 +99,7 @@ class DeviceAdministrationService(
                     enabled = enabled,
                     outputs = currentDevice.outputs,
                     resolution = currentDevice.resolution,
+                    encoding = currentDevice.encoding,
                 )
             val updatedDevices =
                 currentState.devices.map { device ->
@@ -134,6 +137,7 @@ class DeviceAdministrationService(
                     enabled = false,
                     outputs = request.outputs,
                     resolution = request.resolution,
+                    encoding = request.encoding,
                 )
             val updatedDevices = currentState.devices + device
 
@@ -155,7 +159,7 @@ class DeviceAdministrationService(
             val currentDevice =
                 currentState.devices.firstOrNull { it.id == id }
                     ?: throw DeviceNotFoundException(id)
-            val maxIndex = currentDevice.resolution.outputCount - 1
+            val maxIndex = currentDevice.outputCount - 1
             if (bitIndex !in 0..maxIndex) throw DeviceOutputIndexException(bitIndex, maxIndex)
 
             val target = DeviceOutput(bitIndex, x, y, z)
@@ -173,6 +177,7 @@ class DeviceAdministrationService(
                     enabled = currentDevice.enabled,
                     outputs = currentDevice.outputs.map { output -> if (output.bitIndex == bitIndex) target else output },
                     resolution = currentDevice.resolution,
+                    encoding = currentDevice.encoding,
                 )
             val updatedDevices =
                 currentState.devices.map { device ->
