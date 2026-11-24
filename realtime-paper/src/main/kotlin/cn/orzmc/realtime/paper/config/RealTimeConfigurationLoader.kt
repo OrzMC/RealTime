@@ -196,7 +196,8 @@ class RealTimeConfigurationLoader {
                 "command.device.status.devices" to "{prefix}&7配置设备：&f{configured} &7启用：&f{enabled} &7输出点：&f{outputs}",
                 "command.device.status.checks" to "{prefix}&7输出检查：&f{checks} &7未加载区块跳过：&f{unloaded} &7过期配置更新：&f{stale}",
                 "command.device.status.outcomes" to
-                    "{prefix}&7功率变更：&f{changed} &7无变化：&f{unchanged} &7非红石线：&f{invalid} &7写入失败：&f{failures}",
+                    "{prefix}&7输出变更：&f{changed} &7无变化：&f{unchanged} &7非法方块：&f{invalid} &7写入失败：&f{failures}",
+                "command.device.status.analog" to "{prefix}&7讲台放置：&f{lecterns} &7书页安装：&f{books}",
                 "command.device.list.header" to "{prefix}&b设备列表（{count}）",
                 "command.device.list.empty" to "{prefix}&7当前没有配置任何设备。",
                 "command.device.list.item" to "{prefix}&f{name} &7[{id}] &8世界：&f{world} &8状态：{enabled}",
@@ -205,14 +206,18 @@ class RealTimeConfigurationLoader {
                 "command.device.info.world" to "{prefix}&7世界：&f{world}",
                 "command.device.info.enabled" to "{prefix}&7状态：{enabled}",
                 "command.device.info.resolution" to "{prefix}&7分辨率：&f{resolution}",
+                "command.device.info.encoding" to "{prefix}&7编码：&f{encoding}",
                 "command.device.info.outputs" to "{prefix}&7输出点（{count}）：",
-                "command.device.info.output" to "{prefix}&8位 {bit}：&f{x}, {y}, {z}",
+                "command.device.info.output" to "{prefix}&8槽 {bit}：&f{x}, {y}, {z}",
                 "command.device.state.enabled" to "&a启用",
                 "command.device.state.disabled" to "&c禁用",
                 "command.device.create.success" to
-                    "{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{world} &7{count} 个输出",
+                    "{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{encoding} &8{world} &7{count} 个输出 " +
+                    "&8（默认禁用，确认接线后 device enable）",
                 "command.device.create.invalid-resolution" to
                     "{prefix}&c分辨率无效：&f{value} &7（可用：minute、second）",
+                "command.device.create.invalid-encoding" to
+                    "{prefix}&c编码无效：&f{value} &7（可用：bcd、analog）",
                 "command.device.create.limit" to "{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。",
                 "command.device.create.area" to "{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}",
                 "command.device.create.conflict" to "{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}",

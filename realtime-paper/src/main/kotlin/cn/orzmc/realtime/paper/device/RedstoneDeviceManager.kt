@@ -1,8 +1,10 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.AnalogScale
 import cn.orzmc.realtime.core.device.BcdTimeEncoder
 import cn.orzmc.realtime.core.device.BcdTimeFrame
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -11,6 +13,7 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
+import org.bukkit.block.Lectern
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
@@ -21,16 +24,24 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.logging.Logger
 
 /**
- * Updates configured BCD outputs without loading chunks.
+ * Updates configured device outputs without loading chunks.
  *
  * Global work calculates the current frame. Every block read/write is dispatched
  * to the owning region. Chunk-load events refresh outputs that were previously
  * skipped because their chunks were unloaded.
  *
- * A logical 1 is materialised as a `minecraft:redstone_block` in the output slot
- * and a logical 0 as air, so vanilla redstone reacts to the change and downstream
- * circuits keep working. Anything else in a slot is left untouched and reported
- * as an invalid output.
+ * ## Output encodings
+ *
+ * A [OutputEncoding.BCD] slot materialises one bit: `minecraft:redstone_block`
+ * for a logical 1 and air for a logical 0, so vanilla redstone reacts to the change.
+ *
+ * An [OutputEncoding.ANALOG] slot is a lectern holding the plugin's 15-page book;
+ * the page index is the digit, so a comparator behind the lectern reads
+ * `digit + 1`. Turning the device off removes the book, which drops the read to
+ * level 0 ([AnalogScale.NO_BOOK]).
+ *
+ * Anything else in a slot is left untouched and reported as an invalid output:
+ * the manager never overwrites blocks or books it does not own.
  *
  * The global task runs every tick and only compares the wall-clock second with the
  * last one it acted on, so a change is picked up on the first tick after it
@@ -48,6 +59,7 @@ class RedstoneDeviceManager(
     private val scheduler: PaperFoliaScheduler,
     private val stateProvider: () -> RuntimeState,
     private val logger: Logger,
+    private val books: AnalogBookFactory = DeviceBooks,
 ) : Listener,
     DeviceDiagnostics {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
@@ -59,6 +71,8 @@ class RedstoneDeviceManager(
     private val powerChanges = AtomicLong()
     private val unchangedOutputs = AtomicLong()
     private val writeFailures = AtomicLong()
+    private val lecternPlacements = AtomicLong()
+    private val bookWrites = AtomicLong()
     private var lastMinuteEpoch: Long? = null
     private var lastSecondEpoch: Long? = null
     private var lastFullCheckEpoch: Long? = null
@@ -67,7 +81,7 @@ class RedstoneDeviceManager(
     /** Device state captured when a write batch was dispatched. */
     private data class WrittenFrame(
         val device: RedstoneDevice,
-        val bits: List<Boolean>,
+        val values: List<Int>,
     )
 
     override fun snapshot(): RedstoneDiagnosticsSnapshot {
@@ -83,6 +97,8 @@ class RedstoneDeviceManager(
             powerChanges = powerChanges.get(),
             unchangedOutputs = unchangedOutputs.get(),
             writeFailures = writeFailures.get(),
+            lecternPlacements = lecternPlacements.get(),
+            bookWrites = bookWrites.get(),
         )
     }
 
@@ -123,7 +139,7 @@ class RedstoneDeviceManager(
                     world = world,
                     device = device,
                     output = output,
-                    powered = state.isPowered(device, output.bitIndex, frame.bits(device.resolution)),
+                    value = state.valuesFor(device, frame)[output.bitIndex],
                 )
             }
     }
@@ -173,13 +189,13 @@ class RedstoneDeviceManager(
         frame: BcdTimeFrame,
         device: RedstoneDevice,
     ) {
-        val desired = frame.bits(device.resolution)
+        val desired = state.valuesFor(device, frame)
         val previous = lastWritten[device.id]
         val changedIndexes =
             when {
-                previous == null || previous.device !== device || previous.bits.size != desired.size ->
+                previous == null || previous.device !== device || previous.values.size != desired.size ->
                     device.outputs.indices.toList()
-                else -> desired.indices.filter { index -> desired[index] != previous.bits[index] }
+                else -> desired.indices.filter { index -> desired[index] != previous.values[index] }
             }
         if (changedIndexes.isEmpty()) return
 
@@ -219,13 +235,14 @@ class RedstoneDeviceManager(
 
                     val currentState = stateProvider()
                     val currentDevice = currentState.devices.firstOrNull { it.id == device.id }
-                    val effectiveBits =
+                    val effective =
                         if (currentState === state) {
                             desired
                         } else {
-                            BcdTimeEncoder
-                                .encode(currentState.timeService.now().toLocalTime())
-                                .bits(device.resolution)
+                            currentState.valuesFor(
+                                currentDevice ?: device,
+                                BcdTimeEncoder.encode(currentState.timeService.now().toLocalTime()),
+                            )
                         }
                     indexes.forEach { index ->
                         val output = device.outputs[index]
@@ -241,12 +258,15 @@ class RedstoneDeviceManager(
                             world = targetWorld,
                             device = currentDevice ?: device,
                             output = output,
-                            powered =
-                                outputStillConfigured &&
-                                    currentState.isPowered(currentDevice, output.bitIndex, effectiveBits),
+                            value =
+                                if (outputStillConfigured) {
+                                    effective.getOrElse(output.bitIndex) { (currentDevice ?: device).encoding.offValue }
+                                } else {
+                                    (currentDevice ?: device).encoding.offValue
+                                },
                         )
                     }
-                    recordWritten(device, effectiveBits, indexes)
+                    recordWritten(device, effective, indexes)
                 }
             }
     }
@@ -257,66 +277,174 @@ class RedstoneDeviceManager(
      */
     private fun recordWritten(
         device: RedstoneDevice,
-        bits: List<Boolean>,
+        values: List<Int>,
         indexes: List<Int>,
     ) {
         lastWritten.compute(device.id) { _, previous ->
-            if (previous == null || previous.device !== device || previous.bits.size != bits.size) {
-                WrittenFrame(device, bits)
+            if (previous == null || previous.device !== device || previous.values.size != values.size) {
+                WrittenFrame(device, values)
             } else {
-                val updated = previous.bits.toMutableList()
-                indexes.forEach { index -> updated[index] = bits[index] }
+                val updated = previous.values.toMutableList()
+                indexes.forEach { index -> updated[index] = values[index] }
                 WrittenFrame(device, updated)
             }
         }
     }
 
-    private fun RuntimeState.isPowered(
-        device: RedstoneDevice?,
-        bitIndex: Int,
-        bits: List<Boolean>,
-    ): Boolean {
-        if (device == null) return false
-        if (!configuration.generalEnabled || !redstoneConfiguration.enabled || !device.enabled) return false
-        return bitIndex in bits.indices && bits[bitIndex]
+    /** Desired slot values for [device], honouring the enable switches. */
+    private fun RuntimeState.valuesFor(
+        device: RedstoneDevice,
+        frame: BcdTimeFrame,
+    ): List<Int> {
+        val off = !configuration.generalEnabled || !redstoneConfiguration.enabled || !device.enabled
+        return if (off) {
+            device.encoding.offValues(device.resolution)
+        } else {
+            frame.values(device.encoding, device.resolution)
+        }
     }
 
     private fun applyOutput(
         world: World,
         device: RedstoneDevice,
         output: DeviceOutput,
-        powered: Boolean,
+        value: Int,
     ) {
         outputChecks.incrementAndGet()
         try {
-            val block = world.getBlockAt(output.x, output.y, output.z)
-            val expectedType = if (powered) POWERED_TYPE else Material.AIR
-            val currentType = block.type
-            if (currentType == expectedType) {
-                unchangedOutputs.incrementAndGet()
-                return
+            when (device.encoding) {
+                OutputEncoding.BCD -> applyBinaryOutput(world, device, output, powered = value != 0)
+                OutputEncoding.ANALOG -> applyAnalogOutput(world, device, output, value)
             }
-            if (currentType != Material.AIR && currentType != POWERED_TYPE) {
-                invalidOutputBlocks.incrementAndGet()
-                val warningKey = "${device.id}:${output.bitIndex}"
-                if (warnedOutputs.add(warningKey)) {
-                    logger.warning(
-                        "RealTime device '${device.name}' output ${output.bitIndex} at " +
-                            "${world.name}:${output.x},${output.y},${output.z} is $currentType, " +
-                            "expected AIR or $POWERED_TYPE.",
-                    )
-                }
-                return
-            }
-
-            // Physics is required here: the slot becomes a real power source so
-            // vanilla redstone notifies and powers the surrounding circuit.
-            block.setType(expectedType, true)
-            powerChanges.incrementAndGet()
         } catch (exception: Exception) {
             writeFailures.incrementAndGet()
             logger.warning(
                 "RealTime device '${device.name}' output ${output.bitIndex} update failed: ${exception.message}",
+            )
+        }
+    }
+
+    private fun applyBinaryOutput(
+        world: World,
+        device: RedstoneDevice,
+        output: DeviceOutput,
+        powered: Boolean,
+    ) {
+        val block = world.getBlockAt(output.x, output.y, output.z)
+        val expectedType = if (powered) POWERED_TYPE else Material.AIR
+        val currentType = block.type
+        if (currentType == expectedType) {
+            unchangedOutputs.incrementAndGet()
+            return
+        }
+        if (currentType != Material.AIR && currentType != POWERED_TYPE) {
+            invalidOutputBlock(
+                device,
+                output,
+                world,
+                "is $currentType, expected AIR or $POWERED_TYPE",
+            )
+            return
+        }
+
+        // Physics is required here: the slot becomes a real power source so
+        // vanilla redstone notifies and powers the surrounding circuit.
+        block.setType(expectedType, true)
+        powerChanges.incrementAndGet()
+    }
+
+    /**
+     * Drives one analog slot.
+     *
+     * [value] is the digit (`0`–`9`) or [AnalogScale.NO_BOOK] when the device is
+     * disabled. The slot must be air (the lectern is placed for the operator) or
+     * a lectern holding this device's book; a lectern with a foreign book keeps
+     * its contents and is reported instead of being overwritten.
+     */
+    private fun applyAnalogOutput(
+        world: World,
+        device: RedstoneDevice,
+        output: DeviceOutput,
+        value: Int,
+    ) {
+        val block = world.getBlockAt(output.x, output.y, output.z)
+        val currentType = block.type
+        val blank = value == AnalogScale.NO_BOOK
+        if (currentType == Material.AIR && blank) {
+            unchangedOutputs.incrementAndGet()
+            return
+        }
+        when (currentType) {
+            Material.AIR -> {
+                block.setType(Material.LECTERN, true)
+                lecternPlacements.incrementAndGet()
+            }
+            Material.LECTERN -> Unit
+            else -> {
+                invalidOutputBlock(
+                    device,
+                    output,
+                    world,
+                    "is $currentType, expected AIR or ${Material.LECTERN}",
+                )
+                return
+            }
+        }
+
+        val lectern =
+            block.getState(false) as? Lectern
+                ?: run {
+                    invalidOutputBlock(device, output, world, "does not expose a lectern")
+                    return
+                }
+        val inventory = lectern.inventory
+        if (!books.isSlotEmpty(inventory) && !books.holdsDeviceBook(inventory, device.id)) {
+            invalidOutputBlock(device, output, world, "holds a foreign book, expected the RealTime book")
+            return
+        }
+
+        if (blank) {
+            if (books.isSlotEmpty(inventory)) {
+                unchangedOutputs.incrementAndGet()
+                return
+            }
+            books.clear(inventory)
+            bookWrites.incrementAndGet()
+            powerChanges.incrementAndGet()
+            return
+        }
+
+        if (!AnalogScale.isDigit(value)) {
+            invalidOutputBlock(device, output, world, "carries $value, expected a digit 0..${AnalogScale.MAX_DIGIT}")
+            return
+        }
+
+        val page = AnalogScale.pageForDigit(value)
+        val bookChanged = !books.holdsDeviceBook(inventory, device.id)
+        if (bookChanged) {
+            books.install(inventory, device.id)
+            bookWrites.incrementAndGet()
+        }
+        // Writing the book resets the page, so a fresh page index is always required.
+        if (bookChanged || lectern.page != page) {
+            lectern.setPage(page)
+            powerChanges.incrementAndGet()
+        } else {
+            unchangedOutputs.incrementAndGet()
+        }
+    }
+
+    private fun invalidOutputBlock(
+        device: RedstoneDevice,
+        output: DeviceOutput,
+        world: World,
+        detail: String,
+    ) {
+        invalidOutputBlocks.incrementAndGet()
+        if (warnedOutputs.add("${device.id}:${output.bitIndex}")) {
+            logger.warning(
+                "RealTime device '${device.name}' output ${output.bitIndex} at " +
+                    "${world.name}:${output.x},${output.y},${output.z} $detail.",
             )
         }
     }

@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -262,9 +263,75 @@ class DeviceAdministrationServiceTest {
 
         assertEquals(24, created.outputs.size)
         assertEquals(OutputResolution.SECOND, created.resolution)
+        assertEquals(OutputEncoding.BCD, created.encoding)
         assertEquals(false, created.enabled)
         assertEquals(listOf("persist", "publish", "refresh"), events)
         assertEquals(created, active.devices.single())
+    }
+
+    @Test
+    fun createsAnalogDevicesWithOneSlotPerDigit() {
+        var active = state(emptyList())
+        val service =
+            DeviceAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistDevices = { active = active.copy(devices = it) },
+                replaceState = { active = it },
+                requestRefresh = {},
+            )
+
+        val created =
+            service.create(
+                DeviceCreateRequest(
+                    "analog",
+                    "world",
+                    OutputResolution.SECOND,
+                    (0 until 6).map { DeviceOutput(it, 100 + it * 2, 64, 0) },
+                    OutputEncoding.ANALOG,
+                ),
+            )
+
+        assertEquals(OutputEncoding.ANALOG, created.encoding)
+        assertEquals(6, created.outputs.size)
+        assertEquals(OutputEncoding.ANALOG, active.devices.single().encoding)
+    }
+
+    @Test
+    fun keepsTheEncodingWhenTogglingAndMovingSlots() {
+        var active = state(listOf(device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)))
+        val service =
+            DeviceAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistDevices = { active = active.copy(devices = it) },
+                replaceState = { active = it },
+                requestRefresh = {},
+            )
+        val id = active.devices.single().id
+
+        val moved = service.setOutput(id, 5, 90, 64, 4)
+        assertEquals(OutputEncoding.ANALOG, moved.encoding)
+        val toggled = service.setEnabled(id, false)
+        assertEquals(OutputEncoding.ANALOG, toggled.encoding)
+        assertEquals(6, toggled.outputs.size)
+    }
+
+    @Test
+    fun setOutputRejectsSlotIndexesOutsideTheAnalogRange() {
+        var active = state(listOf(device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)))
+        val service =
+            DeviceAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistDevices = { active = active.copy(devices = it) },
+                replaceState = { active = it },
+                requestRefresh = {},
+            )
+
+        assertThrows(DeviceOutputIndexException::class.java) {
+            service.setOutput(active.devices.single().id, 6, 5, 64, 30)
+        }
     }
 
     @Test
@@ -372,16 +439,18 @@ class DeviceAdministrationServiceTest {
     private fun device(
         enabled: Boolean = true,
         resolution: OutputResolution = OutputResolution.MINUTE,
+        encoding: OutputEncoding = OutputEncoding.BCD,
     ) = RedstoneDevice(
         id = UUID.randomUUID(),
         name = "clock",
         worldName = "world",
         enabled = enabled,
         outputs =
-            (0 until resolution.outputCount).map { bit ->
+            (0 until encoding.outputCount(resolution)).map { bit ->
                 DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
             },
         resolution = resolution,
+        encoding = encoding,
     )
 
     @Test

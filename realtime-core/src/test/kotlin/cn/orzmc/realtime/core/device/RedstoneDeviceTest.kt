@@ -83,6 +83,39 @@ class RedstoneDeviceTest {
         }
     }
 
+    @Test
+    fun `analog devices carry one slot per digit`() {
+        val device =
+            RedstoneDevice(
+                UUID.randomUUID(),
+                "clock",
+                "world",
+                true,
+                (0 until 6).map { DeviceOutput(it, it * 2, 64, 0) },
+                OutputResolution.SECOND,
+                OutputEncoding.ANALOG,
+            )
+
+        assertEquals(OutputEncoding.ANALOG, device.encoding)
+        assertEquals(6, device.outputCount)
+        assertEquals((0 until 6).toList(), device.outputs.map(DeviceOutput::bitIndex))
+    }
+
+    @Test
+    fun `rejects analog devices whose slot count matches the bcd layout`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            RedstoneDevice(
+                UUID.randomUUID(),
+                "clock",
+                "world",
+                true,
+                outputs(OutputResolution.MINUTE),
+                OutputResolution.MINUTE,
+                OutputEncoding.ANALOG,
+            )
+        }
+    }
+
     private fun outputs(resolution: OutputResolution) =
         (0 until resolution.outputCount).map { index ->
             DeviceOutput(bitIndex = index, x = index * 2, y = 64, z = 0)

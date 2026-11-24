@@ -4,6 +4,10 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+- Add an optional `analog` output encoding: each digit becomes one lectern holding a plugin-created 15-page book,
+  so a comparator reads level `digit + 1` and `HHmmss` needs 6 lines instead of 24. `device create ... [stride] [bcd|analog]`,
+  schema v4 (`encoding` on devices and cleanup jobs, earlier stores migrate to `bcd`), lectern/book counters in
+  `device status`, and cleanup that only removes a lectern still holding this device's book.
 - Add in-game device authoring: `/rtime device create <name> <minute|second> <world> <x> <y> <z> <axis> [stride]`
   and `/rtime device set <uuid> <bit> <x> <y> <z>`, with area whitelist, device cap, per-player cooldown and audit logging.
 - Split permissions: `realtime.device.view` (default true), `realtime.device.toggle` / `realtime.device.edit` /

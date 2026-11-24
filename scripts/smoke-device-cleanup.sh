@@ -376,7 +376,7 @@ else
   echo "Block probes unreliable on $PROJECT; asserting the enabled device through plugin counters."
   COUNTERS_OK=0
   for _ in $(seq 1 25); do
-    if rtime device status | grep -Eq '功率变更：.*[1-9]' && rtime device status | grep -Eq '非红石线：.*0'; then
+    if rtime device status | grep -Eq '输出变更：.*[1-9]' && rtime device status | grep -Eq '非法方块：.*0'; then
       COUNTERS_OK=1
       break
     fi
