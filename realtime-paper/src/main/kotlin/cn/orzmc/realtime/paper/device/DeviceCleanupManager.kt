@@ -224,9 +224,13 @@ class DeviceCleanupManager(
         }
 
     /**
-     * Analog slots are lecterns installed by the plugin, recognised by the book
-     * they hold. A lectern that no longer carries this device's book is left
-     * alone and reported instead of being destroyed.
+     * Analog slots are lecterns the device drove, recognised by the book they
+     * hold.
+     *
+     * A blank lectern still counts as this device's slot: disabling a device
+     * removes its book (level 0) but keeps the lectern, and the slot itself is
+     * owned by the device. A lectern that holds **someone else's** book is player
+     * property: it is left in place and reported instead of being destroyed.
      *
      * @return the cleanup status and an optional human-readable detail
      */
@@ -240,10 +244,18 @@ class DeviceCleanupManager(
                 "Expected AIR or LECTERN, found ${block.type}"
         }
         val lectern = block.getState(false) as? Lectern
-        if (lectern == null || !books.holdsDeviceBook(lectern.inventory, deviceId)) {
-            return DeviceCleanupStatus.NEEDS_ATTENTION to
-                "Lectern does not hold the RealTime book for this device, left untouched"
+        if (lectern == null) {
+            return DeviceCleanupStatus.NEEDS_ATTENTION to "Block state is not a lectern, left untouched"
         }
+        val inventory = lectern.inventory
+        val holdsOwnBook = books.holdsDeviceBook(inventory, deviceId)
+        val holdsNothing = books.isSlotEmpty(inventory)
+        if (!holdsOwnBook && !holdsNothing) {
+            return DeviceCleanupStatus.NEEDS_ATTENTION to
+                "Lectern holds a foreign book, left untouched"
+        }
+        // Empty the lectern first so the book is not dropped as an item entity.
+        if (holdsOwnBook) books.clear(inventory)
         block.setType(Material.AIR, true)
         return DeviceCleanupStatus.CLEARED to null
     }
