@@ -14,7 +14,7 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR8 | Device administration commands and safe lifecycle | Complete | PR5, PR7 |
 | PR9 | Redstone device diagnostics and output observability | Complete | PR5, PR8 |
 | PR10 | Persistent deferred cleanup for safely retiring devices (PR10a store, PR10b processor, PR10c runtime/ops) | Complete — PR10a/PR10b/PR10c merged | PR5, PR8, PR9 |
-| PR11 | Admin-only disabled-device retirement command | In progress | PR10 |
+| PR11 | Admin-only disabled-device retirement command | Complete — PR #23 merged and Paper/Folia runtime smoke passed | PR10 |
 
 ## Milestones
 
