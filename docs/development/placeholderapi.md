@@ -28,8 +28,8 @@ RealTime uses an internal expansion with identifier `realtime`. No separate Real
 | `%realtime_iso%` | ISO-8601 offset date-time |
 | `%realtime_timestamp%` | Unix timestamp in seconds |
 | `%realtime_timestamp_millis%` | Unix timestamp in milliseconds |
-| `%realtime_bcd%` | Four HHmm decimal digits |
-| `%realtime_bcd_bits%` | Sixteen BCD bits, digit groups HHmm, LSB-first |
+| `%realtime_bcd%` | Six HHmmss decimal digits |
+| `%realtime_bcd_bits%` | Twenty-four BCD bits, digit groups HHmmss, LSB-first |
 | `%realtime_redstone_enabled%` | Whether the redstone module is enabled |
 | `%realtime_device_count%` | Number of enabled redstone devices |
 

@@ -7,12 +7,8 @@ data class DeviceOutput(
     val z: Int,
 ) {
     init {
-        require(bitIndex in 0 until OUTPUT_COUNT) {
-            "bitIndex must be between 0 and ${OUTPUT_COUNT - 1}"
+        require(bitIndex in 0 until OutputResolution.MAX_OUTPUT_COUNT) {
+            "bitIndex must be between 0 and ${OutputResolution.MAX_OUTPUT_COUNT - 1}"
         }
-    }
-
-    companion object {
-        const val OUTPUT_COUNT = 16
     }
 }

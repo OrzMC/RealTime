@@ -1,6 +1,6 @@
 package cn.orzmc.realtime.paper.placeholder
 
-import cn.orzmc.realtime.core.device.BcdHhmmEncoder
+import cn.orzmc.realtime.core.device.BcdTimeEncoder
 import cn.orzmc.realtime.paper.command.RuntimeState
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.OfflinePlayer
@@ -29,7 +29,7 @@ class RealTimePlaceholderExpansion(
         val snapshot = state.timeService.snapshot()
         val dateTime = snapshot.zonedDateTime
         val localTime = snapshot.localTime
-        val bcd = BcdHhmmEncoder.encode(localTime)
+        val bcd = BcdTimeEncoder.encode(localTime)
 
         return when (params.lowercase(Locale.ROOT)) {
             "time", "datetime" -> state.timeService.format(snapshot, state.configuration.commandFormat)

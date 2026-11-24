@@ -2,7 +2,7 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: PR1–PR11 complete.** The plugin provides timezone-aware time, Paper/Folia scheduler-safe redstone outputs, versioned device persistence, diagnostics, crash-safe deferred cleanup, Paper/Folia restart/chunk-load recovery, and cleanup queue operator controls.
+> **Status: PR1–PR12 complete.** The plugin provides timezone-aware time, Paper/Folia scheduler-safe redstone outputs with minute (HHmm, 16 outputs) or second (HHmmss, 24 outputs) resolution, versioned device persistence, diagnostics, crash-safe deferred cleanup, Paper/Folia restart/chunk-load recovery, and cleanup queue operator controls.
 
 ## Goals
 
@@ -61,7 +61,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | Command | Permission | Purpose |
 |---|---|---|
 | `/rtime device list` | `realtime.command` | List configured device IDs and status |
-| `/rtime device info <uuid>` | `realtime.command` | Inspect the 16 output coordinates |
+| `/rtime device info <uuid>` | `realtime.command` | Inspect resolution and every output coordinate |
 | `/rtime device status` | `realtime.command` | View aggregate redstone output diagnostics |
 | `/rtime device cleanup list` | `realtime.command` | Inspect deferred cleanup queue |
 | `/rtime device cleanup retry <job-uuid>` | `realtime.admin` | Retry manually corrected `NEEDS_ATTENTION` outputs |
@@ -69,7 +69,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 | `/rtime device enable <uuid>` | `realtime.admin` | Enable a device and refresh outputs |
 | `/rtime device disable <uuid>` | `realtime.admin` | Disable a device and clear loaded outputs |
 
-Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is admin-only, disabled-device-only, and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output is cleared.
+Each device declares `resolution: minute` (HHmm, 16 outputs) or `resolution: second` (HHmmss, 24 outputs); minute clocks are rewritten when the minute changes, second clocks every second, and only bits whose power changed are written. Device records remain YAML-defined. The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is admin-only, disabled-device-only, and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output is cleared.
 
 ## Docs
 

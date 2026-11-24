@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.command
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
@@ -153,7 +154,20 @@ class RealTimeCommandHandlerTest {
         assertTrue(target.messages.any { it.contains("clock") })
         assertTrue(target.messages.any { it.contains(device.id.toString()) })
         assertTrue(target.messages.any { it.contains("bit 0 at 0, 64, 0") })
+        assertTrue(target.messages.any { it.contains("HHmm") })
         assertEquals(16, target.messages.count { it.contains("bit ") && it.contains(" at ") })
+    }
+
+    @Test
+    fun deviceInfoShowsAllTwentyFourOutputsForSecondResolution() {
+        val device = device(OutputResolution.SECOND)
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(device)))
+
+        handler.execute(target, arrayOf("device", "info", device.id.toString()))
+
+        assertTrue(target.messages.any { it.contains("HHmmss") })
+        assertEquals(24, target.messages.count { it.contains("bit ") && it.contains(" at ") })
     }
 
     @Test
@@ -415,6 +429,7 @@ class RealTimeCommandHandlerTest {
                         "command.device.info.id" to "{prefix}{id}",
                         "command.device.info.world" to "{prefix}{world}",
                         "command.device.info.enabled" to "{prefix}{enabled}",
+                        "command.device.info.resolution" to "{prefix}resolution {resolution}",
                         "command.device.info.outputs" to "{prefix}outputs {count}",
                         "command.device.info.output" to "{prefix}bit {bit} at {x}, {y}, {z}",
                         "command.device.state.enabled" to "enabled",
@@ -455,16 +470,17 @@ class RealTimeCommandHandlerTest {
         )
     }
 
-    private fun device() =
+    private fun device(resolution: OutputResolution = OutputResolution.MINUTE) =
         RedstoneDevice(
             id = UUID.randomUUID(),
             name = "clock",
             worldName = "world",
             enabled = true,
             outputs =
-                (0 until 16).map { bit ->
+                (0 until resolution.outputCount).map { bit ->
                     DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
                 },
+            resolution = resolution,
         )
 
     private class RecordingDeviceAdministration(

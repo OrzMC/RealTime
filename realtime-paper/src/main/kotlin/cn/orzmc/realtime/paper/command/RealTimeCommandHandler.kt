@@ -400,6 +400,12 @@ class RealTimeCommandHandler(
         )
         target.sendMessage(
             state.messages.render(
+                "command.device.info.resolution",
+                mapOf("resolution" to device.resolution.label),
+            ),
+        )
+        target.sendMessage(
+            state.messages.render(
                 "command.device.info.outputs",
                 mapOf("count" to device.outputs.size.toString()),
             ),

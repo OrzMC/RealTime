@@ -203,8 +203,17 @@ if [[ "$WITH_PLACEHOLDERAPI" == "true" ]]; then
     python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
       --no-expect "papi parse --null %realtime_bcd%"
   )"
-  if ! grep -Eq '(^|[^0-9])[0-2][0-9][0-5][0-9]([^0-9]|$)' <<< "$PAPI_BCD_OUTPUT"; then
-    echo "PlaceholderAPI BCD placeholder did not resolve: $PAPI_BCD_OUTPUT" >&2
+  if ! grep -Eq '(^|[^0-9])[0-2][0-9][0-5][0-9][0-5][0-9]([^0-9]|$)' <<< "$PAPI_BCD_OUTPUT"; then
+    echo "PlaceholderAPI BCD placeholder did not resolve to six HHmmss digits: $PAPI_BCD_OUTPUT" >&2
+    exit 1
+  fi
+
+  PAPI_BCD_BITS_OUTPUT="$(
+    python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
+      --no-expect "papi parse --null %realtime_bcd_bits%"
+  )"
+  if ! grep -Eq '(^|[^01])[01]{24}([^01]|$)' <<< "$PAPI_BCD_BITS_OUTPUT"; then
+    echo "PlaceholderAPI BCD bit placeholder did not resolve to twenty-four bits: $PAPI_BCD_BITS_OUTPUT" >&2
     exit 1
   fi
   echo "PlaceholderAPI expansion and null-player parsing passed on $PROJECT."

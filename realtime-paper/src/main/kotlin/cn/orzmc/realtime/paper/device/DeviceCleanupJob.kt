@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import java.util.UUID
 
@@ -31,13 +32,17 @@ data class DeviceCleanupJob(
     val worldName: String,
     val worldId: UUID?,
     val outputs: List<DeviceCleanupOutput>,
+    val resolution: OutputResolution = OutputResolution.MINUTE,
 ) {
     init {
         require(deviceName.isNotBlank()) { "deviceName must not be blank" }
         require(worldName.isNotBlank()) { "worldName must not be blank" }
-        require(outputs.size == 16) { "cleanup job must contain exactly 16 outputs" }
-        require(outputs.map { it.output.bitIndex }.toSet() == (0..15).toSet()) {
-            "cleanup outputs must contain each bit index from 0 through 15 exactly once"
+        require(outputs.size == resolution.outputCount) {
+            "cleanup job for a ${resolution.configValue}-resolution device must contain exactly " +
+                "${resolution.outputCount} outputs (${resolution.label})"
+        }
+        require(outputs.map { it.output.bitIndex }.toSet() == (0 until resolution.outputCount).toSet()) {
+            "cleanup outputs must contain each bit index from 0 through ${resolution.outputCount - 1} exactly once"
         }
         require(outputs.map { it.output }.distinct().size == outputs.size) {
             "cleanup output coordinates must be unique"
@@ -56,6 +61,7 @@ data class DeviceCleanupJob(
                 worldName = device.worldName,
                 worldId = worldId,
                 outputs = device.outputs.map { output -> DeviceCleanupOutput(output) },
+                resolution = device.resolution,
             )
     }
 }

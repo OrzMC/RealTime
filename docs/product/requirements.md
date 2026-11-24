@@ -38,11 +38,11 @@ Initial planned placeholders: date, time, datetime, weekday, timezone, and Unix 
 
 ### Redstone clock devices (P1)
 
-Initial output mode is HHmm encoded as four BCD digits. Each digit uses four logical bits, for 16 logical outputs. Device definitions and runtime data are stored separately from feature configuration. Block access runs on the owning Folia region. Unloaded chunks are skipped and refreshed on chunk load; device updates must never force-load chunks.
+Devices declare a `resolution` of `minute` or `second`. A `minute` device exposes HHmm encoded as four BCD digits (16 logical outputs); a `second` device exposes HHmmss encoded as six BCD digits (24 logical outputs). Each digit uses four logical bits, and digits are always ordered hour → minute → second for both resolutions. Device definitions and runtime data are stored separately from feature configuration. Block access runs on the owning Folia region. Unloaded chunks are skipped and refreshed on chunk load; device updates must never force-load chunks. Minute devices are rewritten when the minute changes; second devices are refreshed every second and only bits whose power actually changed are written.
 
 ### Future display extensions (P2)
 
-Potential follow-ups include HHmmss, date, seven-segment displays, multiple timezones, and extensible output encoders. These are not part of the initial scaffold.
+Potential follow-ups include date displays, seven-segment displays, multiple timezones, and extensible output encoders. These are not part of the initial scaffold.
 
 ## Configuration proposal
 
