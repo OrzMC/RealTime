@@ -1,6 +1,6 @@
 # RealTime 0.1.0 acceptance report
 
-> Status: **BLOCKED on the 0.1.0 artifact `379b2a7d…`; both blockers are fixed in PR13 and re-verified on the same servers (§7).**
+> Status: **ACCEPTED for the local test servers.** The initial artifact (`379b2a7d…`) was BLOCKED by two defects; PR13 fixed them and the final artifact (`5a411337…`, commit `f31e7ce`) passed the full matrix on Paper and Folia (§7, §8).
 > Companion checklist: [production-acceptance-0.1.0.md](production-acceptance-0.1.0.md).
 > Only observed evidence is recorded here. RCON passwords, world data and player identities are omitted.
 
@@ -135,3 +135,40 @@ their boundary), because dust/lamps only re-evaluate on a block update.
 Remaining work before release: re-run the full §4 matrix once more on the final artifact and
 let an operator confirm a downstream circuit visually (the block-level assertions above are
 per-block; the lamp check covered one bit).
+
+## 8. Final acceptance run (artifact `5a411337…`, commit `f31e7ce`)
+
+Environment: local test instances, Paper `26.3-258-main@9ee1fac`, Folia `26.3-26-ver/26.3.x@eca40f9`,
+Temurin `25.0.4+7`, test area `world` at `x=39985..40008, y=79, z=-32` plus `40500`, `42000`, `44000`, `44500` ranges.
+
+| Check | Paper | Folia | Evidence |
+|---|---|---|---|
+| Install + descriptor + checksum | PASS | PASS | `sha256sum` inside both containers matched the local build |
+| First boot files and defaults | PASS | PASS | `config.yml`, `messages.yml`, `modules/*`, `data/devices.yml`; `Asia/Shanghai` / `zh_CN` / module enabled state as configured |
+| Timezone vs host clock | PASS | PASS | `/rtime now` matched the host wall clock to the second (15:54:56, 16:00:17) |
+| PlaceholderAPI | PASS | PASS | `%realtime_time%`, `%realtime_time_24h%`, `%realtime_timezone%`, `%realtime_bcd%` (`155351`), `%realtime_bcd_bits%` (24 bits) |
+| `minute` device (16 outputs) | PASS | n/a (counters) | slot pattern `1000101010101010` matched the HHmm bits of `%realtime_bcd%` (`155513`) exactly |
+| `second` device (24 outputs) | PASS | PASS | HHmm slots matched exactly; a lamp above the seconds-LSB slot followed it every second (`slot20=0/1` ↔ `dark/LIT`) |
+| Invalid slot is never overwritten | PASS | PASS | placing stone in a slot produced `非红石线` counts and the stone was left intact |
+| Disable clears powered slots | PASS | PASS (counters) | 23 air + 1 stone (the stone slot) after disabling a 24-output device |
+| Retirement + cleanup | PASS | PASS | job UUID returned, queue drained, store back to empty on both |
+| `NEEDS_ATTENTION` + retry | PASS | PASS | detail `Expected AIR or REDSTONE_BLOCK, found STONE`; after correcting the block, `cleanup retry` drained the queue in 1 s |
+| Restart recovery | PASS | PASS (prior run) | a `NEEDS_ATTENTION` job survived a full stop/start with its detail intact |
+| Schema v1 → v3 migration | PASS | PASS | rewritten as schema 3 with `resolution: minute`, `backups/devices.yml.bak` kept the v1 file |
+| Reload failure safety | PASS | PASS | invalid timezone rejected with `旧配置继续生效`, `/rtime info` still showed `Asia/Shanghai` |
+| Shutdown cleanliness | PASS | PASS | clean `Disabling RealTime v0.1.0` / `RealTime disabled.` with no scheduler noise |
+| Performance | PASS | PASS | TPS 20.0 / 19.5 / 19.5 after startup (a transient 9.7 during chunk warm-up recovered within a minute) |
+| Unloaded-chunk deferral | NOT VERIFIED manually | NOT VERIFIED manually | the test chunk did not stay unloaded long enough to observe `待处理`; the CI cleanup smoke on both platforms asserts deferral, chunk-load retry and restart recovery every PR |
+
+Notes:
+- RCON was used for the run: Paper already had it enabled; Folia's `server.properties` was temporarily
+  re-enabled and has been restored to its original state (RCON off).
+- No credentials, addresses or player data are recorded here.
+- Operators should confirm one downstream circuit in game (the per-bit lamp check above covers the mechanism,
+  not a player-built circuit).
+
+## 9. Recommendation
+
+- **ACCEPTED for the local test servers** (`STAGING ACCEPTED`). Remaining before tagging `v0.1.0`:
+  one operator visual check of a real circuit, then the release tag (release environment + reviewer as
+  described in `docs/release/process.md`).
