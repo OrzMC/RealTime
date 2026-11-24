@@ -1,6 +1,8 @@
 package cn.orzmc.realtime.paper.command
 
-import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.DeviceLayout
+import cn.orzmc.realtime.core.device.LayoutAxis
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
@@ -124,6 +126,18 @@ class RealTimeCommandHandler(
                 .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
                 .map { it.id.toString() }
                 .filter { it.startsWith(prefix) }
+        }
+
+        if (subcommand == "create") {
+            val prefix = args.last().lowercase(Locale.ROOT)
+            val candidates =
+                when (args.size) {
+                    4 -> OutputResolution.entries.map { it.configValue }
+                    9 -> LayoutAxis.entries.map { it.configValue }
+                    in 10..11 -> CREATE_TAIL
+                    else -> emptyList()
+                }
+            return candidates.filter { it.startsWith(prefix) }
         }
 
         val canReadIds = canRead && subcommand == "info"
@@ -374,6 +388,17 @@ class RealTimeCommandHandler(
                 ),
             ),
         )
+        if (snapshot.lecternPlacements > 0 || snapshot.bookWrites > 0) {
+            target.sendMessage(
+                state.messages.render(
+                    "command.device.status.analog",
+                    mapOf(
+                        "lecterns" to snapshot.lecternPlacements.toString(),
+                        "books" to snapshot.bookWrites.toString(),
+                    ),
+                ),
+            )
+        }
     }
 
     private fun handleDeviceCreate(
@@ -383,8 +408,8 @@ class RealTimeCommandHandler(
         administration: DeviceAdministration,
     ) {
         if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
-        // args: <name> <minute|second> <world> <x> <y> <z> <x+|x-|z+|z-> [stride]
-        if (args.size !in 7..8) return sendUsage(target, state)
+        // args: <name> <minute|second> <world> <x> <y> <z> <x+|x-|z+|z-> [stride] [bcd|analog]
+        if (args.size !in 7..9) return sendUsage(target, state)
 
         val name = args[0]
         val resolution = OutputResolution.fromConfig(args[1].lowercase(Locale.ROOT))
@@ -401,21 +426,39 @@ class RealTimeCommandHandler(
         val x = args[3].toIntOrNull()
         val y = args[4].toIntOrNull()
         val z = args[5].toIntOrNull()
-        val axis = args[6].lowercase(Locale.ROOT)
-        val stride = args.getOrNull(7)?.toIntOrNull() ?: 1
-        if (x == null || y == null || z == null || axis !in AXES || stride !in 1..MAX_STRIDE) {
+        val axis = LayoutAxis.fromConfig(args[6])
+        val optional = args.drop(7)
+        val stride = optional.firstNotNullOfOrNull { it.toIntOrNull() }
+        val encodingValue = optional.firstOrNull { it.toIntOrNull() == null }
+        val encoding =
+            when {
+                encodingValue == null -> OutputEncoding.BCD
+                else ->
+                    OutputEncoding.fromConfig(encodingValue) ?: run {
+                        target.sendMessage(
+                            state.messages.render(
+                                "command.device.create.invalid-encoding",
+                                mapOf("value" to encodingValue),
+                            ),
+                        )
+                        return
+                    }
+            }
+        if (x == null || y == null || z == null || axis == null || (stride != null && stride !in 1..MAX_STRIDE)) {
             return sendUsage(target, state)
         }
+        if (optional.count { it.toIntOrNull() != null } > 1 || optional.size > 2) return sendUsage(target, state)
         if (!acquireEditSlot(target, state)) return
 
+        val layout =
+            if (stride == null) {
+                DeviceLayout.default(encoding)
+            } else {
+                DeviceLayout.default(encoding).copy(stride = stride)
+            }
         val outputs =
-            (0 until resolution.outputCount).map { bit ->
-                when (axis) {
-                    "x+" -> DeviceOutput(bit, x + bit * stride, y, z)
-                    "x-" -> DeviceOutput(bit, x - bit * stride, y, z)
-                    "z+" -> DeviceOutput(bit, x, y, z + bit * stride)
-                    else -> DeviceOutput(bit, x, y, z - bit * stride)
-                }
+            runCatching { layout.outputs(encoding, resolution, axis, x, y, z) }.getOrElse {
+                return sendUsage(target, state)
             }
 
         runCatching {
@@ -425,13 +468,15 @@ class RealTimeCommandHandler(
                     worldName = worldName,
                     resolution = resolution,
                     outputs = outputs,
+                    encoding = encoding,
                 ),
             )
         }.fold(
             onSuccess = { device ->
                 logger?.info(
                     "RealTime device '${device.name}' (${device.id}) created by ${target.actorName}: " +
-                        "${device.worldName} ${device.resolution.configValue} ${device.outputs.size} outputs " +
+                        "${device.worldName} ${device.resolution.configValue} ${device.encoding.configValue} " +
+                        "${device.outputs.size} outputs " +
                         "starting at ${device.outputs.first().x},${device.outputs.first().y},${device.outputs.first().z}",
                 )
                 target.sendMessage(
@@ -440,6 +485,7 @@ class RealTimeCommandHandler(
                         mapOf(
                             "name" to device.name,
                             "id" to device.id.toString(),
+                            "encoding" to device.encoding.configValue,
                             "resolution" to device.resolution.label,
                             "world" to device.worldName,
                             "count" to device.outputs.size.toString(),
@@ -611,6 +657,12 @@ class RealTimeCommandHandler(
         )
         target.sendMessage(
             state.messages.render(
+                "command.device.info.encoding",
+                mapOf("encoding" to device.encoding.configValue),
+            ),
+        )
+        target.sendMessage(
+            state.messages.render(
                 "command.device.info.outputs",
                 mapOf("count" to device.outputs.size.toString()),
             ),
@@ -770,8 +822,8 @@ class RealTimeCommandHandler(
     }
 
     companion object {
-        private val AXES = setOf("x+", "x-", "z+", "z-")
         private const val MAX_STRIDE = 16
+        private val CREATE_TAIL = listOf("bcd", "analog")
 
         const val COMMAND_PERMISSION = "realtime.command"
         const val VIEW_PERMISSION = "realtime.device.view"

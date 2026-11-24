@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import java.util.UUID
@@ -33,16 +34,18 @@ data class DeviceCleanupJob(
     val worldId: UUID?,
     val outputs: List<DeviceCleanupOutput>,
     val resolution: OutputResolution = OutputResolution.MINUTE,
+    val encoding: OutputEncoding = OutputEncoding.BCD,
 ) {
     init {
         require(deviceName.isNotBlank()) { "deviceName must not be blank" }
         require(worldName.isNotBlank()) { "worldName must not be blank" }
-        require(outputs.size == resolution.outputCount) {
-            "cleanup job for a ${resolution.configValue}-resolution device must contain exactly " +
-                "${resolution.outputCount} outputs (${resolution.label})"
+        val outputCount = encoding.outputCount(resolution)
+        require(outputs.size == outputCount) {
+            "cleanup job for a ${resolution.configValue}-resolution ${encoding.configValue} device must contain " +
+                "exactly $outputCount outputs (${resolution.label} ${encoding.configValue})"
         }
-        require(outputs.map { it.output.bitIndex }.toSet() == (0 until resolution.outputCount).toSet()) {
-            "cleanup outputs must contain each bit index from 0 through ${resolution.outputCount - 1} exactly once"
+        require(outputs.map { it.output.bitIndex }.toSet() == (0 until outputCount).toSet()) {
+            "cleanup outputs must contain each slot index from 0 through ${outputCount - 1} exactly once"
         }
         require(outputs.map { it.output }.distinct().size == outputs.size) {
             "cleanup output coordinates must be unique"
@@ -62,6 +65,7 @@ data class DeviceCleanupJob(
                 worldId = worldId,
                 outputs = device.outputs.map { output -> DeviceCleanupOutput(output) },
                 resolution = device.resolution,
+                encoding = device.encoding,
             )
     }
 }

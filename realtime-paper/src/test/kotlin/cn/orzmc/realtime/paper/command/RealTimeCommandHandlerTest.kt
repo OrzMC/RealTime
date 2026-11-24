@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.command
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -381,6 +382,68 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun deviceCreateAcceptsAnalogEncodingWithOneSlotPerDigit() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(
+            target,
+            arrayOf("device", "create", "clock", "second", "world", "100", "64", "7", "x+", "analog"),
+        )
+
+        val request = checkNotNull(administration.created)
+        assertEquals(OutputEncoding.ANALOG, request.encoding)
+        assertEquals(6, request.outputs.size)
+        // Analog lecterns keep one empty block between them by default.
+        assertEquals(listOf(100, 102, 104, 106, 108, 110), request.outputs.map { it.x })
+    }
+
+    @Test
+    fun deviceCreateAcceptsStrideAndEncodingInEitherOrder() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(
+            target,
+            arrayOf("device", "create", "clock", "minute", "world", "0", "64", "0", "z-", "3", "bcd"),
+        )
+
+        val request = checkNotNull(administration.created)
+        assertEquals(OutputEncoding.BCD, request.encoding)
+        assertEquals(16, request.outputs.size)
+        assertEquals(0, request.outputs.first().z)
+        assertEquals(-45, request.outputs.last().z)
+    }
+
+    @Test
+    fun deviceCreateDefaultsToBcdWithTheCompactLayout() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "minute", "world", "0", "64", "0", "x+"))
+
+        val request = checkNotNull(administration.created)
+        assertEquals(OutputEncoding.BCD, request.encoding)
+        assertEquals(16, request.outputs.size)
+        assertEquals(15, request.outputs.last().x)
+    }
+
+    @Test
+    fun deviceCreateRejectsUnknownEncoding() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "minute", "world", "0", "64", "0", "x+", "hex"))
+
+        assertEquals(null, administration.created)
+        assertTrue(target.messages.any { it.contains("hex") }, target.messages.toString())
+    }
+
+    @Test
     fun deviceCreateRejectsUnknownResolution() {
         val administration = RecordingDeviceAdministration(emptyList())
         val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
@@ -571,12 +634,14 @@ class RealTimeCommandHandlerTest {
                         "command.device.info.world" to "{prefix}{world}",
                         "command.device.info.enabled" to "{prefix}{enabled}",
                         "command.device.info.resolution" to "{prefix}resolution {resolution}",
+                        "command.device.info.encoding" to "{prefix}encoding {encoding}",
                         "command.device.info.outputs" to "{prefix}outputs {count}",
                         "command.device.info.output" to "{prefix}bit {bit} at {x}, {y}, {z}",
                         "command.device.state.enabled" to "enabled",
                         "command.device.state.disabled" to "disabled",
                         "command.device.create.success" to "{prefix}已创建 {name} {id} {count}",
                         "command.device.create.invalid-resolution" to "{prefix}分辨率 {value}",
+                        "command.device.create.invalid-encoding" to "{prefix}编码 {value}",
                         "command.device.create.limit" to "{prefix}上限 {limit}",
                         "command.device.create.area" to "{prefix}区域 {world} {x} {z}",
                         "command.device.create.conflict" to "{prefix}冲突 {x} {y} {z}",

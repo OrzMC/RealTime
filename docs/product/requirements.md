@@ -42,6 +42,11 @@ Each output slot is a power source: a logical 1 places a `minecraft:redstone_blo
 
 ### Future display extensions (P2)
 
+Devices also declare an `encoding`:
+
+- `bcd` (default): the layout above, one slot per bit.
+- `analog`: one slot per digit. Each slot is a lectern holding a 15-page book the plugin installs; the page index is the digit, so Paper's `floor(page / (pageCount - 1) * 14) + 1` yields `digit + 1` (levels 1–10) and a `second` device needs six lines instead of twenty-four. Disabling the device removes the book (level 0). Publishing a digit is one block-entity page write, and the plugin only ever pages through lecterns that still hold its own book; anything else is reported and left untouched.
+
 Potential follow-ups include date displays, seven-segment displays, multiple timezones, and extensible output encoders. These are not part of the initial scaffold.
 
 ## Configuration proposal

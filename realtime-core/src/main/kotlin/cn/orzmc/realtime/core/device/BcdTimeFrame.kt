@@ -45,4 +45,19 @@ data class BcdTimeFrame(
             }
 
     fun digits(resolution: OutputResolution): List<Int> = digits.subList(0, resolution.digitCount)
+
+    /**
+     * Desired slot values for [resolution], encoded as [encoding].
+     *
+     * BCD slots are `0` (empty) or `1` (power source); analog slots are the
+     * decimal digit itself (`0`–`9`). Both orders are hour → minute → second.
+     */
+    fun values(
+        encoding: OutputEncoding,
+        resolution: OutputResolution,
+    ): List<Int> =
+        when (encoding) {
+            OutputEncoding.BCD -> bits(resolution).map { if (it) 1 else 0 }
+            OutputEncoding.ANALOG -> digits(resolution)
+        }
 }

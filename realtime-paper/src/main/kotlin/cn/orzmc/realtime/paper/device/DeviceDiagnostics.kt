@@ -12,6 +12,10 @@ data class RedstoneDiagnosticsSnapshot(
     val powerChanges: Long,
     val unchangedOutputs: Long,
     val writeFailures: Long,
+    /** Lectern blocks placed for analog output slots. */
+    val lecternPlacements: Long = 0,
+    /** Books installed into (or removed from) analog output lecterns. */
+    val bookWrites: Long = 0,
 )
 
 fun interface DeviceDiagnostics {

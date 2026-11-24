@@ -1,11 +1,14 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
+import org.bukkit.block.Block
+import org.bukkit.block.Lectern
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
@@ -30,6 +33,7 @@ class DeviceCleanupManager(
     private val persistStore: (DeviceStoreSnapshot) -> Unit,
     private val replaceState: (RuntimeState) -> Unit,
     private val logger: Logger,
+    private val books: AnalogBookFactory = DeviceBooks,
 ) : Listener {
     private val inFlight = ConcurrentHashMap.newKeySet<CleanupKey>()
     private val pendingResults = ConcurrentLinkedQueue<CleanupResult>()
@@ -172,15 +176,9 @@ class DeviceCleanupManager(
 
                     val block = targetWorld.getBlockAt(output.x, output.y, output.z)
                     val outcome =
-                        when (block.type) {
-                            Material.AIR -> DeviceCleanupStatus.CLEARED to null
-                            Material.REDSTONE_BLOCK -> {
-                                block.setType(Material.AIR, true)
-                                DeviceCleanupStatus.CLEARED to null
-                            }
-                            else ->
-                                DeviceCleanupStatus.NEEDS_ATTENTION to
-                                    "Expected AIR or REDSTONE_BLOCK, found ${block.type}"
+                        when (currentJob.encoding) {
+                            OutputEncoding.BCD -> clearBinaryOutput(block)
+                            OutputEncoding.ANALOG -> clearAnalogOutput(block, currentJob.deviceId)
                         }
                     pendingResults.add(
                         CleanupResult(
@@ -206,6 +204,48 @@ class DeviceCleanupManager(
                 "Unable to schedule deferred cleanup for device '${job.deviceName}' output ${output.bitIndex}: ${exception.message}",
             )
         }
+    }
+
+    /**
+     * BCD slots hold power sources, so cleanup only removes a redstone block.
+     *
+     * @return the cleanup status and an optional human-readable detail
+     */
+    private fun clearBinaryOutput(block: Block): Pair<DeviceCleanupStatus, String?> =
+        when (block.type) {
+            Material.AIR -> DeviceCleanupStatus.CLEARED to null
+            Material.REDSTONE_BLOCK -> {
+                block.setType(Material.AIR, true)
+                DeviceCleanupStatus.CLEARED to null
+            }
+            else ->
+                DeviceCleanupStatus.NEEDS_ATTENTION to
+                    "Expected AIR or REDSTONE_BLOCK, found ${block.type}"
+        }
+
+    /**
+     * Analog slots are lecterns installed by the plugin, recognised by the book
+     * they hold. A lectern that no longer carries this device's book is left
+     * alone and reported instead of being destroyed.
+     *
+     * @return the cleanup status and an optional human-readable detail
+     */
+    private fun clearAnalogOutput(
+        block: Block,
+        deviceId: UUID,
+    ): Pair<DeviceCleanupStatus, String?> {
+        if (block.type == Material.AIR) return DeviceCleanupStatus.CLEARED to null
+        if (block.type != Material.LECTERN) {
+            return DeviceCleanupStatus.NEEDS_ATTENTION to
+                "Expected AIR or LECTERN, found ${block.type}"
+        }
+        val lectern = block.getState(false) as? Lectern
+        if (lectern == null || !books.holdsDeviceBook(lectern.inventory, deviceId)) {
+            return DeviceCleanupStatus.NEEDS_ATTENTION to
+                "Lectern does not hold the RealTime book for this device, left untouched"
+        }
+        block.setType(Material.AIR, true)
+        return DeviceCleanupStatus.CLEARED to null
     }
 
     private fun scheduleResultDrain() {
