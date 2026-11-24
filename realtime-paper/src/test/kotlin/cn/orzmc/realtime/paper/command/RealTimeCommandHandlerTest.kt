@@ -319,7 +319,7 @@ class RealTimeCommandHandlerTest {
         val admin = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
         val readOnly = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
 
-        assertEquals(listOf("remove"), handler.complete(admin, arrayOf("device", "")))
+        assertEquals(listOf("remove"), handler.complete(admin, arrayOf("device", "rem")) )
         assertEquals(
             listOf(disabled.id.toString()),
             handler.complete(admin, arrayOf("device", "remove", "")),
