@@ -17,6 +17,7 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR11 | Admin-only disabled-device retirement command | Complete — PR #23 merged and Paper/Folia runtime smoke passed | PR10 |
 | PR12 | Second-resolution output (HHmmss, 24 outputs) and schema v3 | Implemented — pending verification and PR | PR5, PR10, PR11 |
 | PR13 | Real power-source outputs (`redstone_block`/air) + resolution-safe enable/disable | Implemented — verified on the local test instances | PR12 |
+| PR14 | Tick-level detection, diff-only and chunk-batched output writes | Implemented — verified locally | PR13 |
 
 ## Milestones
 

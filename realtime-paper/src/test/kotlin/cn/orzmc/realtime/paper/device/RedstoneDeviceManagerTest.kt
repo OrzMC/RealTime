@@ -20,7 +20,6 @@ import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.PluginManager
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
@@ -36,170 +35,181 @@ import java.util.logging.Logger
 
 class RedstoneDeviceManagerTest {
     @Test
-    fun `writes powered output only after loaded chunk check`() {
-        val fixture = fixture(chunkLoaded = true)
+    fun `refresh task runs every tick so a second change is picked up immediately`() {
+        val fixture = fixture()
         fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
 
-        assertEquals(16, fixture.regionCallbacks.size)
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
-
-        assertTrue(fixture.blockAccessed())
-        assertEquals(Material.REDSTONE_BLOCK, fixture.blockType())
-        assertTrue(fixture.physicsApplied())
-        assertEquals(1, fixture.manager.snapshot().outputChecks)
-        assertEquals(1, fixture.manager.snapshot().powerChanges)
+        assertEquals(1L, fixture.periodicInitialDelay())
+        assertEquals(1L, fixture.periodicPeriod())
     }
 
     @Test
-    fun `refreshes outputs when their chunk loads`() {
-        val fixture = fixture(chunkLoaded = true)
+    fun `first refresh writes every slot and batches one region task per chunk`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND)
+        fixture.startAndRefresh()
+
+        // 24 outputs at x=0..23 span two chunks, so two region tasks instead of 24.
+        assertEquals(2, fixture.pendingRegions())
+
+        fixture.runPendingRegions()
+
+        val expectedPowered =
+            fixture
+                .expectedBits()
+                .withIndex()
+                .filter { it.value }
+                .map { it.index }
+                .toSet()
+        for (bit in 0 until 24) {
+            assertEquals(
+                if (bit in expectedPowered) Material.REDSTONE_BLOCK else Material.AIR,
+                fixture.typeAt(bit),
+                "slot $bit",
+            )
+        }
+        assertEquals(expectedPowered.size.toLong(), fixture.manager.snapshot().powerChanges)
+        assertEquals((24 - expectedPowered.size).toLong(), fixture.manager.snapshot().unchangedOutputs)
+        assertTrue(fixture.physicsWrites() >= expectedPowered.size)
+    }
+
+    @Test
+    fun `next second only schedules the slots whose bit changed`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND)
+        fixture.startAndRefresh()
+        fixture.runPendingRegions()
+        val before = fixture.manager.snapshot().powerChanges
+
+        // 23:59:00 -> 23:59:01 only flips the second-ones LSB (bit 20).
+        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
+        fixture.tick()
+
+        assertEquals(1, fixture.pendingRegions())
+        fixture.runPendingRegions()
+        assertEquals(Material.REDSTONE_BLOCK, fixture.typeAt(20))
+        assertEquals(before + 1, fixture.manager.snapshot().powerChanges)
+    }
+
+    @Test
+    fun `unchanged second does not schedule any work`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND)
+        fixture.startAndRefresh()
+        fixture.runPendingRegions()
+
+        fixture.tick()
+
+        assertEquals(0, fixture.pendingRegions())
+    }
+
+    @Test
+    fun `minute devices ignore second changes until the minute rolls over`() {
+        val fixture = fixture(resolution = OutputResolution.MINUTE)
+        fixture.startAndRefresh()
+        // 16 minute slots all live in one chunk.
+        assertEquals(1, fixture.pendingRegions())
+        fixture.runPendingRegions()
+
+        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
+        fixture.tick()
+        assertEquals(0, fixture.pendingRegions())
+
+        fixture.setInstant(Instant.parse("2026-11-23T16:00:00Z"))
+        fixture.tick()
+        assertEquals(1, fixture.pendingRegions())
+    }
+
+    @Test
+    fun `periodic full check notices a slot edited by a player`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND)
+        fixture.startAndRefresh()
+        fixture.runPendingRegions()
+
+        // A player drops a stone into a slot the plugin owns.
+        fixture.setType(0, Material.STONE)
+        val invalidBefore = fixture.manager.snapshot().invalidOutputBlocks
+
+        fixture.setInstant(Instant.parse("2026-11-23T15:59:31Z"))
+        fixture.tick()
+        fixture.runPendingRegions()
+
+        assertEquals(Material.STONE, fixture.typeAt(0), "player block must survive")
+        assertTrue(fixture.manager.snapshot().invalidOutputBlocks > invalidBefore)
+    }
+
+    @Test
+    fun `unloaded chunk is skipped without touching blocks`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND, chunkLoaded = false)
+        fixture.startAndRefresh()
+
+        fixture.runPendingRegions()
+
+        assertEquals(0, fixture.blockAccesses())
+        assertEquals(24L, fixture.manager.snapshot().unloadedChunkSkips)
+    }
+
+    @Test
+    fun `chunk load applies the current frame to that chunk only`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND)
 
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
 
-        assertTrue(fixture.blockAccessed())
-        assertTrue(fixture.physicsApplied())
+        val expected = fixture.expectedBits()
+        for (bit in 0..15) {
+            assertEquals(
+                if (expected[bit]) Material.REDSTONE_BLOCK else Material.AIR,
+                fixture.typeAt(bit),
+                "slot $bit",
+            )
+        }
+        for (bit in 16..23) {
+            assertEquals(Material.AIR, fixture.typeAt(bit), "slot $bit must stay untouched")
+        }
     }
 
     @Test
-    fun `clears disabled device outputs when their chunk loads`() {
-        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialType = Material.REDSTONE_BLOCK)
+    fun `disabled device outputs are cleared when their chunk loads`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND, deviceEnabled = false, initialType = Material.REDSTONE_BLOCK)
 
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
 
-        assertTrue(fixture.blockAccessed())
-        assertEquals(Material.AIR, fixture.blockType())
-        assertTrue(fixture.physicsApplied())
-    }
-
-    @Test
-    fun `clears disabled device outputs during scheduled refresh`() {
-        val fixture = fixture(chunkLoaded = true, deviceEnabled = false, initialType = Material.REDSTONE_BLOCK)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
-
-        assertTrue(fixture.blockAccessed())
-        assertEquals(Material.AIR, fixture.blockType())
-        assertTrue(fixture.physicsApplied())
-    }
-
-    @Test
-    fun `counts outputs that already have the expected power`() {
-        val fixture = fixture(chunkLoaded = true, initialType = Material.REDSTONE_BLOCK)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
-
-        assertEquals(1, fixture.manager.snapshot().unchangedOutputs)
-        assertEquals(0, fixture.manager.snapshot().powerChanges)
-    }
-
-    @Test
-    fun `counts invalid output blocks`() {
-        val fixture = fixture(chunkLoaded = true, initialType = Material.STONE)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
-
-        assertEquals(1, fixture.manager.snapshot().invalidOutputBlocks)
-    }
-
-    @Test
-    fun `counts caught output write failures`() {
-        val fixture = fixture(chunkLoaded = true, failWrite = true)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
-
-        assertEquals(1, fixture.manager.snapshot().writeFailures)
+        for (bit in 0..15) {
+            assertEquals(Material.AIR, fixture.typeAt(bit), "slot $bit")
+        }
     }
 
     @Test
     fun `stale scheduled outputs are cleared instead of being repowered`() {
-        val fixture = fixture(chunkLoaded = true)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
+        val fixture = fixture(resolution = OutputResolution.SECOND)
+        fixture.startAndRefresh()
+
         fixture.replaceState(fixture.initialState.copy(devices = emptyList()))
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+        fixture.runPendingRegions()
 
-        assertEquals(Material.AIR, fixture.blockType())
-        assertEquals(1, fixture.manager.snapshot().staleOutputUpdates)
+        for (bit in 0 until 24) {
+            assertEquals(Material.AIR, fixture.typeAt(bit), "slot $bit")
+        }
+        assertTrue(fixture.manager.snapshot().staleOutputUpdates >= 24)
     }
 
     @Test
-    fun `skips unloaded chunk without accessing its blocks`() {
-        val fixture = fixture(chunkLoaded = false)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        fixture.regionCallbacks[1].accept(fixture.scheduledTask)
+    fun `caught write failures are counted`() {
+        val fixture = fixture(resolution = OutputResolution.SECOND, failWrite = true)
+        fixture.startAndRefresh()
+        fixture.runPendingRegions()
 
-        assertFalse(fixture.blockAccessed())
-        assertEquals(Material.AIR, fixture.blockType())
-        assertEquals(1, fixture.manager.snapshot().unloadedChunkSkips)
-    }
-
-    @Test
-    fun `second resolution devices expose twenty four outputs`() {
-        val fixture = fixture(chunkLoaded = true, resolution = OutputResolution.SECOND)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-
-        assertEquals(24, fixture.regionCallbacks.size)
-        assertEquals(24, fixture.manager.snapshot().configuredOutputs)
-    }
-
-    @Test
-    fun `second resolution devices refresh every second and power the changed second bits`() {
-        val fixture = fixture(chunkLoaded = true, resolution = OutputResolution.SECOND)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        assertEquals(24, fixture.regionCallbacks.size)
-
-        // At 23:59:00 the second ones digit is 0, so bit 20 stays unpowered.
-        fixture.regionCallbacks[20].accept(fixture.scheduledTask)
-        assertEquals(Material.AIR, fixture.blockType())
-
-        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
-        fixture.tick()
-        assertEquals(48, fixture.regionCallbacks.size)
-
-        // Second ones digit is now 1, so bit 20 (LSB) must be powered.
-        fixture.regionCallbacks[44].accept(fixture.scheduledTask)
-        assertEquals(Material.REDSTONE_BLOCK, fixture.blockType())
-        assertEquals(1, fixture.manager.snapshot().powerChanges)
-    }
-
-    @Test
-    fun `minute resolution devices are not rewritten while only the second changes`() {
-        val fixture = fixture(chunkLoaded = true)
-        fixture.manager.start(fixture.plugin)
-        fixture.globalCallback()!!.accept(fixture.scheduledTask)
-        assertEquals(16, fixture.regionCallbacks.size)
-
-        fixture.tick()
-        assertEquals(16, fixture.regionCallbacks.size)
-
-        fixture.setInstant(Instant.parse("2026-11-23T15:59:01Z"))
-        fixture.tick()
-        assertEquals(16, fixture.regionCallbacks.size)
-
-        fixture.setInstant(Instant.parse("2026-11-23T16:00:00Z"))
-        fixture.tick()
-        assertEquals(32, fixture.regionCallbacks.size)
+        assertTrue(fixture.manager.snapshot().writeFailures > 0)
     }
 
     private fun fixture(
-        chunkLoaded: Boolean,
+        chunkLoaded: Boolean = true,
         deviceEnabled: Boolean = true,
         initialType: Material = Material.AIR,
         failWrite: Boolean = false,
         resolution: OutputResolution = OutputResolution.MINUTE,
     ): Fixture {
         val worldName = "world"
-        var currentType = initialType
-        var blockAccessed = false
-        var physicsApplied = false
+        val types = mutableMapOf<Int, Material>()
+        var accesses = 0
+        var physicsWrites = 0
         var currentInstant = Instant.parse("2026-11-23T15:59:00Z")
         val clock =
             object : Clock() {
@@ -210,27 +220,28 @@ class RedstoneDeviceManagerTest {
                 override fun instant(): Instant = currentInstant
             }
 
-        val block =
-            fake<Block> { method, args ->
+        fun blockAt(x: Int): Block =
+            fake { method, args ->
                 when (method.name) {
-                    "getType" -> currentType
+                    "getType" -> types.getOrDefault(x, initialType)
                     "setType" -> {
                         if (failWrite) throw IllegalStateException("simulated block write failure")
-                        currentType = args!![0] as Material
-                        physicsApplied = args!![1] as Boolean
+                        types[x] = args!![0] as Material
+                        if (args[1] as Boolean) physicsWrites += 1
                         null
                     }
                     else -> null
                 }
             }
+
         val world =
-            fake<World> { method, _ ->
+            fake<World> { method, args ->
                 when (method.name) {
                     "getName" -> worldName
                     "isChunkLoaded" -> chunkLoaded
                     "getBlockAt" -> {
-                        blockAccessed = true
-                        block
+                        accesses += 1
+                        blockAt(args!![0] as Int)
                     }
                     else -> null
                 }
@@ -256,12 +267,18 @@ class RedstoneDeviceManagerTest {
             }
         var globalCallback: Consumer<ScheduledTask>? = null
         var periodicCallback: Consumer<ScheduledTask>? = null
+        var periodicInitialDelay = -1L
+        var periodicPeriod = -1L
         val scheduledTask = fakeScheduledTask()
         val globalScheduler =
             fake<GlobalRegionScheduler> { method, args ->
                 when (method.name) {
                     "run" -> globalCallback = args!![1] as Consumer<ScheduledTask>
-                    "runAtFixedRate" -> periodicCallback = args!![1] as Consumer<ScheduledTask>
+                    "runAtFixedRate" -> {
+                        periodicCallback = args!![1] as Consumer<ScheduledTask>
+                        periodicInitialDelay = args[2] as Long
+                        periodicPeriod = args[3] as Long
+                    }
                 }
                 scheduledTask
             }
@@ -288,12 +305,7 @@ class RedstoneDeviceManagerTest {
         var runtimeState =
             RuntimeState(
                 configuration = configuration,
-                timeService =
-                    ClockRealTimeService(
-                        clock,
-                        configuration.zoneId,
-                        configuration.locale,
-                    ),
+                timeService = ClockRealTimeService(clock, configuration.zoneId, configuration.locale),
                 messages = MessageCatalog(emptyMap()),
                 redstoneConfiguration = RedstoneConfiguration(enabled = true),
                 devices =
@@ -305,7 +317,7 @@ class RedstoneDeviceManagerTest {
                             enabled = deviceEnabled,
                             outputs =
                                 (0 until resolution.outputCount).map { bit ->
-                                    DeviceOutput(bit, bit * 2, 64, 0)
+                                    DeviceOutput(bit, bit, 64, 0)
                                 },
                             resolution = resolution,
                         ),
@@ -323,33 +335,53 @@ class RedstoneDeviceManagerTest {
             plugin = plugin,
             manager = manager,
             chunkLoadEvent = chunkLoadEvent,
-            globalCallback = { globalCallback },
-            regionCallbacks = regionCallbacks,
-            scheduledTask = scheduledTask,
-            blockAccessed = { blockAccessed },
-            blockType = { currentType },
-            physicsApplied = { physicsApplied },
+            periodicInitialDelay = { periodicInitialDelay },
+            periodicPeriod = { periodicPeriod },
+            startAndRefresh = {
+                manager.start(plugin)
+                globalCallback!!.accept(scheduledTask)
+            },
+            tick = { periodicCallback!!.accept(scheduledTask) },
+            pendingRegions = { regionCallbacks.size },
+            runPendingRegions = {
+                val pending = regionCallbacks.toList()
+                regionCallbacks.clear()
+                pending.forEach { it.accept(scheduledTask) }
+            },
+            typeAt = { types.getOrDefault(it, initialType) },
+            setType = { bit, material -> types[bit] = material },
+            blockAccesses = { accesses },
+            physicsWrites = { physicsWrites },
+            expectedBits = {
+                val snapshot = runtimeState.timeService.snapshot()
+                cn.orzmc.realtime.core.device.BcdTimeEncoder
+                    .encode(snapshot.zonedDateTime.toLocalTime())
+                    .bits(resolution)
+            },
             initialState = runtimeState,
             replaceState = { runtimeState = it },
             setInstant = { currentInstant = it },
-            tick = { periodicCallback!!.accept(scheduledTask) },
         )
     }
 
-    private data class Fixture(
+    private class Fixture(
         val plugin: Plugin,
         val manager: RedstoneDeviceManager,
         val chunkLoadEvent: ChunkLoadEvent,
-        val globalCallback: () -> Consumer<ScheduledTask>?,
-        val regionCallbacks: List<Consumer<ScheduledTask>>,
-        val scheduledTask: ScheduledTask,
-        val blockAccessed: () -> Boolean,
-        val blockType: () -> Material,
-        val physicsApplied: () -> Boolean,
+        val periodicInitialDelay: () -> Long,
+        val periodicPeriod: () -> Long,
+        val startAndRefresh: () -> Unit,
+        val tick: () -> Unit,
+        val pendingRegions: () -> Int,
+        val runPendingRegions: () -> Unit,
+        val typeAt: (Int) -> Material,
+        val setType: (Int, Material) -> Unit,
+        val blockAccesses: () -> Int,
+        val physicsWrites: () -> Int,
+        val expectedBits: () -> List<Boolean>,
         val initialState: RuntimeState,
         val replaceState: (RuntimeState) -> Unit,
         val setInstant: (Instant) -> Unit,
-        val tick: () -> Unit,
     )
 
     private fun fakeScheduledTask(): ScheduledTask =

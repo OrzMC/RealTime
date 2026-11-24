@@ -323,20 +323,25 @@ probe_slots() {
   POWERED_SLOTS=0
   EMPTY_SLOTS=0
   UNKNOWN_SLOTS=0
-  local bit x out
+  local bit x out attempt
   for bit in $(seq 0 23); do
     x=$((base + bit))
-    out="$(rcon execute if block "$x" 100 0 minecraft:redstone_block run list)"
-    if [[ -n "$out" ]]; then
-      POWERED_SLOTS=$((POWERED_SLOTS + 1))
-      continue
-    fi
-    out="$(rcon execute if block "$x" 100 0 minecraft:air run list)"
-    if [[ -n "$out" ]]; then
-      EMPTY_SLOTS=$((EMPTY_SLOTS + 1))
-    else
-      UNKNOWN_SLOTS=$((UNKNOWN_SLOTS + 1))
-    fi
+    for attempt in 1 2 3; do
+      out="$(rcon execute if block "$x" 100 0 minecraft:redstone_block run list)"
+      if [[ -n "$out" ]]; then
+        POWERED_SLOTS=$((POWERED_SLOTS + 1))
+        break
+      fi
+      out="$(rcon execute if block "$x" 100 0 minecraft:air run list)"
+      if [[ -n "$out" ]]; then
+        EMPTY_SLOTS=$((EMPTY_SLOTS + 1))
+        break
+      fi
+      # The slot may have toggled between the two probes; re-read it.
+      if [[ "$attempt" == "3" ]]; then
+        UNKNOWN_SLOTS=$((UNKNOWN_SLOTS + 1))
+      fi
+    done
   done
 }
 
