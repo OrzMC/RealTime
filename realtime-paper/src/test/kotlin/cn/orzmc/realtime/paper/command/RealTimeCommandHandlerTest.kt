@@ -303,7 +303,14 @@ class RealTimeCommandHandlerTest {
     @Test
     fun deviceRemovalTabCompletionIncludesOnlyDisabledDevicesForAdmins() {
         val enabled = device()
-        val disabled = enabled.copy(id = UUID.randomUUID(), enabled = false)
+        val disabled =
+            RedstoneDevice(
+                id = UUID.randomUUID(),
+                name = enabled.name,
+                worldName = enabled.worldName,
+                enabled = false,
+                outputs = enabled.outputs,
+            )
         val handler =
             handler(
                 deviceAdministration = RecordingDeviceAdministration(listOf(enabled, disabled)),
