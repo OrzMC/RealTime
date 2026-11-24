@@ -377,7 +377,8 @@ class RealTimeCommandHandlerTest {
         assertEquals(24, request.outputs.size)
         assertEquals(100, request.outputs.first().x)
         assertEquals(7, request.outputs.first().z)
-        assertEquals(146, request.outputs.last().x)
+        // Stride 2 plus a one-block gap after every four bits: 23 * 2 + 5.
+        assertEquals(151, request.outputs.last().x)
         assertTrue(target.messages.any { it.contains("created") || it.contains("已创建") })
     }
 
@@ -414,11 +415,12 @@ class RealTimeCommandHandlerTest {
         assertEquals(OutputEncoding.BCD, request.encoding)
         assertEquals(16, request.outputs.size)
         assertEquals(0, request.outputs.first().z)
-        assertEquals(-45, request.outputs.last().z)
+        // 15 * 3 plus three digit gaps keeps the BCD grouping even with an explicit stride.
+        assertEquals(-48, request.outputs.last().z)
     }
 
     @Test
-    fun deviceCreateDefaultsToBcdWithTheCompactLayout() {
+    fun deviceCreateDefaultsToBcdWithOneBlockGapsAndDigitGroups() {
         val administration = RecordingDeviceAdministration(emptyList())
         val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
         val handler = handler(deviceAdministration = administration)
@@ -428,7 +430,10 @@ class RealTimeCommandHandlerTest {
         val request = checkNotNull(administration.created)
         assertEquals(OutputEncoding.BCD, request.encoding)
         assertEquals(16, request.outputs.size)
-        assertEquals(15, request.outputs.last().x)
+        assertEquals(
+            listOf(0, 2, 4, 6, 9, 11, 13, 15, 18, 20, 22, 24, 27, 29, 31, 33),
+            request.outputs.map { it.x },
+        )
     }
 
     @Test
