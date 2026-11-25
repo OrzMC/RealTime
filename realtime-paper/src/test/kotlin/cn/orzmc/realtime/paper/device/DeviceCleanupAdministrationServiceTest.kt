@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -7,6 +8,7 @@ import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -87,6 +89,50 @@ class DeviceCleanupAdministrationServiceTest {
     }
 
     @Test
+    fun `retry requeues attention demo blocks of a demo build`() {
+        val demo = device(demo = true)
+        val original = DeviceCleanupJob.fromDevice(demo, UUID.randomUUID())
+        val job =
+            original.copy(
+                display =
+                    original.display.mapIndexed { index, block ->
+                        when (index) {
+                            0 ->
+                                DeviceCleanupDemo(
+                                    block.block,
+                                    DeviceCleanupStatus.NEEDS_ATTENTION,
+                                    "Expected AIR or minecraft:redstone_lamp, found DARK_OAK_LOG",
+                                )
+                            else -> DeviceCleanupDemo(block.block, DeviceCleanupStatus.CLEARED)
+                        }
+                    },
+            )
+        val initial = state(job)
+        var active = initial
+        var persistCount = 0
+        var refreshCount = 0
+        val service =
+            DeviceCleanupAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistStore = {
+                    persistCount += 1
+                    active = active.copy(cleanupJobs = it.cleanupJobs)
+                },
+                replaceState = { active = it },
+                requestCleanup = { refreshCount += 1 },
+            )
+
+        val retried = service.retry(job.id)
+
+        assertEquals(DeviceCleanupStatus.PENDING, retried.display.first().status)
+        assertNull(retried.display.first().detail)
+        assertEquals(DeviceCleanupStatus.CLEARED, retried.display[1].status)
+        assertEquals(1, persistCount)
+        assertEquals(1, refreshCount)
+    }
+
+    @Test
     fun `retry rejects jobs without attention outputs`() {
         val job = DeviceCleanupJob.fromDevice(device(), UUID.randomUUID())
         val service =
@@ -148,7 +194,7 @@ class DeviceCleanupAdministrationServiceTest {
         )
     }
 
-    private fun device() =
+    private fun device(demo: Boolean = false) =
         RedstoneDevice(
             id = UUID.randomUUID(),
             name = "clock",
@@ -157,6 +203,15 @@ class DeviceCleanupAdministrationServiceTest {
             outputs =
                 (0 until 16).map { bit ->
                     DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
+                },
+            demoBlocks =
+                if (demo) {
+                    listOf(
+                        DemoBlock(9999, 65, 0, "minecraft:redstone_lamp"),
+                        DemoBlock(9999, 65, 2, "minecraft:redstone_lamp"),
+                    )
+                } else {
+                    emptyList()
                 },
         )
 

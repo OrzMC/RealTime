@@ -271,8 +271,18 @@ class RealTimeCommandHandler(
                                 "name" to job.deviceName,
                                 "id" to job.id.toString(),
                                 "world" to job.worldName,
-                                "pending" to job.outputs.count { it.status == DeviceCleanupStatus.PENDING }.toString(),
-                                "attention" to job.outputs.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }.toString(),
+                                // Demo display blocks belong to the same job, so the queue
+                                // summary must count them as well.
+                                "pending" to
+                                    (
+                                        job.outputs.count { it.status == DeviceCleanupStatus.PENDING } +
+                                            job.display.count { it.status == DeviceCleanupStatus.PENDING }
+                                    ).toString(),
+                                "attention" to
+                                    (
+                                        job.outputs.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } +
+                                            job.display.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }
+                                    ).toString(),
                             ),
                         ),
                     )

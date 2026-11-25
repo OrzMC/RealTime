@@ -42,9 +42,10 @@ class DeviceCleanupAdministrationService(
             val job =
                 current.cleanupJobs.firstOrNull { it.id == jobId }
                     ?: throw DeviceCleanupJobNotFoundException(jobId)
-            if (job.outputs.none { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }) {
-                throw DeviceCleanupJobHasNoAttentionOutputsException(jobId)
-            }
+            val hasAttention =
+                job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } ||
+                    job.display.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }
+            if (!hasAttention) throw DeviceCleanupJobHasNoAttentionOutputsException(jobId)
 
             val retriedJob =
                 job.copy(
@@ -54,6 +55,16 @@ class DeviceCleanupAdministrationService(
                                 DeviceCleanupOutput(output.output)
                             } else {
                                 output
+                            }
+                        },
+                    // Demo display blocks are part of the same job and must be
+                    // retried too, otherwise the job can never become CLEARED.
+                    display =
+                        job.display.map { demo ->
+                            if (demo.status == DeviceCleanupStatus.NEEDS_ATTENTION) {
+                                DeviceCleanupDemo(demo.block)
+                            } else {
+                                demo
                             }
                         },
                 )

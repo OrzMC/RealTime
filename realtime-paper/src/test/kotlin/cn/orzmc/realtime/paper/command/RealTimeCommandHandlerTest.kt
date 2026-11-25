@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.command
 
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
@@ -8,6 +9,7 @@ import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupDemo
 import cn.orzmc.realtime.paper.device.DeviceCleanupJob
 import cn.orzmc.realtime.paper.device.DeviceCleanupOutput
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
@@ -275,6 +277,31 @@ class RealTimeCommandHandlerTest {
 
         assertEquals(1, administration.retryCount)
         assertTrue(target.messages.single().contains("retry queued"))
+    }
+
+    @Test
+    fun cleanupListCountsDemoDisplayBlocks() {
+        val job =
+            cleanupJob().let { base ->
+                base.copy(
+                    display =
+                        listOf(
+                            DeviceCleanupDemo(DemoBlock(9999, 65, 0, "minecraft:redstone_lamp")),
+                            DeviceCleanupDemo(
+                                DemoBlock(9999, 65, 2, "minecraft:redstone_lamp"),
+                                DeviceCleanupStatus.NEEDS_ATTENTION,
+                                "Expected AIR or minecraft:redstone_lamp, found DARK_OAK_LOG",
+                            ),
+                        ),
+                )
+            }
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.VIEW_PERMISSION))
+        val handler = handler(cleanupAdministration = RecordingCleanupAdministration(listOf(job)))
+
+        handler.execute(target, arrayOf("device", "cleanup", "list"))
+
+        // 16 slots (all PENDING) + 1 pending display block, 1 display block needs attention.
+        assertTrue(target.messages.any { it.contains("pending 17") && it.contains("attention 1") }, target.messages.toString())
     }
 
     @Test

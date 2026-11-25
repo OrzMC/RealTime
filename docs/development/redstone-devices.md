@@ -98,6 +98,10 @@ cleanup-jobs:
       - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
 ```
 
+A job created by a demo device also carries a `display:` list, and both lists count towards the `pending` / `attention`
+numbers printed by `device cleanup list`; `device cleanup retry <job-uuid>` requeues every `NEEDS_ATTENTION` entry of
+the job (slots **and** display blocks), because a job only disappears once all of them are cleared.
+
 The complete job contains every output of the retired device (16/24 for a BCD `minute`/`second` device, 4/6 for an analog one). Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service. PR12 adds second resolution. PR16 adds the optional analog (lectern) encoding and schema v4; PR17 changes the default layout to one-block gaps with four-bit digit groups; PR18 adds `device demo` teaching builds and schema v5.
 
 ## BCD output layout
