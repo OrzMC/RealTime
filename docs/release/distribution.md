@@ -221,6 +221,7 @@ gh run watch
 | Modrinth `401` | PAT 缺 `CREATE_VERSION` 或已撤销 | 重建 PAT |
 | Modrinth `404`（匿名请求） | 项目是 **draft**（还没上传任何版本） | 正常；第一次上传版本后即公开 |
 | Modrinth `404`（带令牌） | 项目 id 写错，或令牌账号不在该项目团队里 | 用 dashboard 里的 ID/slug；确认账号 |
+| 演练里 `404` 只报 info | 演练环境拿不到令牌，匿名看 draft 项目就是 404，无法区分"id 错"与"draft" | 正常；真实 tag 运行带令牌，会给出确定结论 |
 | Modrinth `400` + `version_number` 冲突 | 该版本号已存在（重跑同一次发布） | 不要重跑上传步骤；补一个新 patch 版本，或先在平台删除草稿版本 |
 | Modrinth 拒绝 loaders/game_versions | payload 与项目设置不一致 | 先在项目设置里允许 `folia` 与 `26.3` |
 | 上传成功但平台上显示"Folia 不支持" | 只看 Hangar 平台标签 | 以 `plugin.yml` 的 `folia-supported` 为准；Hangar 侧在描述里写明 |
