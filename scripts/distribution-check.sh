@@ -138,10 +138,25 @@ if [[ "$REMOTE" -eq 1 ]]; then
   fi
 
   if [[ -n "${MODRINTH_PROJECT_ID:-}" ]]; then
-    if curl -fsS --max-time 20 -A "$ua" "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT_ID" >/dev/null; then
-      pass "Modrinth project $MODRINTH_PROJECT_ID exists"
+    anon="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -A "$ua" \
+      "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT_ID" || true)"
+    if [[ -n "${MODRINTH_TOKEN:-}" ]]; then
+      authed="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -A "$ua" \
+        -H "Authorization: $MODRINTH_TOKEN" \
+        "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT_ID" || true)"
     else
-      fail "Modrinth project $MODRINTH_PROJECT_ID is not visible (wrong slug/id or not published)"
+      authed=""
+    fi
+    if [[ "$authed" == "200" ]]; then
+      if [[ "$anon" == "200" ]]; then
+        pass "Modrinth project $MODRINTH_PROJECT_ID exists and is public"
+      else
+        pass "Modrinth project $MODRINTH_PROJECT_ID exists but is still a draft (only the team/token can see it; the first uploaded version publishes it)"
+      fi
+    elif [[ "$anon" == "200" ]]; then
+      pass "Modrinth project $MODRINTH_PROJECT_ID exists and is public"
+    else
+      fail "Modrinth project $MODRINTH_PROJECT_ID is not visible (anonymous HTTP ${anon:-none}, token HTTP ${authed:-none}); wrong id, or the token's account is not on the team"
     fi
   else
     info "MODRINTH_PROJECT_ID unset; skipping project lookup"
@@ -166,14 +181,23 @@ if [[ "$REMOTE" -eq 1 ]]; then
       info "HANGAR_API_TOKEN unset; skipping token check"
     fi
     if [[ -n "${MODRINTH_TOKEN:-}" ]]; then
-      # Modrinth answers 200 for a valid PAT and 401 for a missing/invalid one.
-      code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
-        -A "$ua_tokens" -H "Authorization: $MODRINTH_TOKEN" \
-        https://api.modrinth.com/v2/user || true)"
-      if [[ "$code" == "200" ]]; then
-        pass "MODRINTH_TOKEN is accepted by Modrinth"
+      # Do not probe /v2/user: that route requires the USER_READ scope and a
+      # publishing PAT intentionally does not have it, so it answers 401 for a
+      # valid token. The project route needs only project scopes, returns 200
+      # for drafts the token's team owns, and therefore proves both the token
+      # and the membership.
+      if [[ -n "${MODRINTH_PROJECT_ID:-}" ]]; then
+        code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+          -A "$ua_tokens" -H "Authorization: $MODRINTH_TOKEN" \
+          "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT_ID" || true)"
+        case "$code" in
+          200) pass "MODRINTH_TOKEN can read project $MODRINTH_PROJECT_ID (drafts included)" ;;
+          401) fail "MODRINTH_TOKEN was rejected by Modrinth (HTTP 401); recreate the PAT" ;;
+          404) fail "MODRINTH_TOKEN works but project $MODRINTH_PROJECT_ID is not visible to it (wrong id, or the PAT's account is not on the team)" ;;
+          *) fail "unexpected Modrinth response for project $MODRINTH_PROJECT_ID (HTTP ${code:-none})" ;;
+        esac
       else
-        fail "MODRINTH_TOKEN was rejected by Modrinth (HTTP ${code:-none}); recreate the PAT"
+        info "MODRINTH_PROJECT_ID unset; cannot probe the token without it (set --check-tokens after the project id)"
       fi
     else
       info "MODRINTH_TOKEN unset; skipping token check"

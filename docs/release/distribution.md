@@ -174,7 +174,11 @@ scripts/distribution-check.sh --remote --version 0.5.0
 | 平台 | 请求 | 有效 |
 |---|---|---|
 | Hangar | `POST /api/v1/authenticate?apiKey=<key>` | `200`（无效/缺失 = `400`） |
-| Modrinth | `GET /v2/user` + `Authorization: <token>` | `200`（无效 = `401`） |
+| Modrinth | `GET /v2/project/<MODRINTH_PROJECT_ID>` + `Authorization: <token>` | `200`（无效 = `401`，项目不属于该令牌 = `404`） |
+
+> **不要用 `GET /v2/user` 验 Modrinth 令牌**：那条路由要求 `USER_READ` 权限，而发布用的 PAT 故意不含它，
+> 于是一个**完全有效**的令牌也会返回 `401 invalid_credentials`（这条坑踩过：花了半个多小时）。项目路由只需要项目级权限，
+> 对 **draft 项目**也返回 200（只要令牌所属账号在团队里），所以它同时验证了"令牌有效"和"有权访问该项目"。
 
 > Hangar 的 `/authenticate` **只认 `apiKey` 查询参数**，不带 `Authorization` 头也能过；而且它的 200 响应体是一个
 > **30 天有效的 JWT**——任何脚本都不要把响应体打到日志里。
@@ -215,7 +219,8 @@ gh run watch
 | Hangar `403` / `project not found` | `HANGAR_PROJECT_ID` 填了显示名，或令牌没有该项目权限 | 改成**slug**；确认 key 的 scope 属于该项目 |
 | Hangar 报平台版本不支持 | `-PhangarPaperVersions` 与 Hangar 标签不一致 | 用 Hangar 支持的 MC 版本标签（当前 `26.3`） |
 | Modrinth `401` | PAT 缺 `CREATE_VERSION` 或已撤销 | 重建 PAT |
-| Modrinth `404` | 项目 slug/ID 写错，或项目未发布 | 用 Creator dashboard 里的 slug |
+| Modrinth `404`（匿名请求） | 项目是 **draft**（还没上传任何版本） | 正常；第一次上传版本后即公开 |
+| Modrinth `404`（带令牌） | 项目 id 写错，或令牌账号不在该项目团队里 | 用 dashboard 里的 ID/slug；确认账号 |
 | Modrinth `400` + `version_number` 冲突 | 该版本号已存在（重跑同一次发布） | 不要重跑上传步骤；补一个新 patch 版本，或先在平台删除草稿版本 |
 | Modrinth 拒绝 loaders/game_versions | payload 与项目设置不一致 | 先在项目设置里允许 `folia` 与 `26.3` |
 | 上传成功但平台上显示"Folia 不支持" | 只看 Hangar 平台标签 | 以 `plugin.yml` 的 `folia-supported` 为准；Hangar 侧在描述里写明 |
