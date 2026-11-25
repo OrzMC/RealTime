@@ -766,6 +766,7 @@ class RealTimeCommandHandlerTest {
                         "command.device.create.invalid-resolution" to "{prefix}分辨率 {value}",
                         "command.device.create.invalid-encoding" to "{prefix}编码 {value}",
                         "command.device.demo.success" to "{prefix}教学示例 {name} {count} {display}",
+                        "command.device.demo.hint" to "{prefix}提示：先清场",
                         "command.device.create.limit" to "{prefix}上限 {limit}",
                         "command.device.create.area" to "{prefix}区域 {world} {x} {z}",
                         "command.device.create.conflict" to "{prefix}冲突 {x} {y} {z}",
