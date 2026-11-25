@@ -53,6 +53,28 @@ class DeviceCleanupManagerDemoTest {
     }
 
     @Test
+    fun `clears a display entry that is not the first one in the job`() {
+        // Regression: the world scan indexed the filtered list, so once every
+        // earlier display entry was CLEARED the remaining PENDING entry was
+        // addressed with index 0, looked up a CLEARED entry and never cleared.
+        val fixture =
+            fixture(
+                displayType = Material.REDSTONE_LAMP,
+                displayStatuses =
+                    listOf(
+                        DeviceCleanupStatus.CLEARED,
+                        DeviceCleanupStatus.CLEARED,
+                        DeviceCleanupStatus.PENDING,
+                    ),
+            )
+
+        fixture.process()
+
+        assertEquals(Material.AIR, fixture.types[Triple(8, 65, 0)])
+        assertNull(fixture.remainingJobStatus(), "the job is fully resolved")
+    }
+
+    @Test
     fun `keeps a display block that a player replaced`() {
         val fixture = fixture(displayType = Material.GLOWSTONE)
 
@@ -62,11 +84,18 @@ class DeviceCleanupManagerDemoTest {
         assertEquals(DeviceCleanupStatus.NEEDS_ATTENTION, fixture.remainingDisplayStatus())
     }
 
-    private fun fixture(displayType: Material): Fixture {
+    private fun fixture(
+        displayType: Material,
+        displayStatuses: List<DeviceCleanupStatus> = listOf(DeviceCleanupStatus.PENDING),
+    ): Fixture {
         val worldId = UUID.randomUUID()
         val types = mutableMapOf<Triple<Int, Int, Int>, Material>()
         types[Triple(0, 64, 0)] = Material.AIR
-        types[Triple(0, 65, 0)] = displayType
+        displayStatuses.forEachIndexed { index, status ->
+            if (status != DeviceCleanupStatus.CLEARED) {
+                types[Triple(index * 4, 65, 0)] = displayType
+            }
+        }
 
         fun blockAt(
             x: Int,
@@ -133,9 +162,19 @@ class DeviceCleanupManagerDemoTest {
                 outputs = (0 until 4).map { index -> DeviceOutput(index, index, 64, 0) },
                 resolution = OutputResolution.MINUTE,
                 encoding = OutputEncoding.ANALOG,
-                demoBlocks = listOf(DemoBlock(0, 65, 0, "minecraft:redstone_lamp")),
+                demoBlocks =
+                    displayStatuses.indices.map { index ->
+                        DemoBlock(index * 4, 65, 0, "minecraft:redstone_lamp")
+                    },
             )
-        val job = DeviceCleanupJob.fromDevice(device, worldId)
+        val base = DeviceCleanupJob.fromDevice(device, worldId)
+        val job =
+            base.copy(
+                display =
+                    base.display.mapIndexed { index, entry ->
+                        DeviceCleanupDemo(entry.block, displayStatuses[index])
+                    },
+            )
         var activeState = state(job)
         val manager =
             DeviceCleanupManager(
