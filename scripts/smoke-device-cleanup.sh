@@ -6,7 +6,7 @@ PROJECT="${1:?Usage: smoke-device-cleanup.sh <paper|folia>}"
 MC_VERSION="${MC_VERSION:-26.3}"
 RCON_PORT="${RCON_PORT:-25576}"
 RCON_PASSWORD="${RCON_PASSWORD:-realtime-ci-cleanup-password}"
-PLUGIN_JAR="${ROOT_DIR}/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.3.0-SNAPSHOT}.jar"
+PLUGIN_JAR="${ROOT_DIR}/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.4.0-SNAPSHOT}.jar"
 
 if [[ "$PROJECT" != "paper" && "$PROJECT" != "folia" ]]; then
   echo "Unsupported server project: $PROJECT" >&2

@@ -62,11 +62,12 @@ If publishing is not enabled, a tag run only validates/builds the artifact and u
 | Version | Date | Tag source | Notes |
 |---|---|---|---|
 | `v0.1.0` | 2026-11-24 | `195fb69` | First public release: BCD redstone clocks, deferred cleanup, diagnostics. GitHub only. |
+| `v0.3.0` | 2026-11-25 | `9093b76` | Bug-fix release: cleanup queue counts and retries demo display blocks, and the periodic scan indexes them over the stored list (0.2.0 could leave a job stuck). No configuration or store change (schema v5). GitHub only. |
 | `v0.2.0` | 2026-11-25 | `e0632f5` | Two encodings (BCD + analog lecterns), in-game device authoring with split permissions, spaced/grouped default layout, `device demo` teaching builds, schema v5. GitHub only; Hangar/Modrinth still unconfigured. |
 
 Both releases used the protected `release` environment (required reviewer, `v*` tag policy) with
 `RELEASE_PUBLISH_ENABLED=true`, and both artifacts were verified against a local reproducible build
-(`v0.2.0`: 2,132,970 B, sha256 `f818b9a7…96dc1e`).
+(`v0.2.0`: 2,132,970 B, sha256 `f818b9a7…96dc1e`; `v0.3.0`: 2,133,550 B, sha256 `bf8c713b…5727ce`).
 
 ## Reproducibility and artifact integrity
 

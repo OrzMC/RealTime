@@ -9,7 +9,7 @@ plugins {
 
 allprojects {
     group = "cn.orzmc.realtime"
-    version = providers.gradleProperty("projectVersion").orElse("0.3.0-SNAPSHOT").get()
+    version = providers.gradleProperty("projectVersion").orElse("0.4.0-SNAPSHOT").get()
 
     repositories {
         mavenCentral()
