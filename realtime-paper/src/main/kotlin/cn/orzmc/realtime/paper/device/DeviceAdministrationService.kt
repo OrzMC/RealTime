@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
@@ -36,6 +37,12 @@ data class DeviceCreateRequest(
     val resolution: OutputResolution,
     val outputs: List<DeviceOutput>,
     val encoding: OutputEncoding = OutputEncoding.BCD,
+    val demoBlocks: List<DemoBlock> = emptyList(),
+    /**
+     * Start the device enabled. Only `device demo` passes `true`: a teaching
+     * build is meant to light up immediately.
+     */
+    val enabled: Boolean = false,
 )
 
 class DeviceNotFoundException(
@@ -100,6 +107,7 @@ class DeviceAdministrationService(
                     outputs = currentDevice.outputs,
                     resolution = currentDevice.resolution,
                     encoding = currentDevice.encoding,
+                    demoBlocks = currentDevice.demoBlocks,
                 )
             val updatedDevices =
                 currentState.devices.map { device ->
@@ -122,6 +130,9 @@ class DeviceAdministrationService(
             request.outputs.forEach { output ->
                 requireAllowed(currentState, request.worldName, output)
             }
+            request.demoBlocks.forEach { block ->
+                requireAllowed(currentState, request.worldName, DeviceOutput(0, block.x, block.y, block.z))
+            }
             val taken = occupiedPositions(currentState)
             request.outputs.forEach { output ->
                 if (Position(request.worldName, output.x, output.y, output.z) in taken) {
@@ -134,10 +145,11 @@ class DeviceAdministrationService(
                     id = UUID.randomUUID(),
                     name = request.name,
                     worldName = request.worldName,
-                    enabled = false,
+                    enabled = request.enabled,
                     outputs = request.outputs,
                     resolution = request.resolution,
                     encoding = request.encoding,
+                    demoBlocks = request.demoBlocks,
                 )
             val updatedDevices = currentState.devices + device
 
@@ -182,6 +194,7 @@ class DeviceAdministrationService(
                     outputs = currentDevice.outputs.map { output -> if (output.bitIndex == bitIndex) target else output },
                     resolution = currentDevice.resolution,
                     encoding = currentDevice.encoding,
+                    demoBlocks = currentDevice.demoBlocks,
                 )
             val updatedDevices =
                 currentState.devices.map { device ->
@@ -220,15 +233,29 @@ class DeviceAdministrationService(
                                 output.bitIndex != excludingOutput.second
                         }.map { output -> Position(device.worldName, output.x, output.y, output.z) }
                 }
+        val demo =
+            state.devices
+                .asSequence()
+                .flatMap { device ->
+                    device.demoBlocks.asSequence().map { block ->
+                        Position(device.worldName, block.x, block.y, block.z)
+                    }
+                }
         val reserved =
             state.cleanupJobs
                 .asSequence()
                 .flatMap { job ->
-                    job.outputs.asSequence().map { cleanupOutput ->
-                        Position(job.worldName, cleanupOutput.output.x, cleanupOutput.output.y, cleanupOutput.output.z)
-                    }
+                    val slots =
+                        job.outputs.asSequence().map { cleanupOutput ->
+                            Position(job.worldName, cleanupOutput.output.x, cleanupOutput.output.y, cleanupOutput.output.z)
+                        }
+                    val display =
+                        job.display.asSequence().map { demoOutput ->
+                            Position(job.worldName, demoOutput.block.x, demoOutput.block.y, demoOutput.block.z)
+                        }
+                    slots + display
                 }
-        return (active + reserved).toSet()
+        return (active + demo + reserved).toSet()
     }
 
     private data class Position(

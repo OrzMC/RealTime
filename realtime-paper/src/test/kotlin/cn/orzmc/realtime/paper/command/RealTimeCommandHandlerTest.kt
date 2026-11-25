@@ -512,6 +512,36 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun deviceDemoCreatesAnEnabledTeachingBuild() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "demo", "analog", "world", "100", "70", "0", "x+"))
+
+        val request = checkNotNull(administration.created)
+        assertEquals(OutputEncoding.ANALOG, request.encoding)
+        assertEquals(true, request.enabled)
+        assertEquals(6, request.outputs.size)
+        // lectern slots plus a comparator/dust/lamp row per digit with two supports
+        assertEquals(request.outputs.size * 5, request.demoBlocks.size)
+        assertTrue(request.demoBlocks.any { it.data.startsWith("minecraft:comparator") })
+        assertTrue(target.messages.any { it.contains("教学示例") || it.contains("demo") }, target.messages.toString())
+    }
+
+    @Test
+    fun deviceDemoRejectsUnknownEncoding() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "demo", "hex", "world", "0", "70", "0", "x+"))
+
+        assertEquals(null, administration.created)
+        assertTrue(target.messages.any { it.contains("hex") }, target.messages.toString())
+    }
+
+    @Test
     fun deviceSetAsksForADisabledDevice() {
         val device = device()
         val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
@@ -682,6 +712,7 @@ class RealTimeCommandHandlerTest {
                         "command.device.create.success" to "{prefix}已创建 {name} {id} {count}",
                         "command.device.create.invalid-resolution" to "{prefix}分辨率 {value}",
                         "command.device.create.invalid-encoding" to "{prefix}编码 {value}",
+                        "command.device.demo.success" to "{prefix}教学示例 {name} {count} {display}",
                         "command.device.create.limit" to "{prefix}上限 {limit}",
                         "command.device.create.area" to "{prefix}区域 {world} {x} {z}",
                         "command.device.create.conflict" to "{prefix}冲突 {x} {y} {z}",
@@ -756,6 +787,8 @@ class RealTimeCommandHandlerTest {
                     enabled = false,
                     outputs = request.outputs,
                     resolution = request.resolution,
+                    encoding = request.encoding,
+                    demoBlocks = request.demoBlocks,
                 )
             devices += device
             return device

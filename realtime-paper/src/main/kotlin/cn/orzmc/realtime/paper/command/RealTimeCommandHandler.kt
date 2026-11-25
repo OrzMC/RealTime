@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.command
 
+import cn.orzmc.realtime.core.device.DeviceDemo
 import cn.orzmc.realtime.core.device.DeviceLayout
 import cn.orzmc.realtime.core.device.LayoutAxis
 import cn.orzmc.realtime.core.device.OutputEncoding
@@ -91,6 +92,7 @@ class RealTimeCommandHandler(
                     }
                     if (target.hasPermission(EDIT_PERMISSION)) {
                         add("create")
+                        add("demo")
                         add("set")
                     }
                     if (isAdmin) {
@@ -126,6 +128,17 @@ class RealTimeCommandHandler(
                 .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
                 .map { it.id.toString() }
                 .filter { it.startsWith(prefix) }
+        }
+
+        if (subcommand == "demo") {
+            val prefix = args.last().lowercase(Locale.ROOT)
+            val candidates =
+                when (args.size) {
+                    3 -> OutputEncoding.entries.map { it.configValue }
+                    8 -> LayoutAxis.entries.map { it.configValue }
+                    else -> emptyList()
+                }
+            return candidates.filter { it.startsWith(prefix) }
         }
 
         if (subcommand == "create") {
@@ -199,6 +212,7 @@ class RealTimeCommandHandler(
                 }
             }
             "create" -> handleDeviceCreate(target, args.drop(1), state, administration)
+            "demo" -> handleDeviceDemo(target, args.drop(1), state, administration)
             "set" -> handleDeviceSet(target, args.drop(1), state, administration)
             "enable", "disable" -> {
                 if (args.size != 2) return sendUsage(target, state)
@@ -390,6 +404,17 @@ class RealTimeCommandHandler(
                 ),
             ),
         )
+        if (snapshot.demoBlocksPlaced > 0 || snapshot.demoBlocksCleared > 0) {
+            target.sendMessage(
+                state.messages.render(
+                    "command.device.status.demo",
+                    mapOf(
+                        "placed" to snapshot.demoBlocksPlaced.toString(),
+                        "cleared" to snapshot.demoBlocksCleared.toString(),
+                    ),
+                ),
+            )
+        }
         if (snapshot.lecternPlacements > 0 || snapshot.bookWrites > 0) {
             target.sendMessage(
                 state.messages.render(
@@ -491,6 +516,87 @@ class RealTimeCommandHandler(
                             "resolution" to device.resolution.label,
                             "world" to device.worldName,
                             "count" to device.outputs.size.toString(),
+                        ),
+                    ),
+                )
+            },
+            onFailure = { exception -> sendEditFailure(target, state, exception) },
+        )
+    }
+
+    /**
+     * `/rtime device demo <bcd|analog> <world> <x> <y> <z> <axis>`
+     *
+     * Builds one complete teaching example: the device slots plus the display
+     * blocks that make them readable (lamps above BCD slots; a
+     * lectern/comparator/dust/lamp row per analog digit). The device starts
+     * enabled, and `device remove` clears the display blocks as well.
+     */
+    private fun handleDeviceDemo(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+        administration: DeviceAdministration,
+    ) {
+        if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
+        // args: <bcd|analog> <world> <x> <y> <z> <axis>
+        if (args.size != 6) return sendUsage(target, state)
+        val encoding =
+            OutputEncoding.fromConfig(args[0]) ?: run {
+                target.sendMessage(
+                    state.messages.render("command.device.create.invalid-encoding", mapOf("value" to args[0])),
+                )
+                return
+            }
+        val worldName = args[1]
+        val x = args[2].toIntOrNull()
+        val y = args[3].toIntOrNull()
+        val z = args[4].toIntOrNull()
+        val axis = LayoutAxis.fromConfig(args[5])
+        if (x == null || y == null || z == null || axis == null) return sendUsage(target, state)
+        if (!acquireEditSlot(target, state)) return
+
+        val resolution = DeviceDemo.DEMO_RESOLUTION
+        val layout = DeviceLayout.default(encoding)
+        val outputs =
+            runCatching { layout.outputs(encoding, resolution, axis, x, y, z) }.getOrElse {
+                return sendUsage(target, state)
+            }
+        val demoBlocks = DeviceDemo.display(encoding, axis, outputs)
+        val name = "demo-" + encoding.configValue
+
+        runCatching {
+            administration.create(
+                DeviceCreateRequest(
+                    name = name,
+                    worldName = worldName,
+                    resolution = resolution,
+                    outputs = outputs,
+                    encoding = encoding,
+                    demoBlocks = demoBlocks,
+                    enabled = true,
+                ),
+            )
+        }.fold(
+            onSuccess = { device ->
+                logger?.info(
+                    "RealTime demo '${device.name}' (${device.id}) created by ${target.actorName}: " +
+                        "${device.worldName} ${device.encoding.configValue} ${device.outputs.size} slots + " +
+                        "${device.demoBlocks.size} display blocks starting at $x,$y,$z",
+                )
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.demo.success",
+                        mapOf(
+                            "name" to device.name,
+                            "id" to device.id.toString(),
+                            "encoding" to device.encoding.configValue,
+                            "world" to device.worldName,
+                            "count" to device.outputs.size.toString(),
+                            "display" to device.demoBlocks.size.toString(),
+                            "x" to x.toString(),
+                            "y" to y.toString(),
+                            "z" to z.toString(),
                         ),
                     ),
                 )

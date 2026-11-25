@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
@@ -25,7 +26,7 @@ class YamlDeviceRepositoryTest {
         assertTrue(repository.loadStore().devices.isEmpty())
         val yaml = YamlConfiguration()
         yaml.load(temporaryDirectory.resolve("data/devices.yml").toFile())
-        assertEquals(4, yaml.getInt("schema-version"))
+        assertEquals(5, yaml.getInt("schema-version"))
         assertTrue(yaml.getList("cleanup-jobs").orEmpty().isEmpty())
     }
 
@@ -165,7 +166,7 @@ class YamlDeviceRepositoryTest {
         assertTrue(migrated.cleanupJobs.isEmpty())
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(4, stored.getInt("schema-version"))
+        assertEquals(5, stored.getInt("schema-version"))
         assertEquals("minute", stored.getMapList("devices").single()["resolution"])
         assertEquals("bcd", stored.getMapList("devices").single()["encoding"])
         assertTrue(stored.getList("cleanup-jobs").orEmpty().isEmpty())
@@ -226,6 +227,73 @@ class YamlDeviceRepositoryTest {
     }
 
     @Test
+    fun `persists a demo build with its display blocks`() {
+        val repository = YamlDeviceRepository(temporaryDirectory.toFile())
+        val demo =
+            device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG, demo = true)
+        val retired = device(name = "retired-demo", demo = true, startX = 5000)
+        val job = DeviceCleanupJob.fromDevice(retired, null)
+
+        repository.save(DeviceStoreSnapshot(listOf(demo), listOf(job)))
+
+        val loaded = repository.loadStore()
+        val loadedDevice = loaded.devices.single()
+        assertEquals(demo.demoBlocks, loadedDevice.demoBlocks)
+        assertEquals(
+            retired.demoBlocks,
+            loaded.cleanupJobs
+                .single()
+                .display
+                .map { it.block },
+        )
+        assertTrue(loadedDevice.isDemo)
+    }
+
+    @Test
+    fun `migrates schema v4 devices without demo blocks`() {
+        val device = device()
+        val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
+        val legacy = YamlConfiguration()
+        legacy.set("schema-version", 4)
+        legacy.set(
+            "devices",
+            listOf(
+                linkedMapOf(
+                    "id" to device.id.toString(),
+                    "name" to device.name,
+                    "world" to device.worldName,
+                    "enabled" to device.enabled,
+                    "resolution" to "minute",
+                    "encoding" to "bcd",
+                    "outputs" to
+                        device.outputs.map { output ->
+                            linkedMapOf(
+                                "bit-index" to output.bitIndex,
+                                "x" to output.x,
+                                "y" to output.y,
+                                "z" to output.z,
+                            )
+                        },
+                ),
+            ),
+        )
+        legacy.set("cleanup-jobs", emptyList<Any>())
+        legacy.save(dataDirectory.resolve("devices.yml").toFile())
+
+        val migrated = YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
+
+        assertTrue(
+            migrated.devices
+                .single()
+                .demoBlocks
+                .isEmpty(),
+        )
+        val stored = YamlConfiguration()
+        stored.load(dataDirectory.resolve("devices.yml").toFile())
+        assertEquals(5, stored.getInt("schema-version"))
+    }
+
+    @Test
     fun `migrates schema v3 devices without an encoding to bcd`() {
         val device = device()
         val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
@@ -260,7 +328,7 @@ class YamlDeviceRepositoryTest {
         assertEquals(OutputEncoding.BCD, migrated.devices.single().encoding)
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(4, stored.getInt("schema-version"))
+        assertEquals(5, stored.getInt("schema-version"))
         assertEquals("bcd", stored.getMapList("devices").single()["encoding"])
     }
 
@@ -284,6 +352,8 @@ class YamlDeviceRepositoryTest {
         name: String = "clock",
         resolution: OutputResolution = OutputResolution.MINUTE,
         encoding: OutputEncoding = OutputEncoding.BCD,
+        demo: Boolean = false,
+        startX: Int = 0,
     ) = RedstoneDevice(
         id = UUID.randomUUID(),
         name = name,
@@ -291,9 +361,15 @@ class YamlDeviceRepositoryTest {
         enabled = true,
         outputs =
             (0 until encoding.outputCount(resolution)).map { index ->
-                DeviceOutput(bitIndex = index, x = index * 2, y = 64, z = 0)
+                DeviceOutput(bitIndex = index, x = startX + index * 2, y = 64, z = 0)
             },
         resolution = resolution,
         encoding = encoding,
+        demoBlocks =
+            if (demo) {
+                listOf(DemoBlock(startX, 65, 0, "minecraft:redstone_lamp"))
+            } else {
+                emptyList()
+            },
     )
 }

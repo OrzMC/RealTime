@@ -8,6 +8,10 @@ All notable changes to RealTime are documented here. Release automation requires
   BCD digit's four bits behind an extra gap, so a signal cannot leak into the neighbouring slot and the four bits of a
   digit are visually separated. A `minute` device now spans 34 blocks and a `second` device 52; existing devices keep
   their stored coordinates. An explicit `[stride]` still overrides the intra-group spacing.
+- Add `/rtime device demo <bcd|analog> <world> <x> <y> <z> <axis>`: builds one complete teaching example (lecterns with
+  comparator/dust/lamp rows for `analog`, one lamp per bit for `bcd`) next to the origin block and enables it, so a
+  newcomer can see each encoding working. The display blocks are stored with the device (schema v5) and are removed by
+  `device disable` / `device remove`, never touching a block whose type no longer matches.
 - `device set` now requires a disabled device and the tab completion only suggests disabled ones: an enabled device kept
   writing the old slot, leaving a stray redstone block (or lectern) behind after a slot was moved.
 - Disabling an analog device now empties the slot (book removed, then the lectern) instead of leaving a blank lectern, so

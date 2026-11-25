@@ -2,6 +2,7 @@ package cn.orzmc.realtime.core.device
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
@@ -112,6 +113,54 @@ class RedstoneDeviceTest {
                 outputs(OutputResolution.MINUTE),
                 OutputResolution.MINUTE,
                 OutputEncoding.ANALOG,
+            )
+        }
+    }
+
+    @Test
+    fun `demo blocks must not overlap slots and must be unique`() {
+        val slots = (0 until 4).map { DeviceOutput(it, it * 2, 64, 0) }
+        val demo = listOf(DemoBlock(0, 65, 0, "minecraft:redstone_lamp"))
+
+        val device =
+            RedstoneDevice(
+                UUID.randomUUID(),
+                "demo",
+                "world",
+                true,
+                slots,
+                OutputResolution.MINUTE,
+                OutputEncoding.ANALOG,
+                demo,
+            )
+        assertTrue(device.isDemo)
+        assertEquals(demo, device.demoBlocks)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            RedstoneDevice(
+                UUID.randomUUID(),
+                "demo",
+                "world",
+                true,
+                slots,
+                OutputResolution.MINUTE,
+                OutputEncoding.ANALOG,
+                listOf(DemoBlock(0, 64, 0, "minecraft:redstone_lamp")),
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RedstoneDevice(
+                UUID.randomUUID(),
+                "demo",
+                "world",
+                true,
+                slots,
+                OutputResolution.MINUTE,
+                OutputEncoding.ANALOG,
+                listOf(
+                    DemoBlock(10, 65, 0, "minecraft:redstone_lamp"),
+                    DemoBlock(10, 65, 0, "minecraft:stone"),
+                ),
             )
         }
     }
