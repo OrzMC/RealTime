@@ -50,6 +50,9 @@
 
 ### 3.1 创建项目
 
+> Hangar 的公开 API **没有创建项目的端点**（`POST /api/v1/projects` 返回 405），项目只能在网页建。
+> 同理 Modrinth 也需要先用有效 PAT 才能调 `POST /v2/project`，因此首次都建议在网页完成。
+
 1. 用维护者账号登录 <https://hangar.papermc.io>，进入 Author dashboard → **New project**。
 2. 名称写 `RealTime`；slug 建议 `RealTime`（即 `hangar.papermc.io/<owner>/RealTime`）。
    **slug 就是 `HANGAR_PROJECT_ID` 的值**，显示名改了不影响。
@@ -78,7 +81,7 @@
 
 ### 4.1 创建项目
 
-1. 登录 <https://modrinth.com> → 头像 → **Creator dashboard** → **New project**。
+1. 登录 <https://modrinth.com> → 头像 → **Creator dashboard** → **New project**（创建后才可以用 `POST /v2/project` 之类的 API 维护）。
 2. Type: **Plugin**；Loaders: 勾 **Paper** 与 **Folia**；Game versions: 勾 **26.3**。
 3. Slug（URL 末段）就是 `MODRINTH_PROJECT_ID`；用项目 ID 也可以。
 4. 描述、图标、链接（源码 / 文档）填好；License 与仓库 `LICENSE` 保持一致。
@@ -166,8 +169,15 @@ scripts/distribution-check.sh --remote --check-tokens   # 追加：校验刚创�
 scripts/distribution-check.sh --remote --version 0.5.0
 ```
 
-`--check-tokens` 会读取环境里的 `HANGAR_API_TOKEN` / `MODRINTH_TOKEN` 打一次身份接口（Hangar `POST /api/v1/authenticate`
-返回 200，Modrinth `GET /v2/user` 返回 200），**只打印通过与否，不打印令牌**。适合"刚建好 key、还没配进 GitHub"时先本地确认。
+`--check-tokens` 会读取环境里的 `HANGAR_API_TOKEN` / `MODRINTH_TOKEN` 打一次身份接口，**只看状态码，不读响应体、不打印令牌**：
+
+| 平台 | 请求 | 有效 |
+|---|---|---|
+| Hangar | `POST /api/v1/authenticate?apiKey=<key>` | `200`（无效/缺失 = `400`） |
+| Modrinth | `GET /v2/user` + `Authorization: <token>` | `200`（无效 = `401`） |
+
+> Hangar 的 `/authenticate` **只认 `apiKey` 查询参数**，不带 `Authorization` 头也能过；而且它的 200 响应体是一个
+> **30 天有效的 JWT**——任何脚本都不要把响应体打到日志里。
 
 它会在以下情况失败（这些都不是"配置没做"，而是真问题）：`plugin.yml` 丢了 `folia-supported`、
 payload 少了 `folia` loader、版本线不一致、工作流把凭据写成 `vars.*` 泄漏到 PR 工作流等。
