@@ -13,7 +13,8 @@ All notable changes to RealTime are documented here. Release automation requires
   `--remote` 追加公共 API 校验，已并入 `verify.sh`）、[`docs/release/distribution.md`](docs/release/distribution.md)
   （项目创建、令牌最小权限、演练、排错、安全约束）。
 - Release 工作流支持 `workflow_dispatch`（`ref` / `version` / `dry_run`）：可完整跑版本解析、构建、jar 检查与
-  分布预检而不创建 Release、不上传；Modrinth payload 的 loaders 补上 `folia`。
+  分布预检而不创建 Release、不上传；演练的 `publish` job 走独立的 `release-dry-run` 环境（无审批、无密钥），
+  因此 `release` 环境仍然只允许 `v*` tag；Modrinth payload 的 loaders 补上 `folia`。
 
 ## [0.4.0]
 
