@@ -12,6 +12,7 @@ set -euo pipefail
 source "$(dirname "$0")/_common.sh"
 
 REMOTE=0
+CHECK_TOKENS=0
 VERSION=""
 
 usage() {
@@ -19,6 +20,8 @@ usage() {
 Usage: scripts/distribution-check.sh [--remote] [--version X.Y.Z]
 
   --remote         also query the public Hangar/Modrinth APIs
+  --check-tokens   also validate HANGAR_API_TOKEN / MODRINTH_TOKEN from the environment
+                   (never prints them; intended for verifying a freshly created key)
   --version VER    version shown in the Modrinth payload preview (default: next snapshot)
 EOF
 }
@@ -26,6 +29,7 @@ EOF
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --remote) REMOTE=1; shift ;;
+    --check-tokens) CHECK_TOKENS=1; shift ;;
     --version) VERSION="${2:?--version needs a value}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -141,6 +145,36 @@ if [[ "$REMOTE" -eq 1 ]]; then
     fi
   else
     info "MODRINTH_PROJECT_ID unset; skipping project lookup"
+  fi
+
+  if [[ "$CHECK_TOKENS" -eq 1 ]]; then
+    ua_tokens="OrzMC/RealTime distribution-check"
+    if [[ -n "${HANGAR_API_TOKEN:-}" ]]; then
+      # Hangar answers 200 for a valid key and 400 for a missing/invalid one.
+      code="$(curl -s -X POST -o /dev/null -w '%{http_code}' --max-time 20 \
+        -A "$ua_tokens" -H "Authorization: $HANGAR_API_TOKEN" \
+        https://hangar.papermc.io/api/v1/authenticate || true)"
+      if [[ "$code" == "200" ]]; then
+        pass "HANGAR_API_TOKEN is accepted by Hangar"
+      else
+        fail "HANGAR_API_TOKEN was rejected by Hangar (HTTP ${code:-none}); recreate the key"
+      fi
+    else
+      info "HANGAR_API_TOKEN unset; skipping token check"
+    fi
+    if [[ -n "${MODRINTH_TOKEN:-}" ]]; then
+      # Modrinth answers 200 for a valid PAT and 401 for a missing/invalid one.
+      code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+        -A "$ua_tokens" -H "Authorization: $MODRINTH_TOKEN" \
+        https://api.modrinth.com/v2/user || true)"
+      if [[ "$code" == "200" ]]; then
+        pass "MODRINTH_TOKEN is accepted by Modrinth"
+      else
+        fail "MODRINTH_TOKEN was rejected by Modrinth (HTTP ${code:-none}); recreate the PAT"
+      fi
+    else
+      info "MODRINTH_TOKEN unset; skipping token check"
+    fi
   fi
 
   if [[ -n "${HANGAR_PROJECT_ID:-}" ]]; then

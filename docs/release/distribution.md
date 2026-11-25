@@ -106,15 +106,68 @@ changelog 直接使用 `CHANGELOG.md` 对应版本的段落（与 GitHub Release
 2. 只勾 `CREATE_VERSION`（需要读取自身项目时再加 `READ_PROJECT`；不要给删除/编辑权限）。
 3. 写入 `release` 环境的 `MODRINTH_TOKEN`，变量 `MODRINTH_PROJECT_ID` 填 slug 或项目 ID。
 
+## 4.3 把凭据配进 GitHub（两种方式）
+
+### 方式 A：网页
+
+| 名称 | 位置 |
+|---|---|
+| `HANGAR_PROJECT_ID`、`MODRINTH_PROJECT_ID` | Settings → Secrets and variables → Actions → **Variables** 标签 → New repository variable |
+| `HANGAR_API_TOKEN`、`MODRINTH_TOKEN` | Settings → **Environments** → `release` → Environment secrets → Add secret |
+
+> 项目 id 放**仓库级变量**（不是环境变量）：演练走的是 `release-dry-run` 环境，只有仓库级 `vars.*` 在演练里也能读到。
+> 令牌放**`release` 环境密钥**：演练环境永远看不到它们，PR 工作流也拿不到。
+
+### 方式 B：命令行（推荐，令牌不落 shell 历史）
+
+```bash
+cd /mnt/e/dev/OrzMC/tools/RealTime
+
+# 项目 id → 仓库级变量
+gh variable set HANGAR_PROJECT_ID --body "RealTime"      # 换成你的 slug
+gh variable set MODRINTH_PROJECT_ID --body "realtime"    # 换成你的 slug 或项目 ID
+
+# 令牌 → release 环境密钥（从文件读，避免出现在历史/参数里）
+gh secret set HANGAR_API_TOKEN  --env release < ~/hangar.token
+gh secret set MODRINTH_TOKEN   --env release < ~/modrinth.token
+shred -u ~/hangar.token ~/modrinth.token 2>/dev/null || rm -f ~/hangar.token ~/modrinth.token
+
+# 核对
+gh variable list
+gh secret list --env release
+```
+
+配完再跑一次演练，摘要里两个平台应从"没有 project id"变成实际项目名。
+
+### 令牌校验（配之前或配之后都可以）
+
+```bash
+# 本地直接验（不打印令牌）：
+HANGAR_API_TOKEN="$(cat ~/hangar.token)" \
+MODRINTH_TOKEN="$(cat ~/modrinth.token)" \
+HANGAR_PROJECT_ID=RealTime MODRINTH_PROJECT_ID=realtime \
+  scripts/distribution-check.sh --remote --check-tokens
+
+# 等价的手工检查（Hangar 用 400 表示 key 无效，不是 401）：
+curl -s -X POST -o /dev/null -w '%{http_code}\n' -H "Authorization: $HANGAR_API_TOKEN" \
+  https://hangar.papermc.io/api/v1/authenticate      # 200 = 有效
+curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: $MODRINTH_TOKEN" \
+  https://api.modrinth.com/v2/user                     # 200 = 有效
+```
+
 ## 5. 校验与演练
 
 ### 5.1 本地/CI 都能跑的静态检查
 
 ```bash
-scripts/distribution-check.sh                    # 离线：plugin.yml 元数据 + 工作流接线 + payload 预览
-scripts/distribution-check.sh --remote           # 追加：Modrinth 的 26.3 / paper / folia，以及已配置项目的可见性
+scripts/distribution-check.sh                       # 离线：plugin.yml 元数据 + 工作流接线 + payload 预览
+scripts/distribution-check.sh --remote              # 追加：Modrinth 的 26.3 / paper / folia，以及已配置项目的可见性
+scripts/distribution-check.sh --remote --check-tokens   # 追加：校验刚创建的令牌是否真的被平台接受
 scripts/distribution-check.sh --remote --version 0.5.0
 ```
+
+`--check-tokens` 会读取环境里的 `HANGAR_API_TOKEN` / `MODRINTH_TOKEN` 打一次身份接口（Hangar `POST /api/v1/authenticate`
+返回 200，Modrinth `GET /v2/user` 返回 200），**只打印通过与否，不打印令牌**。适合"刚建好 key、还没配进 GitHub"时先本地确认。
 
 它会在以下情况失败（这些都不是"配置没做"，而是真问题）：`plugin.yml` 丢了 `folia-supported`、
 payload 少了 `folia` loader、版本线不一致、工作流把凭据写成 `vars.*` 泄漏到 PR 工作流等。
@@ -148,7 +201,7 @@ gh run watch
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | `skipping Hangar upload` / `skipping Modrinth upload` | 项目 id 或令牌为空 | 检查 `vars.*` 与 **`release` 环境**的 secret（不是仓库级） |
-| Hangar `401` | 令牌无效/过期 | 重新创建 API key，只勾 `create_version` |
+| Hangar `401` | Hangar `400`（含身份接口） | 令牌无效/过期/带了引号或换行 | 重新创建 API key，只勾 `create_version`；`--check-tokens` 先本地验 |
 | Hangar `403` / `project not found` | `HANGAR_PROJECT_ID` 填了显示名，或令牌没有该项目权限 | 改成**slug**；确认 key 的 scope 属于该项目 |
 | Hangar 报平台版本不支持 | `-PhangarPaperVersions` 与 Hangar 标签不一致 | 用 Hangar 支持的 MC 版本标签（当前 `26.3`） |
 | Modrinth `401` | PAT 缺 `CREATE_VERSION` 或已撤销 | 重建 PAT |
