@@ -10,7 +10,8 @@ All notable changes to RealTime are documented here. Release automation requires
   本地门禁 → PR 四段式 → CI → squash 合并 → 父仓库 bump → 发版 → DoD / 证据状态）与
   [`tasks/TEMPLATE.md`](tasks/TEMPLATE.md) 任务契约模板；`AGENTS.md`、`tasks/README.md`、README 索引同步指向。
 - Hangar / Modrinth 发布准备：`scripts/distribution-check.sh`（离线校验 `plugin.yml`、工作流接线、Modrinth payload；
-  `--remote` 追加公共 API 校验、`--check-tokens` 校验刚创建的令牌是否被平台接受（Hangar 走 `apiKey` 查询参数，只看状态码、不读返回的 JWT），已并入 `verify.sh`）、[`docs/release/distribution.md`](docs/release/distribution.md)
+  `--remote` 追加公共 API 校验、`--check-tokens` 校验刚创建的令牌是否被平台接受（Hangar 走 `apiKey` 查询参数、只看状态码不读返回的 JWT；Modrinth 走**项目**
+路由而不是 `/v2/user`，后者要 `USER_READ` 权限、会让一把有效令牌报 401），已并入 `verify.sh`）、[`docs/release/distribution.md`](docs/release/distribution.md)
   （项目创建、令牌最小权限、演练、排错、安全约束）。
 - Release 工作流支持 `workflow_dispatch`（`ref` / `version` / `dry_run`）：可完整跑版本解析、构建、jar 检查与
   分布预检而不创建 Release、不上传；演练的 `publish` job 走独立的 `release-dry-run` 环境（无审批、无密钥），
