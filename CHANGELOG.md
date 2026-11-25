@@ -4,6 +4,17 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+### 工程
+
+- 迭代流程标准化：[`docs/development/workflow.md`](docs/development/workflow.md)（选任务 → 任务契约 → 分支命名 →
+  本地门禁 → PR 四段式 → CI → squash 合并 → 父仓库 bump → 发版 → DoD / 证据状态）与
+  [`tasks/TEMPLATE.md`](tasks/TEMPLATE.md) 任务契约模板；`AGENTS.md`、`tasks/README.md`、README 索引同步指向。
+- Hangar / Modrinth 发布准备：`scripts/distribution-check.sh`（离线校验 `plugin.yml`、工作流接线、Modrinth payload；
+  `--remote` 追加公共 API 校验，已并入 `verify.sh`）、[`docs/release/distribution.md`](docs/release/distribution.md)
+  （项目创建、令牌最小权限、演练、排错、安全约束）。
+- Release 工作流支持 `workflow_dispatch`（`ref` / `version` / `dry_run`）：可完整跑版本解析、构建、jar 检查与
+  分布预检而不创建 Release、不上传；Modrinth payload 的 loaders 补上 `folia`。
+
 ## [0.4.0]
 
 ### 新增

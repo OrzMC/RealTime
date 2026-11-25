@@ -31,13 +31,20 @@ Before enabling it, a repository administrator must create a GitHub Actions envi
 
 Only the gated release job receives `contents: write`. The job waits for the environment's required approval before creating a GitHub Release.
 
-## Optional distribution publishing
+## Hangar and Modrinth
 
-Hangar publishing uses the official PaperMC Gradle publish plugin and is skipped unless `HANGAR_PROJECT_ID` is configured as an environment variable and `HANGAR_API_TOKEN` is configured as an environment secret. The token should be scoped to the RealTime project and the `create_version` permission. Stable versions publish to Hangar's `Release` channel; prereleases are not sent to Hangar automatically.
+Hangar uses the official PaperMC Gradle publish plugin; Modrinth is called through its v2 API. Both steps run in the
+protected `release` job, use the same shaded JAR and the same changelog section as the GitHub Release, and are skipped
+(not failed) while their project id or token is missing.
 
-Modrinth publishing is skipped unless `MODRINTH_PROJECT_ID` and the environment secret `MODRINTH_TOKEN` are configured. Use a token with only the version-create scope. The workflow uploads the same shaded JAR and matching changelog section.
+- Hangar: `HANGAR_PROJECT_ID` (repository variable, the project **slug**) + `HANGAR_API_TOKEN` (environment secret,
+  `create_version` scope). Stable tags only.
+- Modrinth: `MODRINTH_PROJECT_ID` (repository variable) + `MODRINTH_TOKEN` (environment secret, `CREATE_VERSION` scope).
+  Loaders are `paper` + `folia`, game version `26.3`.
 
-All distribution credentials are read only inside the protected `release` job. Never add them to pull-request workflows, repository files, Gradle properties, or logs. Do not enable `RELEASE_PUBLISH_ENABLED` until the environment protection and project identifiers have been reviewed.
+Setup steps, the payload, the dry-run channel and the troubleshooting table live in
+[`distribution.md`](distribution.md). Keep distribution credentials inside the protected job only — never in
+pull-request workflows, repository files, Gradle properties, or logs.
 
 ## First public release readiness
 
@@ -51,7 +58,7 @@ Checklist used for the first release (keep for future releases):
 1. Confirm the exact `main` commit contains PR11 and all Paper/Folia runtime checks are green.
 2. Review `CHANGELOG.md` section `## [0.1.0]` and the generated shaded JAR contents.
 3. Create the GitHub Actions `release` environment. Require at least one independent reviewer and restrict deployments to `v*` tags.
-4. Configure `HANGAR_PROJECT_ID` and `MODRINTH_PROJECT_ID` as environment variables, and `HANGAR_API_TOKEN` / `MODRINTH_TOKEN` as environment secrets with project-scoped version-create permissions.
+4. Configure `HANGAR_PROJECT_ID` and `MODRINTH_PROJECT_ID` as environment variables, and `HANGAR_API_TOKEN` / `MODRINTH_TOKEN` as environment secrets with project-scoped version-create permissions (see [`distribution.md`](distribution.md)).
 5. Keep `RELEASE_PUBLISH_ENABLED` unset or `false` until the environment protection and external project identities have been reviewed. Enabling it allows the protected job to create a GitHub Release and publish to whichever external platforms have both project IDs and tokens configured.
 6. Only after explicit release approval, create and push the annotated `v0.1.0` tag.
 
@@ -69,6 +76,18 @@ If publishing is not enabled, a tag run only validates/builds the artifact and u
 Both releases used the protected `release` environment (required reviewer, `v*` tag policy) with
 `RELEASE_PUBLISH_ENABLED=true`, and both artifacts were verified against a local reproducible build
 (`v0.2.0`: 2,132,970 B, sha256 `f818b9a7…96dc1e`; `v0.3.0`: 2,133,550 B, sha256 `bf8c713b…5727ce`; `v0.4.0`: 2,136,461 B, sha256 `8531becc…4ae77bbc`).
+
+## Dry runs
+
+The workflow also accepts `workflow_dispatch` with `ref`, `version` and `dry_run` inputs:
+
+```bash
+gh workflow run release.yml -f ref=main -f version=0.5.0 -f dry_run=true
+```
+
+A dry run resolves the version, checks the distribution metadata, builds and inspects the shaded JAR, runs the
+distribution preflight against the public APIs, and writes a summary — but creates no GitHub Release and uploads
+nothing. Use it to verify Hangar/Modrinth wiring without burning a version number or pushing a tag.
 
 ## Reproducibility and artifact integrity
 
