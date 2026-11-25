@@ -48,5 +48,20 @@ Display blocks are part of the device record (`demo:` in `data/devices.yml`, sch
 - Paper tests: display placed when enabled, removed when disabled, settled demo not rewritten, player block never
   overwritten; repository v5 round-trip of `demo:`/`display:` and v4 migration; cleanup clears a display block and keeps
   a replaced one; command creates an enabled build with the expected block counts and rejects unknown encodings.
-- `./scripts/verify.sh` (182 tests) green; real-server run: `/rtime device demo analog ...` next to the existing BCD
-  acceptance clock on the Paper test instance.
+- `./scripts/verify.sh` (182 tests) green.
+
+## Real-server evidence (2026-11-25, Paper 26.3 `MCSM-716c2f`, world)
+
+```
+/rtime device demo analog world 39985 79 -24 x+   -> 6 slots + 30 display blocks
+/rtime device demo bcd    world 39985 79 -16 x+   -> 24 slots + 24 display blocks
+```
+
+- Analog demo read back with page + comparator: `09:29:4x` gave pages `0,9,2,9,4,9` and dust levels `1,10,3,10,5,*`,
+  i.e. level = page + 1 in every position, and all six lamps were lit.
+- BCD demo: slots landed on the grouped offsets (`i*2 + i/4`), powered slots had their lamp lit
+  (`bit20`/`bit22` lit for seconds ones = 5).
+- `device disable` removed the display blocks and emptied the slots, `device enable` rebuilt both.
+- Building on unprepared terrain leaves the slots/display occupied by world blocks and is reported as invalid output;
+  clear the area first (the command only ever fills air).
+- Both demos are left enabled next to the existing `visual-acceptance-clock` as in-game teaching examples.
