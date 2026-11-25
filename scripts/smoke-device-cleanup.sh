@@ -107,8 +107,9 @@ rtime() {
 }
 
 # Folia answers region-owned commands asynchronously and sometimes returns an
-# empty body, so a single-shot probe is not a verdict. Retry, and only fail when
-# the blocks are still not air after the whole window.
+# empty body, so a single-shot probe is not a verdict. The probe body is
+# `run list` (plugin commands are not echoed by `execute ... run` on Folia), an
+# empty body means "ask again", and only a full window of misses is a failure.
 wait_blocks_air() {
   local label="$1"
   shift
@@ -117,8 +118,8 @@ wait_blocks_air() {
     local all_air=1
     for position in "$@"; do
       # shellcheck disable=SC2086 # position is "<x> <y> <z>"
-      output="$(rcon execute if block $position minecraft:air run rtime info 2>/dev/null || true)"
-      if [[ "$output" != *运行信息* ]]; then
+      output="$(rcon execute if block $position minecraft:air run list 2>/dev/null || true)"
+      if [[ "$output" != *"players online"* ]]; then
         all_air=0
         break
       fi
