@@ -4,6 +4,11 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+### 文档
+
+- 新增 [`docs/operations/platform-listings.md`](docs/operations/platform-listings.md)：Hangar / Modrinth 项目页的权威文案与
+  元数据（简介、长描述、分类、许可证、链接），并记录两个平台的可编辑性差异（Hangar 只能网页改、Modrinth 可 PATCH）。
+
 ### 工程
 
 - 迭代流程标准化：[`docs/development/workflow.md`](docs/development/workflow.md)（选任务 → 任务契约 → 分支命名 →
