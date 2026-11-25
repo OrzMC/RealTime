@@ -32,7 +32,7 @@ jobs:
         run: ./gradlew --no-daemon :realtime-paper:shadowJar
       - name: Start server and execute /rtime over RCON
         env:
-          PROJECT_VERSION: 0.2.0-SNAPSHOT
+          PROJECT_VERSION: 0.3.0-SNAPSHOT
         run: bash scripts/smoke-server.sh "${{ matrix.project }}"
 
   cleanup-smoke:
@@ -57,7 +57,7 @@ jobs:
         run: ./gradlew --no-daemon :realtime-paper:shadowJar
       - name: Verify cleanup recovery, operator retry, and safe device retirement
         env:
-          PROJECT_VERSION: 0.2.0-SNAPSHOT
+          PROJECT_VERSION: 0.3.0-SNAPSHOT
         run: bash scripts/smoke-device-cleanup.sh "${{ matrix.project }}"
 
   placeholderapi-smoke:
@@ -80,6 +80,6 @@ jobs:
         run: ./gradlew --no-daemon :realtime-paper:shadowJar
       - name: Start server with PlaceholderAPI and parse placeholders
         env:
-          PROJECT_VERSION: 0.2.0-SNAPSHOT
+          PROJECT_VERSION: 0.3.0-SNAPSHOT
           WITH_PLACEHOLDERAPI: 'true'
         run: bash scripts/smoke-server.sh "${{ matrix.project }}"

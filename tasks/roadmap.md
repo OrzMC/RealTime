@@ -33,5 +33,5 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 - M6: crash-safe deferred cleanup and safe device retirement.
 - M7: two encodings (BCD and analog lecterns), in-game authoring with split permissions, teaching builds.
 
-Every stage above is merged; the tree version is `0.2.0-SNAPSHOT` and the next public release is still to be cut.
+Every stage above is merged and included in `v0.2.0` (released 2026-11-25); `main` is on `0.3.0-SNAPSHOT`.
 Split new work into small PRs with explicit acceptance criteria.

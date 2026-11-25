@@ -30,7 +30,7 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-All planned stages (PR1–PR18) are merged; the tree is on `0.2.0-SNAPSHOT` and the last public build is `v0.1.0`.
+All planned stages (PR1–PR18) are merged and `v0.2.0` is released; `main` is on `0.3.0-SNAPSHOT`.
 Behaviour that exists today:
 
 - **Time service**: `RealTimeService` / `ClockRealTimeService` with an injected `Clock`, explicit `ZoneId` and
