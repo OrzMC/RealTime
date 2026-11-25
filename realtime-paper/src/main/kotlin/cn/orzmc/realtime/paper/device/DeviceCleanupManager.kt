@@ -91,10 +91,12 @@ class DeviceCleanupManager(
                     .asSequence()
                     .filter { it.status == DeviceCleanupStatus.PENDING }
                     .forEach { output -> scheduleOutput(world, job, output) }
-                job.display
-                    .asSequence()
-                    .filter { it.status == DeviceCleanupStatus.PENDING }
-                    .forEachIndexed { index, demo -> scheduleDemo(world, job, demo, index) }
+                // Index over the whole list: scheduleDemo and the result drain
+                // address display entries by their position in the stored job, so
+                // filtering first would shift the index of every later entry.
+                job.display.forEachIndexed { index, demo ->
+                    if (demo.status == DeviceCleanupStatus.PENDING) scheduleDemo(world, job, demo, index)
+                }
             }
     }
 
