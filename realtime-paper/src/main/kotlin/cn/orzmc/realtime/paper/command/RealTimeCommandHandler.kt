@@ -147,10 +147,12 @@ class RealTimeCommandHandler(
                 (target.hasPermission(EDIT_PERMISSION) && subcommand == "set")
         if (args.size == 3 && (canReadIds || canMutateIds)) {
             val prefix = args[2].lowercase(Locale.ROOT)
-            return deviceAdministration
-                .list()
-                .map { it.id.toString() }
-                .filter { it.startsWith(prefix) }
+            val candidates =
+                deviceAdministration.list().filter { device ->
+                    // Slots only move while the device is off, so suggest only those.
+                    subcommand != "set" || !device.enabled
+                }
+            return candidates.map { it.id.toString() }.filter { it.startsWith(prefix) }
         }
 
         return emptyList()
@@ -590,6 +592,8 @@ class RealTimeCommandHandler(
                         "command.device.set.index",
                         mapOf("bit" to exception.bitIndex.toString(), "max" to exception.maxIndex.toString()),
                     )
+                is DeviceMustBeDisabledException ->
+                    state.messages.render("command.device.set.must-disable", mapOf("id" to exception.message.orEmpty()))
                 is DeviceNotFoundException -> state.messages.render("command.device.not-found", mapOf("id" to exception.message.orEmpty()))
                 else ->
                     state.messages.render(

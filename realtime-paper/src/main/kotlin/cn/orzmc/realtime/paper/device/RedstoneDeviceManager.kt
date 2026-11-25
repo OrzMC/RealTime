@@ -404,12 +404,15 @@ class RedstoneDeviceManager(
         }
 
         if (blank) {
-            if (books.isSlotEmpty(inventory)) {
-                unchangedOutputs.incrementAndGet()
-                return
+            // A disabled device leaves its slot empty, exactly like a BCD slot:
+            // level 0 then comes from air rather than from a blank lectern, and a
+            // moved slot cannot leave an orphaned lectern behind.
+            // Clear the book first so it is not dropped as an item entity.
+            if (!books.isSlotEmpty(inventory)) {
+                books.clear(inventory)
+                bookWrites.incrementAndGet()
             }
-            books.clear(inventory)
-            bookWrites.incrementAndGet()
+            block.setType(Material.AIR, true)
             powerChanges.incrementAndGet()
             return
         }

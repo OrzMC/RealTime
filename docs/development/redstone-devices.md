@@ -50,7 +50,7 @@ which for 15 pages collapses to `page + 1`:
 | … | … | … |
 | 9 | 9 | 10 |
 
-No rounding is involved: all ten digits map onto distinct levels. A device that is disabled (or globally off) has its book removed, which makes the lectern emit level 0, so "off" is distinguishable from digit 0.
+No rounding is involved: all ten digits map onto distinct levels. A device that is disabled (or globally off) has its slot **emptied**: the book is removed first (so it does not drop) and then the lectern, exactly like a BCD slot goes back to air. Level 0 therefore comes from air, "off" stays distinguishable from digit 0 (which reads level 1), and a slot that was moved while the device was off cannot leave an orphaned lectern behind.
 
 Writing a digit is a single block-entity operation (`setPage`), far cheaper than the 4 block writes of a BCD digit:
 
@@ -59,7 +59,7 @@ Writing a digit is a single block-entity operation (`setPage`), far cheaper than
 - Writing the book resets the page to 0, so the page is always written after book installation.
 - `setPage` notifies neighbouring blocks, so the comparator behind the lectern resamples immediately; no manual block update is needed.
 - Lecterns are block entities: they only tick while the chunk is entity-ticking (a player nearby). A comparator in an unloaded chunk catches up as soon as the chunk ticks again, so the display is correct on arrival rather than live while nobody is around.
-- Players can open the lectern and turn pages. The 30 s full re-check rewrites the page, so tampering self-heals within at most 30 s.
+- Players can open the lectern and turn pages. The 30 s full re-check rewrites the page, so tampering self-heals within at most 30 s. Disabling a device removes the lecterns, and enabling it again places them and their books back.
 
 **Comparator direction:** `facing` points *toward the input*. Place the comparator with `facing` set towards the lectern; the output is on the opposite side. `comparator[facing=west]` therefore reads the lectern to its west and drives dust to its east.
 
@@ -167,6 +167,28 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 
+## Creating, changing and removing a device
+
+Both encodings use the same lifecycle, so everything below works for `bcd` and `analog` alike:
+
+| Step | Command | Permission | Notes |
+|---|---|---|---|
+| Create | `device create <name> <minute\|second> <world> <x> <y> <z> <axis> [stride] [bcd\|analog]` | `realtime.device.edit` | Created **disabled**; `analog` slots may be air (the plugin places the lecterns) |
+| Inspect | `device info <uuid>`, `device list`, `device status` | `realtime.device.view` | Shows encoding, resolution and every slot coordinate |
+| Enable | `device enable <uuid>` | `realtime.device.toggle` | Starts driving the display; `analog` lecterns and books are placed here |
+| Change a slot | `device set <uuid> <slot> <x> <y> <z>` | `realtime.device.edit` | **Disabled only**: disable → set → enable, so the old slot cannot be left behind |
+| Disable | `device disable <uuid>` | `realtime.device.toggle` | Every slot is emptied (BCD → air, analog → book + lectern removed) |
+| Remove | `device remove <uuid>` | `realtime.device.retire` | Disabled only; creates a durable cleanup job for every slot |
+
+There is no command to change the encoding or the resolution of an existing device: retire it and create a new one. That
+keeps the stored slot list and the in-world build consistent, because 16 BCD slots and 4 analog slots are different
+layouts, not a re-labelling.
+
+Cleanup after `remove` runs through the same durable job pipeline as the other mutations: a slot is cleared when it is
+air, a redstone block, or a lectern this device drove (with or without its book); anything else is reported as
+`NEEDS_ATTENTION` and left untouched. Inspect with `device cleanup list`, fix the block, then `device cleanup retry
+<job-uuid>`.
+
 ## In-game device administration
 
 The device records remain YAML-defined so each output position is explicit and reviewable; a slot is a power source, not a display wire. After the plugin loads the file, operators can inspect and manage existing records in-game:
@@ -174,7 +196,7 @@ The device records remain YAML-defined so each output position is explicit and r
 | Command | Permission | Behavior |
 |---|---|---|
 | `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <x+\|x-\|z+\|z-> [stride] [bcd\|analog]` | `realtime.device.edit` | Creates a disabled device whose slots run from the start position along the axis (default stride 2, BCD bits grouped four to a digit) |
-| `/rtime device set <uuid> <bit-index> <x> <y> <z>` | `realtime.device.edit` | Moves one output slot of an existing device |
+| `/rtime device set <uuid> <slot> <x> <y> <z>` | `realtime.device.edit` | Moves one output slot of a **disabled** device |
 | `/rtime device list` | `realtime.device.view` | Lists configured devices, UUID, world, and enabled state |
 | `/rtime device info <uuid>` | `realtime.device.view` | Shows metadata, resolution, and every bit-to-coordinate mapping |
 | `/rtime device status` | `realtime.device.view` | Shows aggregate output health and refresh counters |
@@ -238,6 +260,7 @@ What the commands validate (all without touching the world, so they are Folia-sa
 - the new device must stay under `limits.max-devices`
 - no coordinate may overlap another device or a pending cleanup job
 - `device set` must use a slot index that exists for that device's resolution and encoding (0–15 / 0–23 for BCD, 0–3 / 0–5 for analog)
+- `device set` refuses a **enabled** device, because the running device would keep writing the old slot and leave a stray redstone block or lectern behind; disable, move, enable
 - each player is throttled by `limits.edit-cooldown-seconds`; console commands are not throttled
 
 They do **not** inspect blocks. A slot that already contains something else is reported as an invalid output and left alone — clear it first. Analog slots are the exception to "prepare it yourself": when the slot is air the plugin places the lectern and its book on the next refresh, because the lectern *is* the output and has to carry the plugin's book. Each create/set is written to the plugin log with the acting player, device UUID and coordinates.

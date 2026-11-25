@@ -8,6 +8,10 @@ All notable changes to RealTime are documented here. Release automation requires
   BCD digit's four bits behind an extra gap, so a signal cannot leak into the neighbouring slot and the four bits of a
   digit are visually separated. A `minute` device now spans 34 blocks and a `second` device 52; existing devices keep
   their stored coordinates. An explicit `[stride]` still overrides the intra-group spacing.
+- `device set` now requires a disabled device and the tab completion only suggests disabled ones: an enabled device kept
+  writing the old slot, leaving a stray redstone block (or lectern) behind after a slot was moved.
+- Disabling an analog device now empties the slot (book removed, then the lectern) instead of leaving a blank lectern, so
+  "off" looks exactly like a BCD slot and a moved slot cannot orphan a lectern.
 - Retiring an analog device now clears a lectern that a previous `disable` had left blank (it empties the book first,
   so no item drops) instead of asking an operator to remove it by hand; a lectern holding someone else's book is still
   left untouched and reported.

@@ -299,7 +299,10 @@ class DeviceAdministrationServiceTest {
 
     @Test
     fun keepsTheEncodingWhenTogglingAndMovingSlots() {
-        var active = state(listOf(device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)))
+        var active =
+            state(
+                listOf(device(enabled = false, resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)),
+            )
         val service =
             DeviceAdministrationService(
                 stateLock = Any(),
@@ -312,14 +315,35 @@ class DeviceAdministrationServiceTest {
 
         val moved = service.setOutput(id, 5, 90, 64, 4)
         assertEquals(OutputEncoding.ANALOG, moved.encoding)
-        val toggled = service.setEnabled(id, false)
+        val toggled = service.setEnabled(id, true)
         assertEquals(OutputEncoding.ANALOG, toggled.encoding)
         assertEquals(6, toggled.outputs.size)
+        assertEquals(true, toggled.enabled)
+    }
+
+    @Test
+    fun setOutputRequiresADisabledDevice() {
+        var active = state(listOf(device(enabled = true)))
+        val service =
+            DeviceAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistDevices = {},
+                replaceState = { active = it },
+                requestRefresh = {},
+            )
+
+        assertThrows(DeviceMustBeDisabledException::class.java) {
+            service.setOutput(active.devices.single().id, 0, 40, 64, 40)
+        }
     }
 
     @Test
     fun setOutputRejectsSlotIndexesOutsideTheAnalogRange() {
-        var active = state(listOf(device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)))
+        var active =
+            state(
+                listOf(device(enabled = false, resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)),
+            )
         val service =
             DeviceAdministrationService(
                 stateLock = Any(),
@@ -336,7 +360,7 @@ class DeviceAdministrationServiceTest {
 
     @Test
     fun setOutputRejectsIndexesOutsideTheResolution() {
-        var active = state(listOf(device(resolution = OutputResolution.MINUTE)))
+        var active = state(listOf(device(enabled = false, resolution = OutputResolution.MINUTE)))
         val service =
             DeviceAdministrationService(
                 stateLock = Any(),
@@ -353,7 +377,7 @@ class DeviceAdministrationServiceTest {
 
     @Test
     fun setOutputKeepsTheResolutionAndRejectsOccupiedPositions() {
-        val first = device(resolution = OutputResolution.SECOND)
+        val first = device(enabled = false, resolution = OutputResolution.SECOND)
         val second = device(resolution = OutputResolution.SECOND)
         var active = state(listOf(first, second))
         val events = mutableListOf<String>()
@@ -381,7 +405,7 @@ class DeviceAdministrationServiceTest {
 
     @Test
     fun setOutputRejectsCoordinatesUsedByAnotherBitOfTheSameDevice() {
-        val device = device()
+        val device = device(enabled = false)
         var active = state(listOf(device))
         val service =
             DeviceAdministrationService(

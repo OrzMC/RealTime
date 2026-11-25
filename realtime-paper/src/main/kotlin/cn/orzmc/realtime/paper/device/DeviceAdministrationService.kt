@@ -159,6 +159,10 @@ class DeviceAdministrationService(
             val currentDevice =
                 currentState.devices.firstOrNull { it.id == id }
                     ?: throw DeviceNotFoundException(id)
+            // A live device would keep writing the old slot (a redstone block or a
+            // lectern) after it left the device, so slots move while the device is
+            // off. Disabling already empties every slot.
+            if (currentDevice.enabled) throw DeviceMustBeDisabledException(id)
             val maxIndex = currentDevice.outputCount - 1
             if (bitIndex !in 0..maxIndex) throw DeviceOutputIndexException(bitIndex, maxIndex)
 
