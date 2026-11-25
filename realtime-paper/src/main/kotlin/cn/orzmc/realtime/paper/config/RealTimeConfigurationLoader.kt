@@ -155,7 +155,7 @@ class RealTimeConfigurationLoader {
         return value
     }
 
-    private companion object {
+    companion object {
         const val ROOT_CONFIG = "config.yml"
         const val COMMAND_CONFIG = "modules/command.yml"
         const val MESSAGES_CONFIG = "messages.yml"
@@ -178,7 +178,7 @@ class RealTimeConfigurationLoader {
                 "command.usage",
             )
 
-        val OPTIONAL_MESSAGES =
+        private val OPTIONAL_MESSAGES =
             mapOf(
                 "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",
                 "command.device.cleanup.header" to "{prefix}&b待清理设备队列（{count}）",
@@ -236,5 +236,11 @@ class RealTimeConfigurationLoader {
                 "command.device.not-found" to "{prefix}&c未找到设备：&f{id}",
                 "command.device.error" to "{prefix}&c设备操作或刷新失败：&f{reason}",
             )
+
+        /** Message keys every install must define (they have no fallback). */
+        val REQUIRED_MESSAGE_KEYS: List<String> = REQUIRED_MESSAGES
+
+        /** Message keys that fall back to the built-in defaults when absent. */
+        val OPTIONAL_MESSAGE_KEYS: Set<String> = OPTIONAL_MESSAGES.keys
     }
 }

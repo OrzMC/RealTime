@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.config
 
+import org.bukkit.configuration.file.YamlConfiguration
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
@@ -27,6 +28,26 @@ class RealTimeConfigurationLoaderTest {
         assertEquals("uuuu-MM-dd HH:mm:ss XXX", configuration.commandFormat)
         assertEquals("{prefix}devices {count}", configuration.messages["command.device.list.header"])
         assertEquals("{prefix}device diagnostics", configuration.messages["command.device.status.header"])
+    }
+
+    @Test
+    fun `the shipped messages template declares exactly the keys the loader knows`() {
+        val yaml = YamlConfiguration()
+        val stream =
+            RealTimeConfigurationLoader::class.java.getResourceAsStream("/messages.yml")
+                ?: error("messages.yml is missing from the plugin resources")
+        stream.reader(Charsets.UTF_8).use { reader -> yaml.load(reader) }
+        val shipped = yaml.getKeys(true).filter { yaml.get(it) is String }.toSet()
+        val declared =
+            RealTimeConfigurationLoader.REQUIRED_MESSAGE_KEYS.toSet() +
+                RealTimeConfigurationLoader.OPTIONAL_MESSAGE_KEYS
+
+        assertEquals(emptySet<String>(), declared - shipped, "keys declared but missing from messages.yml")
+        assertEquals(
+            emptySet<String>(),
+            shipped.filter { it.startsWith("command.") }.toSet() - declared,
+            "messages.yml keys that nothing renders",
+        )
     }
 
     @Test

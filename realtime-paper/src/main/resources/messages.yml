@@ -54,11 +54,11 @@ command:
       success: '{prefix}&a设备已创建：&f{name} &7[{id}] &8{resolution} &8{encoding} &8{world} &7{count} 个输出 &8（默认禁用，槽位每格间隔 1 空气，BCD 每 4 位一组；确认接线后 device enable）'
       invalid-resolution: '{prefix}&c分辨率无效：&f{value} &7（可用：minute、second）'
       invalid-encoding: '{prefix}&c编码无效：&f{value} &7（可用：bcd、analog）'
-    demo:
-      success: '{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + &f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）'
       limit: '{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。'
       area: '{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}'
       conflict: '{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}'
+    demo:
+      success: '{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + &f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）'
     set:
       success: '{prefix}&a槽 {bit} 已改为 &f{x}, {y}, {z}'
       must-disable: '{prefix}&c请先禁用设备再改槽位（启用中的设备会持续写旧槽位）：&f{id}'
