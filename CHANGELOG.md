@@ -2,7 +2,7 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
-## [Unreleased]
+## [0.2.0]
 
 ### 新增
 
@@ -36,6 +36,26 @@ All notable changes to RealTime are documented here. Release automation requires
   Windows 上"整文件显示已修改"的假 diff。
 - Paper/Folia runtime smoke 加固：块探针改用 `run list` 并逐位置重试，关键判定改为**按持久化清理队列**（Folia 对 region
   命令的 RCON 应答会丢包/报未加载，之前因此偶发失败）。
+
+### 安装与升级须知（0.2.0）
+
+- **环境要求不变**：Java 25 + Paper 或 Folia **26.3** 及以上（`api-version: 26.3`）。
+- **直接从 0.1.0 覆盖升级**：把 `RealTime-0.2.0.jar` 放进 `plugins/` 替换旧 jar 后重启。
+  `data/devices.yml` 会从 schema v3 自动迁移到 **v5**，迁移前自动备份到 `backups/devices.yml.bak`。
+- **已有设备坐标不会移动**：新的默认布局（间隔 + 分组）只影响之后用 `device create` 新建的设备。
+- **行为变化（请注意）**：
+  - `device set`（移动槽位）现在要求设备处于**禁用**状态：`device disable` → `device set` → `device enable`。
+    之前允许对启用中设备改槽位，会在世界里留下一个永久通电的红石块/讲台。
+  - `analog` 设备 `disable` 现在会**清空槽位**（先移走书再拆讲台），不再留下空讲台；`enable` 会重新放回。
+  - 新建 BCD 设备默认 **每格间隔 1 空气、每 4 位一组**（`minute` 占 34 格、`second` 占 52 格）。墙不够宽可以显式传
+    间距（`... x+ 1`），或用 `device set` 微调。
+- **权限**：新增 `realtime.device.view`（默认所有人）/ `toggle` / `edit` / `retire`（默认 op），
+  `realtime.admin` 仍是父节点。**只给过 OP 的服无需改动**；若曾把 `realtime.admin` 发给非 OP，建议换成更细的节点。
+- **新命令**：`device create ... [间距] [bcd|analog]`、`device set`、`device demo <bcd|analog> ...`。
+  `device demo` 一条命令生成完整可看的时钟（含灯/比较器/红石线），适合教学与自测，`device remove` 可整体清除。
+- **已知限制**：analog 的讲台是方块实体，比较器读数需要该区块处于 entity-ticking（有人在附近）；无人时到达现场会补齐。
+  玩家可以打开讲台翻页，插件每 30 秒的全量复查会把页码写回。
+- Hangar / Modrinth 仍未接入（未配置 `HANGAR_PROJECT_ID` / `MODRINTH_PROJECT_ID`），本次仍只发 GitHub Release。
 
 ## [0.1.0]
 
