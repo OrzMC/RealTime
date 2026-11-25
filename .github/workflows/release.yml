@@ -4,12 +4,25 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build (branch or tag)"
+        required: false
+        default: "main"
+      version:
+        description: "Version to exercise, e.g. 0.5.0 (must match the CHANGELOG section for a real release)"
+        required: true
+      dry_run:
+        description: "Build + distribution preflight only: no GitHub Release, no Hangar/Modrinth upload"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.version || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -18,8 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.metadata.outputs.version }}
+      dry_run: ${{ steps.metadata.outputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -28,14 +44,41 @@ jobs:
         with:
           gradle-version: "9.2.1"
 
-      - name: Validate tag and changelog
+      # A tag push validates the tag against its CHANGELOG section because that
+      # is what the release notes are rendered from. A manual run passes the
+      # version explicitly and only checks that the section exists when the run
+      # is meant to publish, so the upload path can be exercised before the
+      # release-prep commit lands.
+      - name: Resolve version, validate tag and changelog
         id: metadata
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          bash scripts/validate-release.sh "$GITHUB_REF_NAME"
-          VERSION="${GITHUB_REF_NAME#v}"
+          set -euo pipefail
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${DRY_RUN:-false}" >> "$GITHUB_OUTPUT"
           mkdir -p dist
-          bash scripts/extract-release-notes.sh "$VERSION" > dist/release-notes.md
+          if [[ "${DRY_RUN:-false}" == "true" ]]; then
+            echo "dry run: skipping tag/CHANGELOG validation, previewing the newest section instead"
+            NEWEST="$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+[^]]*\]' CHANGELOG.md | sed -E 's/^## \[(.*)\]$/\1/')"
+            bash scripts/extract-release-notes.sh "${NEWEST}" > dist/release-notes.md
+            echo "preview notes from CHANGELOG section $NEWEST"
+          else
+            bash scripts/validate-release.sh "v$VERSION"
+            bash scripts/extract-release-notes.sh "$VERSION" > dist/release-notes.md
+          fi
+
+      - name: Distribution metadata check
+        env:
+          HANGAR_PROJECT_ID: ${{ vars.HANGAR_PROJECT_ID }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+        run: bash scripts/distribution-check.sh --version "${{ steps.metadata.outputs.version }}"
 
       - name: Verify and build versioned shaded JAR
         run: >
@@ -77,25 +120,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ inputs.ref || github.ref }}
       - uses: actions/download-artifact@v4
         with:
           name: RealTime-${{ needs.build.outputs.version }}
           path: dist/
 
+      # Blocking on a dry run (that is the whole point of the run), advisory on
+      # a real release (a network blip must not block a release).
+      - name: Distribution preflight
+        continue-on-error: ${{ needs.build.outputs.dry_run != 'true' }}
+        env:
+          HANGAR_PROJECT_ID: ${{ vars.HANGAR_PROJECT_ID }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+        run: bash scripts/distribution-check.sh --remote --version "${{ needs.build.outputs.version }}"
+
       - name: Create GitHub Release
+        if: ${{ needs.build.outputs.dry_run != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          # A tag push implies the tag exists. A manual non-dry run is only for
+          # republishing an existing tag, so refuse to create one from a branch.
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "tag v$VERSION does not exist in $GITHUB_REPOSITORY; push the tag instead of dispatching a publish run" >&2
+            exit 1
+          fi
+          gh release create "v$VERSION" \
             "dist/RealTime-$VERSION.jar" \
             "dist/RealTime-$VERSION.jar.sha256" \
-            --title "RealTime $GITHUB_REF_NAME" \
+            --title "RealTime v$VERSION" \
             --notes-file dist/release-notes.md
 
       - name: Publish stable version to Hangar
-        if: ${{ vars.HANGAR_PROJECT_ID != '' && !contains(github.ref_name, '-') }}
+        if: ${{ needs.build.outputs.dry_run != 'true' && vars.HANGAR_PROJECT_ID != '' && !contains(needs.build.outputs.version, '-') }}
         env:
           HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
           HANGAR_PROJECT_ID: ${{ vars.HANGAR_PROJECT_ID }}
@@ -112,7 +171,7 @@ jobs:
             :realtime-paper:publishPluginPublicationToHangar
 
       - name: Publish version to Modrinth
-        if: ${{ vars.MODRINTH_PROJECT_ID != '' }}
+        if: ${{ needs.build.outputs.dry_run != 'true' && vars.MODRINTH_PROJECT_ID != '' }}
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
           MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
@@ -123,7 +182,7 @@ jobs:
             exit 0
           fi
 
-          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+          if [[ "$VERSION" == *-* ]]; then
             VERSION_TYPE="beta"
           else
             VERSION_TYPE="release"
@@ -141,7 +200,7 @@ jobs:
               version_number: $version,
               changelog: $changelog,
               game_versions: ["26.3"],
-              loaders: ["paper"],
+              loaders: ["paper", "folia"],
               version_type: $type,
               featured: false,
               status: "listed",
@@ -156,3 +215,22 @@ jobs:
             --header "User-Agent: OrzMC/RealTime (https://github.com/OrzMC/RealTime)" \
             --form "data=$DATA;type=application/json" \
             --form "plugin=@dist/RealTime-$VERSION.jar;type=application/java-archive"
+
+      - name: Summarize
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          DRY_RUN: ${{ needs.build.outputs.dry_run }}
+          HANGAR_ID: ${{ vars.HANGAR_PROJECT_ID }}
+          MODRINTH_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+        run: |
+          {
+            echo "### Release run summary"
+            echo
+            echo "| item | value |"
+            echo "|---|---|"
+            echo "| version | \`$VERSION\` |"
+            echo "| dry run | \`$DRY_RUN\` |"
+            echo "| GitHub Release | $( [[ "$DRY_RUN" == "true" ]] && echo 'skipped' || echo 'created' ) |"
+            echo "| Hangar | $([[ -z "$HANGAR_ID" ]] && echo 'skipped (no project id)' || { [[ "$DRY_RUN" == "true" ]] && echo 'skipped (dry run)' || echo "attempted (\`$HANGAR_ID\`)"; }) |"
+            echo "| Modrinth | $([[ -z "$MODRINTH_ID" ]] && echo 'skipped (no project id)' || { [[ "$DRY_RUN" == "true" ]] && echo 'skipped (dry run)' || echo "attempted (\`$MODRINTH_ID\`)"; }) |"
+          } >> "$GITHUB_STEP_SUMMARY"

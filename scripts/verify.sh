@@ -17,3 +17,4 @@ fi
 bash "$ROOT_DIR/scripts/test-release-scripts.sh"
 bash "$ROOT_DIR/scripts/validate-release.sh" "v0.1.0"
 bash "$ROOT_DIR/scripts/extract-release-notes.sh" "0.1.0" >/dev/null
+bash "$ROOT_DIR/scripts/distribution-check.sh" >/dev/null
