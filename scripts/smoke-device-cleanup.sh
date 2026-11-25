@@ -130,6 +130,9 @@ wait_blocks_air() {
     sleep 1
   done
   echo "$label: still not air after ${attempt}s on $PROJECT" >&2
+  rtime device cleanup list >&2 || true
+  cat "$WORK_DIR/plugins/RealTime/data/devices.yml" >&2 || true
+  tail -40 "$WORK_DIR/server.log" >&2 || true
   return 1
 }
 
