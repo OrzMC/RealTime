@@ -4,6 +4,15 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+### 新增
+
+- `/rtime device cleanup dismiss <job-uuid>`（`realtime.device.retire`）：丢弃一个只剩 `需人工处理` 的清理任务，
+  相关方块保持原样。用于"这些方块本来就不该清"的场景（典型：`device demo` 建在草地上，支撑位是原始地形），
+  以前只能手改 `data/devices.yml`。仍有 `待处理` 项时会拒绝。
+- `device demo` 的成功提示补充了"建示例前请确认该区域是空地"，减少地形占位导致的非法方块。
+- 新增面向使用者的 [usage guide](docs/usage.md)：安装、命令与权限、两种编码的接线、教学示例、清理队列、
+  诊断、占位符与 FAQ；README、需求文档与实现说明改为引用它，去掉重复的命令表。
+
 ## [0.3.0]
 
 ### 修复

@@ -24,6 +24,9 @@ command:
       item: '{prefix}&f{name} &7[{id}] &8世界：&f{world} &8待处理：&e{pending} &8需人工处理：&c{attention}'
       retry:
         success: '{prefix}&a已重新排队清理任务：&f{id}'
+      dismiss:
+        success: '{prefix}&a已丢弃清理任务 &f{name} &7[{id}]&a，相关方块保持原样。'
+        has-pending: '{prefix}&c该任务还有待处理项，请等它跑完再丢弃：&f{id}'
       invalid-id: '{prefix}&c清理任务 ID 格式无效：&f{id}'
       not-found: '{prefix}&c未找到清理任务：&f{id}'
       error: '{prefix}&c清理任务操作失败：&f{reason}'
@@ -58,7 +61,7 @@ command:
       area: '{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}'
       conflict: '{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}'
     demo:
-      success: '{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + &f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）'
+      success: '{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + &f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）&e建示例前请确认该区域是空地——插件只填空位，被地形占住的位置会报非法方块、退役时要人工处理。'
     set:
       success: '{prefix}&a槽 {bit} 已改为 &f{x}, {y}, {z}'
       must-disable: '{prefix}&c请先禁用设备再改槽位（启用中的设备会持续写旧槽位）：&f{id}'
@@ -74,4 +77,4 @@ command:
     error: '{prefix}&c设备操作或刷新失败：&f{reason}'
   no-permission: '{prefix}&c你没有权限执行此操作。'
   disabled: '{prefix}&cRealTime 或命令模块当前已禁用。'
-  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info <uuid>|device status|device create <名称> <minute|second> <世界> <x> <y> <z> <x+|x-|z+|z-> [间距] [bcd|analog]|device demo <bcd|analog> <世界> <x> <y> <z> <轴>|device set <uuid> <槽位> <x> <y> <z>|device enable|device disable|device remove <uuid>|device cleanup list|device cleanup retry]'
+  usage: '{prefix}&f用法：&e/rtime [now|info|reload|device list|device info <uuid>|device status|device create <名称> <minute|second> <世界> <x> <y> <z> <轴> [间距] [bcd|analog]|device demo <bcd|analog> <世界> <x> <y> <z> <轴>|device set <uuid> <槽位> <x> <y> <z>|device enable|device disable|device remove <uuid>|device cleanup list|device cleanup retry|device cleanup dismiss]'

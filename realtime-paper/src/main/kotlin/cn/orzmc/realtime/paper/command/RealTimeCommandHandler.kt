@@ -9,6 +9,7 @@ import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.device.DeviceAdministration
 import cn.orzmc.realtime.paper.device.DeviceAreaNotAllowedException
 import cn.orzmc.realtime.paper.device.DeviceCleanupAdministration
+import cn.orzmc.realtime.paper.device.DeviceCleanupJobHasPendingOutputsException
 import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
 import cn.orzmc.realtime.paper.device.DeviceCreateRequest
@@ -111,14 +112,17 @@ class RealTimeCommandHandler(
             val candidates =
                 buildList {
                     if (canRead) add("list")
-                    if (target.hasPermission(RETIRE_PERMISSION)) add("retry")
+                    if (target.hasPermission(RETIRE_PERMISSION)) {
+                        add("retry")
+                        add("dismiss")
+                    }
                 }
             return candidates.filter { it.startsWith(args[2].lowercase(Locale.ROOT)) }
         }
 
         if (args.size == 4 &&
             subcommand == "cleanup" &&
-            args[2].equals("retry", true) &&
+            (args[2].equals("retry", true) || args[2].equals("dismiss", true)) &&
             target.hasPermission(RETIRE_PERMISSION)
         ) {
             val prefix = args[3].lowercase(Locale.ROOT)
@@ -308,6 +312,44 @@ class RealTimeCommandHandler(
                                     "command.device.cleanup.not-found"
                                 } else {
                                     "command.device.cleanup.error"
+                                }
+                            target.sendMessage(
+                                state.messages.render(
+                                    key,
+                                    mapOf("id" to id.toString(), "reason" to (exception.message ?: "unknown error")),
+                                ),
+                            )
+                        },
+                    )
+            }
+            "dismiss" -> {
+                if (args.size != 2) return sendUsage(target, state)
+                if (!target.hasPermission(RETIRE_PERMISSION)) return sendNoPermission(target, state)
+                val id = parseCleanupJobId(target, state, args[1]) ?: return
+                runCatching { administration.dismiss(id) }
+                    .fold(
+                        onSuccess = { job ->
+                            logger?.info(
+                                "RealTime cleanup job ${job.id} of device '${job.deviceName}' dismissed by " +
+                                    "${target.actorName}: " +
+                                    "${job.outputs.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }} slot(s) and " +
+                                    "${job.display.count { it.status == DeviceCleanupStatus.NEEDS_ATTENTION }} display " +
+                                    "block(s) left as they are",
+                            )
+                            target.sendMessage(
+                                state.messages.render(
+                                    "command.device.cleanup.dismiss.success",
+                                    mapOf("id" to job.id.toString(), "name" to job.deviceName),
+                                ),
+                            )
+                        },
+                        onFailure = { exception ->
+                            val key =
+                                when (exception) {
+                                    is DeviceCleanupJobNotFoundException -> "command.device.cleanup.not-found"
+                                    is DeviceCleanupJobHasPendingOutputsException ->
+                                        "command.device.cleanup.dismiss.has-pending"
+                                    else -> "command.device.cleanup.error"
                                 }
                             target.sendMessage(
                                 state.messages.render(

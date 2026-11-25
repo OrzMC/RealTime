@@ -30,19 +30,15 @@ Implemented commands:
 - `/rtime info`: display plugin version, configured timezone, and module status.
 - `/rtime reload`: validate and reload configuration safely.
 
-Device administration (all in game, no hand-editing required):
+Device administration happens entirely in game — no hand-editing of the data file. The command surface, permission split
+(`realtime.device.view` / `toggle` / `edit` / `retire`, with `realtime.admin` as parent), authoring limits and the
+cleanup queue are documented once in the [usage guide](../usage.md); this document only fixes the requirements:
 
-- `/rtime device list|info|status`, `device cleanup list` — `realtime.device.view` (default everyone)
-- `/rtime device enable|disable <uuid>` — `realtime.device.toggle` (default op)
-- `/rtime device create ... [stride] [bcd|analog]`, `/rtime device demo <bcd|analog> ...`,
-  `/rtime device set <uuid> <slot> <x> <y> <z>` — `realtime.device.edit` (default op); these are the only commands that
-  write blocks at coordinates the caller chooses
-- `/rtime device remove <uuid>`, `device cleanup retry <job>` — `realtime.device.retire` (default op)
-- `/rtime reload` — `realtime.admin` (default op, parent of all of the above)
-
-`device set` requires a disabled device so a moved slot cannot be left behind by the running device, and a device's
-encoding/resolution cannot be changed in place (retire and create instead). Authoring is additionally bounded by
-`limits.allowed-areas`, `limits.max-devices` and `limits.edit-cooldown-seconds`.
+- Devices must be creatable, inspectable, movable, enable/disable-able and retirable without editing YAML.
+- Slot edits require a disabled device; encoding/resolution are immutable (retire and create instead).
+- Every write is gated by area whitelist, device cap, per-player cooldown, and audit logging.
+- Retirement is deferred and durable; blocks the plugin does not own are never overwritten and can be retried or
+  dismissed by an operator.
 
 ### Optional PlaceholderAPI integration (P1)
 

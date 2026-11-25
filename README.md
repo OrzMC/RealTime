@@ -62,32 +62,20 @@ Read [AGENTS.md](AGENTS.md), then [tasks/roadmap.md](tasks/roadmap.md). Agents m
 
 See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the multi-agent workspace helpers.
 
-## Device administration
+## Features
 
-| Command | Permission | Purpose |
-|---|---|---|
-| `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <axis> [stride] [bcd\|analog]` | `realtime.device.edit` | Create a device slot layout along an axis |
-| `/rtime device demo <bcd\|analog> <world> <x> <y> <z> <axis>` | `realtime.device.edit` | Build one complete teaching clock (display blocks included) and enable it |
-| `/rtime device set <uuid> <slot> <x> <y> <z>` | `realtime.device.edit` | Move one output slot (disabled devices only) |
-| `/rtime device list` | `realtime.device.view` | List configured device IDs and status |
-| `/rtime device info <uuid>` | `realtime.device.view` | Inspect resolution and every output coordinate |
-| `/rtime device status` | `realtime.device.view` | View aggregate redstone output diagnostics |
-| `/rtime device cleanup list` | `realtime.device.view` | Inspect deferred cleanup queue |
-| `/rtime device cleanup retry <job-uuid>` | `realtime.device.retire` | Retry manually corrected `NEEDS_ATTENTION` outputs |
-| `/rtime device remove <uuid>` | `realtime.device.retire` | Retire a disabled device and enqueue crash-safe deferred cleanup |
-| `/rtime device enable <uuid>` | `realtime.device.toggle` | Enable a device and refresh outputs |
-| `/rtime device disable <uuid>` | `realtime.device.toggle` | Disable a device and clear loaded outputs |
+- **Real-world time** with an explicit `ZoneId` (default `Asia/Shanghai`), `/rtime now|info|reload`, and optional
+  PlaceholderAPI placeholders.
+- **Redstone clocks in two encodings**: `bcd` (one power-source slot per bit — 16 for `HHmm`, 24 for `HHmmss`) and
+  `analog` (one lectern per digit, comparator level = digit + 1 — six lines instead of twenty-four).
+- **In-game authoring**: `device create`, `device set`, `device demo` (one-command teaching build), all bounded by
+  `limits.allowed-areas` / `max-devices` / `edit-cooldown-seconds` and split permissions.
+- **Durable lifecycle**: disable empties every slot, remove queues a crash-safe cleanup job, and a `NEEDS_ATTENTION`
+  entry means "that block is not ours" — never overwritten, retry it or dismiss the job.
+- **Diagnostics** behind `device status`; tick-level change detection with diff-only, chunk-batched writes.
 
-Each device declares `resolution: minute` (`HHmm`) or `second` (`HHmmss`) and an `encoding`:
-
-- **`bcd`** (default): four slots per digit — 16 for `minute`, 24 for `second`. A slot is a power source: bit 1 places a `redstone_block`, bit 0 leaves it empty, so vanilla redstone switches the connected circuit.
-- **`analog`**: one slot per digit — 4 for `minute`, 6 for `second`. A slot is a lectern holding a plugin-created 15-page book; the page index is the digit, so a comparator reads level `digit + 1`. Six lines replace twenty-four.
-
-New devices are laid out with one empty block between slots and one extra block between the four bits of a digit (`stride` defaults to 2, BCD groups four slots per digit), so neighbouring slots cannot feed each other. Minute clocks are rewritten when the minute changes, second clocks every second, and only slots whose state changed are written. Authoring limits live in `modules/redstone.yml` (`max-devices`, `edit-cooldown-seconds`, `allowed-areas`).
-
-`/rtime device demo` builds a complete example — lamps above every BCD slot, or a lectern/comparator/dust/lamp row per analog digit — and enables it, which is the fastest way to see an encoding working. Display blocks belong to that device and are removed by `disable`/`remove`; a normal device only ever touches its own slots.
-
-The cleanup queue is durable and inspectable; operators may retry manually corrected attention-required outputs. Device removal is disabled-device-only and delegates to the crash-safe retirement service; the cleanup queue remains the durable source of truth until every output (and demo display block) is cleared.
+Commands, permissions, wiring diagrams, the cleanup queue and FAQ: **[usage guide](docs/usage.md)**.
+Implementation notes (store schema, encoding maths, scheduler safety): [redstone devices](docs/development/redstone-devices.md).
 
 ## Docs
 
@@ -96,7 +84,8 @@ The cleanup queue is durable and inspectable; operators may retry manually corre
 - [Development setup](docs/development/setup.md)
 - [Testing strategy](docs/testing/strategy.md)
 - [Paper/Folia scheduler safety](docs/development/scheduler-safety.md)
-- [Redstone time devices](docs/development/redstone-devices.md)
+- [Usage guide](docs/usage.md)
+- [Redstone devices (implementation notes)](docs/development/redstone-devices.md)
 - [PlaceholderAPI integration](docs/development/placeholderapi.md)
 - [Release process](docs/release/process.md)
 - [0.1.0 production acceptance handoff](docs/operations/production-acceptance-0.1.0.md) (historical)

@@ -133,6 +133,67 @@ class DeviceCleanupAdministrationServiceTest {
     }
 
     @Test
+    fun `dismiss drops a job whose entries all need attention`() {
+        val job = jobWithAttentionOutput()
+        val initial = state(job)
+        var active = initial
+        var persistCount = 0
+        val service =
+            DeviceCleanupAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistStore = {
+                    persistCount += 1
+                    active = active.copy(cleanupJobs = it.cleanupJobs)
+                },
+                replaceState = { active = it },
+                requestCleanup = {},
+            )
+
+        // Remaining entries must not be PENDING for a dismissal.
+        val settled =
+            job.copy(
+                outputs = job.outputs.map { output -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.CLEARED) },
+            )
+        active = active.copy(cleanupJobs = listOf(settled))
+
+        val dismissed = service.dismiss(job.id)
+
+        assertEquals(job.id, dismissed.id)
+        assertEquals(1, persistCount)
+        assertTrue(active.cleanupJobs.isEmpty())
+    }
+
+    @Test
+    fun `dismiss refuses a job that still has pending entries`() {
+        val job = DeviceCleanupJob.fromDevice(device(), UUID.randomUUID())
+        val service =
+            DeviceCleanupAdministrationService(
+                stateLock = Any(),
+                stateProvider = { state(job) },
+                persistStore = {},
+                replaceState = {},
+                requestCleanup = {},
+            )
+
+        assertThrows(DeviceCleanupJobHasPendingOutputsException::class.java) { service.dismiss(job.id) }
+    }
+
+    @Test
+    fun `dismiss reports an unknown job`() {
+        val service =
+            DeviceCleanupAdministrationService(
+                stateLock = Any(),
+                stateProvider = { state(DeviceCleanupJob.fromDevice(device(), UUID.randomUUID())) },
+                persistStore = {},
+                replaceState = {},
+                requestCleanup = {},
+            )
+
+        assertThrows(DeviceCleanupJobNotFoundException::class.java) { service.dismiss(UUID.randomUUID()) }
+    }
+
+    @Test
     fun `retry rejects jobs without attention outputs`() {
         val job = DeviceCleanupJob.fromDevice(device(), UUID.randomUUID())
         val service =
