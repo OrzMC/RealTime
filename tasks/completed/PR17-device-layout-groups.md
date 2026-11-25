@@ -43,4 +43,4 @@ Requested after building the 0.1.0 acceptance clock by hand.
   `index * stride + digit gap`, unknown resolution/encoding still rejected.
 - `./scripts/verify.sh` green (119 tests).
 - In-game: created a `minute` device on the test instance — slots at `200 202 204 206 209 211 213 215 …`, i.e. the
-documented gaps; see [analog acceptance](../operations/analog-acceptance-2026-11-25.md).
+documented gaps; see [analog acceptance](../../docs/operations/analog-acceptance-2026-11-25.md).

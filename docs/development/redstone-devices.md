@@ -68,22 +68,22 @@ Real-server evidence for this section (page/level table, disable, tamper self-he
 
 Retirement follows the same rule as BCD slots: the cleanup job removes the lectern (after clearing its book, so no item drops) whether it still holds this device's book or is already blank, because the slot belongs to the device — disabling a device only removes the book. A lectern that holds **someone else's** book, or any other block, is left in place and reported as `NEEDS_ATTENTION`.
 
-## Device store schema v4
+## Device store schema v5
 
-The current `data/devices.yml` format uses schema version 4. Schema v4 adds `encoding` to device records and cleanup jobs; records written by earlier schemas are read as `bcd`, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v3 files are migrated automatically on load; device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
+The current `data/devices.yml` format uses schema version 5. Schema v4 added `encoding` to device records and cleanup jobs; schema v5 adds the `demo:` list of a `device demo` build and the matching `display:` list on cleanup jobs. Records written by earlier schemas are read as `bcd` with no demo blocks, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v4 files are migrated automatically on load; device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
 
-Each device record declares `resolution: minute` or `resolution: second` and, since schema v4, `encoding: bcd` or `encoding: analog`. A `bcd` `minute` device has 16 outputs and a `bcd` `second` device 24 (HHmmss); an `analog` device has one output per digit, so 4 and 6 respectively. Cleanup jobs record the same resolution and encoding as the retired device, so every variant is cleaned completely.
+Each device record declares `resolution: minute` or `resolution: second`, `encoding: bcd` or `encoding: analog`, and — for a teaching build — a `demo:` list of the display blocks it owns (`{x, y, z, data}`, where `data` is a block-data string such as `minecraft:comparator[facing=north]`). A `bcd` `minute` device has 16 outputs and a `bcd` `second` device 24 (HHmmss); an `analog` device has one output per digit, so 4 and 6 respectively. Cleanup jobs record the same resolution and encoding as the retired device, so every variant is cleaned completely.
 
-A cleanup job records the retired device identity, world name, optional world UUID, resolution, and every output coordinate of that device. Each output has one of three states:
+A cleanup job records the retired device identity, world name, optional world UUID, resolution, encoding, every output coordinate of that device, and the display blocks of a demo build (`display:`). Each output has one of three states:
 
 - `PENDING`: not yet safely processed (including unloaded chunks or unavailable worlds).
-- `CLEARED`: the slot was empty, or a `redstone_block` was removed from it.
-- `NEEDS_ATTENTION`: the slot holds something other than air or a redstone block (it is never overwritten), so an operator must inspect it.
+- `CLEARED`: the slot was already empty, or a `redstone_block` / the plugin's lectern / one of its demo blocks was removed from it.
+- `NEEDS_ATTENTION`: the slot holds something the plugin does not own (it is never overwritten), so an operator must inspect it.
 
 Example shape (abbreviated):
 
 ```yaml
-schema-version: 4
+schema-version: 5
 devices: []
 cleanup-jobs:
   - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
@@ -93,11 +93,12 @@ cleanup-jobs:
     world-uuid: null
     resolution: second
     encoding: bcd
+    display: []
     outputs:
       - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
 ```
 
-The complete job contains every output of the retired device (16/24 for a BCD `minute`/`second` device, 4/6 for an analog one). Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service. PR12 adds second resolution. PR16 adds the optional analog (lectern) encoding and schema v4.
+The complete job contains every output of the retired device (16/24 for a BCD `minute`/`second` device, 4/6 for an analog one). Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service. PR12 adds second resolution. PR16 adds the optional analog (lectern) encoding and schema v4; PR17 changes the default layout to one-block gaps with four-bit digit groups; PR18 adds `device demo` teaching builds and schema v5.
 
 ## BCD output layout
 
@@ -114,14 +115,16 @@ Digits are always ordered hour → minute → second, and each digit is emitted 
 
 A `minute` device must define exactly 16 unique output slots and a `second` device exactly 24; bit indexes must cover `0` through `outputs - 1` exactly once. Slots must contain `minecraft:air` or `minecraft:redstone_block`; anything else is reported as an invalid output and never overwritten.
 
+Analog devices reuse the same record shape with **one entry per digit**: `bit-index` 0–3 (`minute`) or 0–5 (`second`) is the digit position, and the slot value is the digit itself rather than a bit. `device info` prints the same `槽 <index>` lines for both encodings.
+
 For example, 23:59:47 is encoded as digits `2, 3, 5, 9, 4, 7`; each digit occupies four bits, least-significant bit first.
 
 ## Device file example
 
-The following shows a complete `minute` device (16 outputs, HHmm). A `second` device is identical except for `resolution: second` and 24 output records covering bit indexes 0 through 23. Change the world name and coordinates to match the build:
+The following shows a complete `minute` device (16 outputs, HHmm) in the default layout — one empty block between slots, one extra between the four bits of a digit (`offset = index * 2 + index / 4`). A `second` device is identical except for `resolution: second` and 24 output records covering bit indexes 0 through 23 (`offset = index * 2 + index / 4`, spanning 52 blocks). Change the world name and coordinates to match the build:
 
 ```yaml
-schema-version: 4
+schema-version: 5
 devices:
   - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
     name: lobby-clock
@@ -129,23 +132,24 @@ devices:
     enabled: true
     resolution: minute
     encoding: bcd
+    demo: []
     outputs:
       - { bit-index: 0, x: 100, y: 65, z: 100 }
       - { bit-index: 1, x: 102, y: 65, z: 100 }
       - { bit-index: 2, x: 104, y: 65, z: 100 }
       - { bit-index: 3, x: 106, y: 65, z: 100 }
-      - { bit-index: 4, x: 108, y: 65, z: 100 }
-      - { bit-index: 5, x: 110, y: 65, z: 100 }
-      - { bit-index: 6, x: 112, y: 65, z: 100 }
-      - { bit-index: 7, x: 114, y: 65, z: 100 }
-      - { bit-index: 8, x: 116, y: 65, z: 100 }
-      - { bit-index: 9, x: 118, y: 65, z: 100 }
-      - { bit-index: 10, x: 120, y: 65, z: 100 }
-      - { bit-index: 11, x: 122, y: 65, z: 100 }
-      - { bit-index: 12, x: 124, y: 65, z: 100 }
-      - { bit-index: 13, x: 126, y: 65, z: 100 }
-      - { bit-index: 14, x: 128, y: 65, z: 100 }
-      - { bit-index: 15, x: 130, y: 65, z: 100 }
+      - { bit-index: 4, x: 109, y: 65, z: 100 }
+      - { bit-index: 5, x: 111, y: 65, z: 100 }
+      - { bit-index: 6, x: 113, y: 65, z: 100 }
+      - { bit-index: 7, x: 115, y: 65, z: 100 }
+      - { bit-index: 8, x: 118, y: 65, z: 100 }
+      - { bit-index: 9, x: 120, y: 65, z: 100 }
+      - { bit-index: 10, x: 122, y: 65, z: 100 }
+      - { bit-index: 11, x: 124, y: 65, z: 100 }
+      - { bit-index: 12, x: 127, y: 65, z: 100 }
+      - { bit-index: 13, x: 129, y: 65, z: 100 }
+      - { bit-index: 14, x: 131, y: 65, z: 100 }
+      - { bit-index: 15, x: 133, y: 65, z: 100 }
 cleanup-jobs: []
 ```
 
@@ -298,4 +302,4 @@ New devices start disabled: review `/rtime device info <uuid>`, then `/rtime dev
 
 ## Output diagnostics
 
-Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, dispatched output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual output changes (power / page), unchanged outputs, and caught write failures. Once an analog device has written something, the status output also reports lectern placements and book installs/removals. Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Because writes are diffed and batched, `输出检查` counts slots that were actually dispatched (changed slots plus the 30 s full re-check), not a per-second poll of every slot. Diagnostics never load chunks and do not change output behavior.
+Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, dispatched output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual output changes (power / page), unchanged outputs, and caught write failures. Once an analog device has written something, the status output also reports lectern placements and book installs/removals, and a `device demo` build reports the display blocks it placed (and removed again when disabled or retired). Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Because writes are diffed and batched, `输出检查` counts slots that were actually dispatched (changed slots plus the 30 s full re-check), not a per-second poll of every slot. Diagnostics never load chunks and do not change output behavior.

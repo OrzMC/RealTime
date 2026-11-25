@@ -30,7 +30,19 @@ Implemented commands:
 - `/rtime info`: display plugin version, configured timezone, and module status.
 - `/rtime reload`: validate and reload configuration safely.
 
-Administrative device commands are planned separately after the device model exists.
+Device administration (all in game, no hand-editing required):
+
+- `/rtime device list|info|status`, `device cleanup list` — `realtime.device.view` (default everyone)
+- `/rtime device enable|disable <uuid>` — `realtime.device.toggle` (default op)
+- `/rtime device create ... [stride] [bcd|analog]`, `/rtime device demo <bcd|analog> ...`,
+  `/rtime device set <uuid> <slot> <x> <y> <z>` — `realtime.device.edit` (default op); these are the only commands that
+  write blocks at coordinates the caller chooses
+- `/rtime device remove <uuid>`, `device cleanup retry <job>` — `realtime.device.retire` (default op)
+- `/rtime reload` — `realtime.admin` (default op, parent of all of the above)
+
+`device set` requires a disabled device so a moved slot cannot be left behind by the running device, and a device's
+encoding/resolution cannot be changed in place (retire and create instead). Authoring is additionally bounded by
+`limits.allowed-areas`, `limits.max-devices` and `limits.edit-cooldown-seconds`.
 
 ### Optional PlaceholderAPI integration (P1)
 
@@ -38,16 +50,34 @@ Initial planned placeholders: date, time, datetime, weekday, timezone, and Unix 
 
 ### Redstone clock devices (P1)
 
-Each output slot is a power source: a logical 1 places a `minecraft:redstone_block`, a logical 0 leaves the slot empty, so connected vanilla redstone actually switches (forced dust power cannot hold or propagate on the 26.x API surface). Devices declare a `resolution` of `minute` or `second`. A `minute` device exposes HHmm encoded as four BCD digits (16 logical outputs); a `second` device exposes HHmmss encoded as six BCD digits (24 logical outputs). Each digit uses four logical bits, and digits are always ordered hour → minute → second for both resolutions. Device definitions and runtime data are stored separately from feature configuration. Block access runs on the owning Folia region. Unloaded chunks are skipped and refreshed on chunk load; device updates must never force-load chunks. Minute devices are rewritten when the minute changes; second devices are refreshed every second and only bits whose power actually changed are written.
+Each device declares a `resolution` (`minute` = `HHmm`, `second` = `HHmmss`) and an `encoding`.
 
-### Future display extensions (P2)
+**`bcd` (default)** — four slots per digit, least-significant bit first; sixteen slots for `minute`, twenty-four for
+`second`. A slot is a power source: a logical 1 places a `minecraft:redstone_block`, a logical 0 leaves the slot empty,
+so connected vanilla redstone actually switches (forced dust power cannot hold or propagate on the 26.x API surface).
 
-Devices also declare an `encoding`:
+**`analog`** — one slot per digit: four slots for `minute`, six for `second`. A slot is a lectern holding a 15-page book
+the plugin installs; the page index is the digit, so Paper's `floor(page / (pageCount - 1) * 14) + 1` yields
+`digit + 1` (levels 1–10) and `HHmmss` needs six lines instead of twenty-four. Disabling the device empties the slot
+(book cleared first so it does not drop, then the lectern). Publishing a digit is one block-entity page write, and the
+plugin only ever pages through lecterns that still hold its own book; anything else is reported and left untouched.
 
-- `bcd` (default): the layout above, one slot per bit.
-- `analog`: one slot per digit. Each slot is a lectern holding a 15-page book the plugin installs; the page index is the digit, so Paper's `floor(page / (pageCount - 1) * 14) + 1` yields `digit + 1` (levels 1–10) and a `second` device needs six lines instead of twenty-four. Disabling the device removes the book (level 0). Publishing a digit is one block-entity page write, and the plugin only ever pages through lecterns that still hold its own book; anything else is reported and left untouched.
+Both encodings share the digit order hour → minute → second, are laid out with one empty block between slots (BCD adds
+an extra gap between digits), and are bounded by `/rtime device create`/`device set` validation. Device definitions and
+runtime data are stored separately from feature configuration (`data/devices.yml`, schema v5). Block access runs on the
+owning Folia region; unloaded chunks are skipped and refreshed on chunk load, and device updates never force-load
+chunks. Minute devices are rewritten when the minute changes, second devices every second, and only slots whose state
+actually changed are written. A 30 s full re-check catches player edits and invalid blocks, and nothing the plugin does
+not own is ever overwritten.
 
-Potential follow-ups include date displays, seven-segment displays, multiple timezones, and extensible output encoders. These are not part of the initial scaffold.
+`/rtime device demo <bcd|analog> <world> <x> <y> <z> <axis>` builds one complete, immediately visible example
+(lamps above every BCD slot; lectern → comparator → dust → lamp per analog digit) whose display blocks belong to the
+device and are removed with it, so a newcomer can learn an encoding without wiring anything by hand. It is intended for
+tutorial areas: a real build uses `device create` plus the operator's own display circuit.
+
+Retirement is deferred and durable: `device remove` (disabled devices only) queues a cleanup job that clears every slot
+and demo display block on the owning region, reports foreign content as `NEEDS_ATTENTION` instead of overwriting it, and
+can be retried from `device cleanup retry` once an operator fixes the block.
 
 ## Configuration proposal
 
@@ -92,6 +122,8 @@ logging:
 - Optional integrations must not become mandatory dependencies.
 - Agent-generated changes are reviewed, tested, and delivered through PRs.
 
-## Explicit non-goals for PR1
+## Scope note
 
-PR1 creates the project and Agent Native foundation only. It does not implement the time service, placeholders, redstone devices, device persistence, Hangar/Modrinth publishing, or claim Paper/Folia runtime compatibility.
+The initial scaffold (PR1) intentionally implemented none of the above; everything in this document now exists on
+`main` and is covered by unit tests, Paper/Folia runtime smoke jobs, and real-server acceptance reports (see
+[operations](../operations/)).
