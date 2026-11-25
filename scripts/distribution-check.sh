@@ -150,14 +150,17 @@ if [[ "$REMOTE" -eq 1 ]]; then
   if [[ "$CHECK_TOKENS" -eq 1 ]]; then
     ua_tokens="OrzMC/RealTime distribution-check"
     if [[ -n "${HANGAR_API_TOKEN:-}" ]]; then
-      # Hangar answers 200 for a valid key and 400 for a missing/invalid one.
+      # Hangar's identity endpoint takes the key as the `apiKey` query parameter
+      # (the Authorization header is rejected there) and answers 200 for a valid
+      # key, 400 for a missing/invalid one. The body is a JWT session token, so
+      # it is never read: only the status code is inspected.
       code="$(curl -s -X POST -o /dev/null -w '%{http_code}' --max-time 20 \
-        -A "$ua_tokens" -H "Authorization: $HANGAR_API_TOKEN" \
+        -A "$ua_tokens" --get --data-urlencode "apiKey=$HANGAR_API_TOKEN" \
         https://hangar.papermc.io/api/v1/authenticate || true)"
       if [[ "$code" == "200" ]]; then
         pass "HANGAR_API_TOKEN is accepted by Hangar"
       else
-        fail "HANGAR_API_TOKEN was rejected by Hangar (HTTP ${code:-none}); recreate the key"
+        fail "HANGAR_API_TOKEN was rejected by Hangar (HTTP ${code:-none}, expected 200); recreate the key"
       fi
     else
       info "HANGAR_API_TOKEN unset; skipping token check"
