@@ -4,29 +4,38 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
-- Lay new devices out with one empty block between neighbouring output slots (`stride` defaults to 2) and group each
-  BCD digit's four bits behind an extra gap, so a signal cannot leak into the neighbouring slot and the four bits of a
-  digit are visually separated. A `minute` device now spans 34 blocks and a `second` device 52; existing devices keep
-  their stored coordinates. An explicit `[stride]` still overrides the intra-group spacing.
-- Add `/rtime device demo <bcd|analog> <world> <x> <y> <z> <axis>`: builds one complete teaching example (lecterns with
-  comparator/dust/lamp rows for `analog`, one lamp per bit for `bcd`) next to the origin block and enables it, so a
-  newcomer can see each encoding working. The display blocks are stored with the device (schema v5) and are removed by
-  `device disable` / `device remove`, never touching a block whose type no longer matches.
-- `device set` now requires a disabled device and the tab completion only suggests disabled ones: an enabled device kept
-  writing the old slot, leaving a stray redstone block (or lectern) behind after a slot was moved.
-- Disabling an analog device now empties the slot (book removed, then the lectern) instead of leaving a blank lectern, so
-  "off" looks exactly like a BCD slot and a moved slot cannot orphan a lectern.
-- Retiring an analog device now clears a lectern that a previous `disable` had left blank (it empties the book first,
-  so no item drops) instead of asking an operator to remove it by hand; a lectern holding someone else's book is still
-  left untouched and reported.
-- Add an optional `analog` output encoding: each digit becomes one lectern holding a plugin-created 15-page book,
-  so a comparator reads level `digit + 1` and `HHmmss` needs 6 lines instead of 24. `device create ... [stride] [bcd|analog]`,
-  schema v4 (`encoding` on devices and cleanup jobs, earlier stores migrate to `bcd`), lectern/book counters in
-  `device status`, and cleanup that only removes a lectern still holding this device's book.
-- Add in-game device authoring: `/rtime device create <name> <minute|second> <world> <x> <y> <z> <axis> [stride]`
-  and `/rtime device set <uuid> <bit> <x> <y> <z>`, with area whitelist, device cap, per-player cooldown and audit logging.
-- Split permissions: `realtime.device.view` (default true), `realtime.device.toggle` / `realtime.device.edit` /
-  `realtime.device.retire` (default op); `realtime.admin` still grants everything including `reload`.
+### 新增
+
+- **analog（讲台）编码**：一个数字 = 一个槽位。槽位是插件放置的讲台，里面放着插件生成的 15 页书，页码 = 数字；Paper 的
+  `floor(page / (pageCount - 1) * 14) + 1` 在 15 页时化简为 `page + 1`，所以比较器读到的是**强度 1–10**，`HHmmss` 从
+  24 条线降到 **6 条**。关闭设备会把槽位清空（先清书再拆讲台，避免掉落），且只操作"书仍属于该设备"的讲台，别人的书/方块只
+  报 `NEEDS_ATTENTION`。`device create ... [stride] [bcd|analog]`，设备与清理任务持久化 `encoding`（schema v4，旧数据按
+  `bcd` 迁移），`device status` 增加讲台放置/书页安装计数。
+- **游戏内建设备**：`/rtime device create <名称> <minute|second> <世界> <x> <y> <z> <轴> [间距] [bcd|analog]`、
+  `/rtime device set <uuid> <槽位> <x> <y> <z>`、`/rtime device demo <bcd|analog> <世界> <x> <y> <z> <轴>`，配合
+  `limits`（`allowed-areas` / `max-devices` / `edit-cooldown-seconds`）与审计日志。
+- **教学示例 `device demo`**：一条命令就地生成完整可读时钟并**立即启用**（analog：每位讲台 + 比较器/红石线/灯一行；BCD：
+  每个槽位正上方一盏灯），让新人不用先学接线就能看懂两种编码。展示方块属于该设备（schema **v5**，设备 `demo:` / 清理任务
+  `display:`），`disable` 拆、`enable` 重搭、`remove` 连展示一起清，只拆类型仍匹配的方块。
+- **权限拆分**：`realtime.device.view`（默认 true）、`realtime.device.toggle` / `realtime.device.edit` /
+  `realtime.device.retire`（默认 op）；`realtime.admin` 仍是父节点，包含以上全部 + `reload`。
+- **默认布局间隔 + 分组**：新建设备 `stride` 默认 2（相邻槽位之间 1 格空气，避免信号互相干扰），BCD 每 4 位一组、数字之间
+  再多 1 格空隙，方便目视区分。`minute` 设备占 34 格、`second` 占 52 格；**已存设备坐标不变**，显式 `[stride]` 仍可覆盖
+  组内间距。
+
+### 修复
+
+- `device set` 现在要求设备处于**禁用**状态（补全也只推荐已禁用设备）：之前允许对启用中设备改槽位，而设备只写"当前槽位表"，
+  旧槽位会留下一个永久通电的红石块（或一个讲台）。
+- analog 设备 `disable` 现在把槽位整体清空（而不是只移走书留下空讲台），与 BCD "归 air" 一致，也让"改槽位不留残留"成立。
+- 退役 analog 设备时，`disable` 留下的空白讲台现在也会被清理（先清空库存再拆方块，书不掉落），不再需要人工手拆 6 个讲台。
+
+### 工程
+
+- `./scripts/verify.sh` 增加 CRLF 门禁，并新增 `.gitattributes`（`* text=auto eol=lf`，仅 Windows 启动器保留 CRLF），治掉
+  Windows 上"整文件显示已修改"的假 diff。
+- Paper/Folia runtime smoke 加固：块探针改用 `run list` 并逐位置重试，关键判定改为**按持久化清理队列**（Folia 对 region
+  命令的 RCON 应答会丢包/报未加载，之前因此偶发失败）。
 
 ## [0.1.0]
 

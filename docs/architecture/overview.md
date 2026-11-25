@@ -30,8 +30,21 @@ Root config owns global enabled state, timezone, locale, and logging. Optional f
 
 ## Current state
 
-PR1–PR9 are merged. PR5 adds the pure Kotlin HHmm BCD encoder and validated device model, versioned YAML persistence, and a Paper/Folia redstone manager. The manager calculates frames globally, updates output slots only on owning regions, skips unloaded chunks, and refreshes outputs on chunk load. PR6 adds the optional PlaceholderAPI expansion behind an isolated bridge. PR7 adds tag-driven release automation with SemVer/Changelog validation, reproducible archives, checksums, and protected optional distribution publishing. PR8 adds in-game list/info/enable/disable commands for existing YAML-defined devices; mutations serialize with reload and persist before replacing runtime state. PR9 adds thread-safe aggregate diagnostics for output checks, unloaded chunks, stale updates, invalid blocks, power changes, and write failures. PR10 is in progress: PR10a adds the schema-v2 device store and cleanup-job model with atomic v1 migration; PR10b/PR10c will implement the crash-safe region-owned cleanup processor before safe in-game device deletion can be enabled. PR12 adds second-resolution devices (24 BCD outputs refreshed every second), per-device `resolution`, and schema v3 with automatic migration of earlier stores.
+All planned stages (PR1–PR18) are merged; the tree is on `0.2.0-SNAPSHOT` and the last public build is `v0.1.0`.
+Behaviour that exists today:
 
+- **Time service**: `RealTimeService` / `ClockRealTimeService` with an injected `Clock`, explicit `ZoneId` and
+  `Locale`, immutable `RealTimeSnapshot`, and locale-aware formatting.
+- **Commands**: `/rtime now|info|reload` plus the `device` subtree with split permissions (see
+  [redstone devices](../development/redstone-devices.md#creating-changing-and-removing-a-device)).
+- **Redstone devices**: two encodings (`bcd`, `analog`), minute/second resolution, per-device `demo` builds, tick-level
+  detection with diff-only writes batched per chunk, a 30 s full re-check, and a durable deferred-cleanup queue.
+- **Persistence**: `data/devices.yml` schema **v5** (devices + cleanup jobs + demo display blocks), migrated
+  automatically from v1–v4.
+- **Diagnostics**: aggregate counters behind `/rtime device status`; no world access from the command thread.
+- **PlaceholderAPI**: optional internal `realtime` expansion, compile-only dependency.
+- **Release automation**: protected tag workflow with changelog validation, reproducible artifacts, and optional
+  Hangar/Modrinth publishing that stays disabled until the project IDs and tokens are configured.
 
 ### Paper/Folia scheduler ownership
 
@@ -48,10 +61,28 @@ PR4 provides `PaperFoliaScheduler` over the Paper 26.3 scheduler APIs:
 Official Paper 26.3 API references: [GlobalRegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/GlobalRegionScheduler.html), [RegionScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/RegionScheduler.html), [EntityScheduler](https://jd.papermc.io/paper/26.3/io/papermc/paper/threadedregions/scheduler/EntityScheduler.html).
 
 
-### BCD redstone devices
+### Redstone devices
 
-The core maps local time to BCD outputs in hour, minute, second digit order: sixteen logical outputs for `minute` devices (HHmm) and twenty-four for `second` devices (HHmmss). The Paper adapter persists validated device records in `data/devices.yml`; the optional redstone module is disabled by default. Global work calculates the frame, region work checks `World.isChunkLoaded` before any block lookup, and `ChunkLoadEvent` refreshes outputs when chunks become available. An output slot is a power source: bit 1 places `REDSTONE_BLOCK`, bit 0 leaves it empty, so block physics notifies and powers the surrounding circuit; anything else in a slot is reported and never overwritten. See [redstone device configuration](../development/redstone-devices.md).
+The core maps local time onto digits in hour → minute → second order and exposes two encodings:
 
+- `bcd` (default): four slots per digit, least-significant bit first — sixteen slots for `minute`, twenty-four for
+  `second`. A slot is a power source: 1 places `REDSTONE_BLOCK`, 0 leaves air, so block physics notifies and powers the
+  surrounding circuit.
+- `analog`: one slot per digit — four/six slots. A slot is a lectern holding a plugin-created 15-page book; the page
+  index is the digit and `LecternBlockEntity#getRedstoneSignal()` reduces to `page + 1`, so a comparator reads levels
+  1–10 without any bit decoding. Disabling the device empties the slot (book first, then the lectern).
+
+Layout is computed by `DeviceLayout` (`offset = index * stride + (index / groupSize) * groupGap`); the default keeps
+one empty block between slots and one extra between digits. `DeviceDemo` derives the display blocks of a
+`/rtime device demo` build from the same slot list.
+
+The Paper adapter persists validated device records in `data/devices.yml` (schema v5) and runs every block access on
+the owning region: global work calculates the frame, region work checks `World.isChunkLoaded` before touching a block,
+`ChunkLoadEvent` refreshes outputs when a chunk becomes available, and nothing ever force-loads a chunk. Writes are
+diffed per device and grouped per chunk, with a 30 s full re-check for player edits and invalid blocks. Anything that
+is not air (or a block/book the plugin placed) is reported as an invalid output and never overwritten. Retirement goes
+through a durable cleanup job that clears slots and demo display blocks; slots with foreign content are reported as
+`NEEDS_ATTENTION` for an operator. See [redstone device configuration](../development/redstone-devices.md).
 
 ### Optional PlaceholderAPI adapter
 

@@ -1,5 +1,12 @@
 # RealTime 0.1.0 acceptance report
 
+> **Historical document (0.1.0).** This is the evidence collected for the `v0.1.0` release; the numbers below describe
+> that build. Later changes (analog encoding, default layout with one-block gaps and digit groups, `device demo`,
+> schema v5, `device set` requiring a disabled device) are documented in
+> [redstone time devices](../development/redstone-devices.md) and
+> [analog acceptance 2026-11-25](analog-acceptance-2026-11-25.md).
+
+
 > Status: **RELEASED as `v0.1.0`** (GitHub Release, artifact `RealTime-0.1.0.jar`, sha256 `d0c352ca…`) after acceptance on the local test servers. The initial artifact (`379b2a7d…`) was BLOCKED by two defects; PR13 fixed them and the final artifact (`5a411337…`, commit `f31e7ce`) passed the full matrix on Paper and Folia (§7, §8).
 > Companion checklist: [production-acceptance-0.1.0.md](production-acceptance-0.1.0.md).
 > Only observed evidence is recorded here. RCON passwords, world data and player identities are omitted.

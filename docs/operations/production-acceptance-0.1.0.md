@@ -1,5 +1,12 @@
 # RealTime 0.1.0 — production acceptance handoff
 
+> **Historical document (0.1.0).** It describes the acceptance procedure for the first release. Current behaviour
+> differs: devices carry an `encoding` (`bcd`/`analog`), the store is schema **v5**, devices can be authored in game,
+> `/rtime device demo` builds teaching examples, and `device set` requires a disabled device. Use
+> [redstone time devices](../development/redstone-devices.md) and the
+> [analog acceptance report](analog-acceptance-2026-11-25.md) for the current state.
+
+
 > Audience: the operator and the AI agent working on the actual OrzMC Minecraft server.
 > Purpose: execute a controlled real-server acceptance pass, record evidence, and return findings to the RealTime repository.
 > Status: **prepared for real-server testing; not yet production-accepted or released**.

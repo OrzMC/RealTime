@@ -15,10 +15,13 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR9 | Redstone device diagnostics and output observability | Complete | PR5, PR8 |
 | PR10 | Persistent deferred cleanup for safely retiring devices (PR10a store, PR10b processor, PR10c runtime/ops) | Complete — PR10a/PR10b/PR10c merged | PR5, PR8, PR9 |
 | PR11 | Admin-only disabled-device retirement command | Complete — PR #23 merged and Paper/Folia runtime smoke passed | PR10 |
-| PR12 | Second-resolution output (HHmmss, 24 outputs) and schema v3 | Implemented — pending verification and PR | PR5, PR10, PR11 |
-| PR13 | Real power-source outputs (`redstone_block`/air) + resolution-safe enable/disable | Implemented — verified on the local test instances | PR12 |
-| PR14 | Tick-level detection, diff-only and chunk-batched output writes | Implemented — verified locally | PR13 |
-| PR15 | In-game device authoring (`create`/`set`) + permission split | Implemented — verified locally | PR14 |
+| PR12 | Second-resolution output (HHmmss, 24 BCD outputs) and schema v3 | Complete — PR #26 (`b2fb5dd`) | PR5, PR10, PR11 |
+| PR13 | Real power-source outputs (`redstone_block`/air) + resolution-safe enable/disable | Complete — PR #28 (`f31e7ce`) | PR12 |
+| PR14 | Tick-level detection, diff-only and chunk-batched output writes | Complete — PR #30 (`dd844f4`) | PR13 |
+| PR15 | In-game device authoring (`create`/`set`) + permission split | Complete — PR #33 (`1c81060`) | PR14 |
+| PR16 | Analog (lectern) encoding, one digit per slot, schema v4 | Complete — PR #36 (`71c0355`) | PR15 |
+| PR17 | Default layout: one-block gaps and four-bit digit groups | Complete — PR #35 (`f2143b1`) | PR16 |
+| PR18 | `device demo` teaching builds (schema v5) and safe slot edits | Complete — PR #41 (`ebeee56`), #40 (`27ecc01`) | PR17 |
 
 ## Milestones
 
@@ -28,5 +31,7 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 - M4: optional integrations, compatibility matrix, release automation.
 - M5: safe device administration and operational diagnostics.
 - M6: crash-safe deferred cleanup and safe device retirement.
+- M7: two encodings (BCD and analog lecterns), in-game authoring with split permissions, teaching builds.
 
-Do not implement future milestones in the scaffold PR. Split work into small PRs with explicit acceptance criteria.
+Every stage above is merged; the tree version is `0.2.0-SNAPSHOT` and the next public release is still to be cut.
+Split new work into small PRs with explicit acceptance criteria.

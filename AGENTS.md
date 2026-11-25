@@ -13,7 +13,9 @@ This is the authoritative project instruction file for all coding agents. Read i
 
 ## Required reading
 
-Read README.md, docs/architecture/overview.md, docs/development/setup.md, tasks/roadmap.md, the selected task, and relevant ADRs before implementation.
+Read README.md, docs/architecture/overview.md, docs/development/setup.md, docs/development/redstone-devices.md (for
+anything touching outputs, devices or commands), tasks/roadmap.md, the relevant task contract, and the ADRs before
+implementation.
 
 ## Architecture boundaries
 
@@ -28,7 +30,8 @@ Read README.md, docs/architecture/overview.md, docs/development/setup.md, tasks/
 
 1. Inspect git status, branch, and recent history.
 2. Read task scope, dependencies, and acceptance criteria.
-3. Select only a task in `tasks/ready/` whose dependencies are complete.
+3. Pick the next task from `tasks/roadmap.md` (every stage there is merged today); finished contracts live in
+   `tasks/completed/`. Do not re-plan work that already has a contract.
 4. Use an isolated feature branch or Git worktree; never work directly on main.
 5. Plan non-trivial changes before editing.
 6. Implement only the agreed scope; add tests and update docs.
