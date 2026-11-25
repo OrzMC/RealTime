@@ -99,6 +99,8 @@ you edit its slots). Full command reference, permissions, wiring diagrams, the c
 | Loaders / Game versions | `paper` + `folia` / `26.3` | 已有 |
 
 > 注意：Modrinth 的新项目**上传第一个版本后必须点 `Submit for review`**，否则一直停在 draft、对外 404。
+> 提交后状态为 **Under Review**（API `status: processing`），审核期间版本上传照常工作；通过后匿名 API 才返回 200。
+> 2026-11-25 现状：`0.4.0` 已上传、项目已提交审核（Under Review）。
 
 ### Hangar（`OrzMC/RealTime`）
 
