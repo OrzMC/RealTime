@@ -13,9 +13,9 @@ This is the authoritative project instruction file for all coding agents. Read i
 
 ## Required reading
 
-Read README.md, docs/architecture/overview.md, docs/development/setup.md, docs/development/redstone-devices.md (for
-anything touching outputs, devices or commands), tasks/roadmap.md, the relevant task contract, and the ADRs before
-implementation.
+Read README.md, docs/architecture/overview.md, docs/development/setup.md, docs/development/workflow.md (the iteration
+process: branch names, gates, PR shape, definition of done), docs/development/redstone-devices.md (for anything touching
+outputs, devices or commands), tasks/roadmap.md, the relevant task contract, and the ADRs before implementation.
 
 ## Architecture boundaries
 
@@ -32,13 +32,15 @@ implementation.
 2. Read task scope, dependencies, and acceptance criteria.
 3. Pick the next task from `tasks/roadmap.md` (every stage there is merged today); finished contracts live in
    `tasks/completed/`. Do not re-plan work that already has a contract.
-4. Use an isolated feature branch or Git worktree; never work directly on main.
+4. Write or refresh the task contract from `tasks/TEMPLATE.md`, then use an isolated feature branch
+   (`feat/`, `fix/`, `docs/`, `chore/`, `release/`) or Git worktree; never work directly on main.
 5. Plan non-trivial changes before editing.
 6. Implement only the agreed scope; add tests and update docs.
 7. Run `./scripts/verify.sh`; explicitly report unavailable checks.
 8. Review the complete diff for secrets, unrelated changes, and boundary violations.
 9. Update task status only with evidence; code written is not equivalent to tests passed, PR merged, or feature released.
-10. Commit with Conventional Commits and open a PR when remote access is authorized.
+10. Commit with Conventional Commits and open a PR shaped as 为什么 / 改了什么 / 验证 / 风险与回滚 when remote access
+    is authorized; wait for CI plus explicit human approval before merging.
 
 ## Quality gates
 
