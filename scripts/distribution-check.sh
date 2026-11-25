@@ -147,7 +147,11 @@ if [[ "$REMOTE" -eq 1 ]]; then
     else
       authed=""
     fi
-    if [[ "$authed" == "200" ]]; then
+    if [[ -z "$authed" && "$anon" != "200" ]]; then
+      # No token available (a dry run never sees secrets), so the anonymous 404
+      # is inconclusive: a draft project looks identical to a wrong id.
+      info "Modrinth project $MODRINTH_PROJECT_ID is not visible anonymously (HTTP ${anon:-none}); draft projects look like this — confirm with --check-tokens and the token"
+    elif [[ "$authed" == "200" ]]; then
       if [[ "$anon" == "200" ]]; then
         pass "Modrinth project $MODRINTH_PROJECT_ID exists and is public"
       else
