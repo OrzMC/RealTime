@@ -4,6 +4,12 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+### 修复
+
+- `device cleanup list` 现在把 demo 展示方块也计入 `待处理`/`需人工处理`，`device cleanup retry` 也会把
+  `NEEDS_ATTENTION` 的展示方块重新排队 —— 之前只看槽位，导致 demo 设备退役后队列显示"需人工处理：1"，但实际还有
+  多个展示方块卡着，且 retry 无法让任务完成。
+
 ## [0.2.0]
 
 ### 新增
