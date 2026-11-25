@@ -1,5 +1,9 @@
 # RealTime
 
+<p align="center">
+  <img src="assets/branding/icon.svg" alt="RealTime project icon" width="160">
+</p>
+
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
 > **Status: `v0.4.0` released** (2026-11-25) — see the [release](https://github.com/OrzMC/RealTime/releases/tag/v0.4.0) and
