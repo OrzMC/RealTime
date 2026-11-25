@@ -636,6 +636,7 @@ class RealTimeCommandHandler(
                         "${device.worldName} ${device.encoding.configValue} ${device.outputs.size} slots + " +
                         "${device.demoBlocks.size} display blocks starting at $x,$y,$z",
                 )
+                target.sendMessage(state.messages.render("command.device.demo.hint"))
                 target.sendMessage(
                     state.messages.render(
                         "command.device.demo.success",

@@ -225,8 +225,10 @@ class RealTimeConfigurationLoader {
                     "{prefix}&c编码无效：&f{value} &7（可用：bcd、analog）",
                 "command.device.demo.success" to
                     "{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + " +
-                    "&f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）" +
-                    "&e建示例前请确认该区域是空地——插件只填空位，被地形占住的位置会报非法方块、退役时要人工处理。",
+                    "&f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）",
+                "command.device.demo.hint" to
+                    "{prefix}&e提示：插件只填空位。建示例前请确认该区域是空地，否则被地形占住的位置会报非法方块，" +
+                    "退役时会变成需人工处理（可用 device cleanup retry / dismiss 收尾）。",
                 "command.device.create.limit" to "{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。",
                 "command.device.create.area" to "{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}",
                 "command.device.create.conflict" to "{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}",
