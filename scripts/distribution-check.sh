@@ -159,8 +159,10 @@ if [[ "$REMOTE" -eq 1 ]]; then
       fi
     elif [[ "$anon" == "200" ]]; then
       pass "Modrinth project $MODRINTH_PROJECT_ID exists and is public"
-    else
-      fail "Modrinth project $MODRINTH_PROJECT_ID is not visible (anonymous HTTP ${anon:-none}, token HTTP ${authed:-none}); wrong id, or the token's account is not on the team"
+    elif [[ -n "$authed" ]]; then
+      # A token that cannot read the project (no READ_PROJECT, or a wrong id)
+      # answers 404 just like an anonymous draft, so nothing here is provable.
+      info "cannot verify project $MODRINTH_PROJECT_ID with this token (HTTP ${authed}); READ_PROJECT is required to tell a draft from a wrong id"
     fi
   else
     info "MODRINTH_PROJECT_ID unset; skipping project lookup"
@@ -196,8 +198,8 @@ if [[ "$REMOTE" -eq 1 ]]; then
           "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT_ID" || true)"
         case "$code" in
           200) pass "MODRINTH_TOKEN can read project $MODRINTH_PROJECT_ID (drafts included)" ;;
-          401) fail "MODRINTH_TOKEN was rejected by Modrinth (HTTP 401); recreate the PAT" ;;
-          404) fail "MODRINTH_TOKEN works but project $MODRINTH_PROJECT_ID is not visible to it (wrong id, or the PAT's account is not on the team)" ;;
+          401) info "cannot verify MODRINTH_TOKEN: Modrinth answers 401 for both an invalid token and a token without READ_PROJECT (uploading only needs CREATE_VERSION)" ;;
+          404) info "cannot verify project $MODRINTH_PROJECT_ID: Modrinth hides it from a token without READ_PROJECT, and a draft looks the same as a wrong id" ;;
           *) fail "unexpected Modrinth response for project $MODRINTH_PROJECT_ID (HTTP ${code:-none})" ;;
         esac
       else

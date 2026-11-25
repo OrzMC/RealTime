@@ -106,8 +106,21 @@ changelog 直接使用 `CHANGELOG.md` 对应版本的段落（与 GitHub Release
 ### 4.2 创建令牌
 
 1. <https://modrinth.com/settings/pats> → **Create a PAT**。
-2. 只勾 `CREATE_VERSION`（需要读取自身项目时再加 `READ_PROJECT`；不要给删除/编辑权限）。
+2. 权限最小集：
+
+| 权限 | 上传是否需要 | 作用 |
+|---|---|---|
+| `CREATE_VERSION` | **必须** | `POST /v2/version` 的唯一要求 |
+| `READ_PROJECT` | 否（**但强烈建议**） | 让发布前的预检能读到项目、区分「draft / id 写错 / 令牌坏了」 |
+| `WRITE_PROJECT` | 否 | 仅当你还要用 API 改项目资料 |
+| `USER_READ` | 否 | 发布流程不需要；给了它 `GET /v2/user` 才是 200 |
+
+   > 拿掉 `READ_PROJECT` 后，`scripts/distribution-check.sh` 只能报「无法验证」而不是确定结论 —— 上传照样能成功，
+   > 但发布前就没有任何"令牌/项目对不对"的检查了。这是唯一需要权衡的一项。
+
 3. 写入 `release` 环境的 `MODRINTH_TOKEN`，变量 `MODRINTH_PROJECT_ID` 填 slug 或项目 ID。
+
+> 新建项目后还需要在项目页点 **Submit for review**：只上传版本、不提交审核时，项目会一直停留在 draft，对外仍然 404。
 
 ## 4.3 把凭据配进 GitHub（两种方式）
 
