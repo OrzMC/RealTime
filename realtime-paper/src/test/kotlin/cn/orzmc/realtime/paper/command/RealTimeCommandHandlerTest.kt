@@ -305,6 +305,32 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun cleanupDismissDropsTheJobAndReportsPendingJobs() {
+        val job = cleanupJob(attention = true)
+        val administration = RecordingCleanupAdministration(listOf(job))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.RETIRE_PERMISSION))
+        val handler = handler(cleanupAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "cleanup", "dismiss", job.id.toString()))
+
+        assertEquals(1, administration.dismissCount)
+        assertTrue(target.messages.single().contains("丢弃") || target.messages.single().contains("dismiss"))
+    }
+
+    @Test
+    fun cleanupDismissRequiresRetirePermission() {
+        val job = cleanupJob(attention = true)
+        val administration = RecordingCleanupAdministration(listOf(job))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.VIEW_PERMISSION))
+        val handler = handler(cleanupAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "cleanup", "dismiss", job.id.toString()))
+
+        assertEquals(0, administration.dismissCount)
+        assertEquals(listOf("[RealTime] denied"), target.messages)
+    }
+
+    @Test
     fun cleanupTabCompletionHidesRetryFromReadOnlyUsers() {
         val job = cleanupJob(attention = true)
         val handler = handler(cleanupAdministration = RecordingCleanupAdministration(listOf(job)))
@@ -312,7 +338,7 @@ class RealTimeCommandHandlerTest {
         val admin = RecordingTarget(setOf(RealTimeCommandHandler.RETIRE_PERMISSION))
 
         assertEquals(listOf("list"), handler.complete(readOnly, arrayOf("device", "cleanup", "")))
-        assertEquals(listOf("list", "retry"), handler.complete(admin, arrayOf("device", "cleanup", "")))
+        assertEquals(listOf("list", "retry", "dismiss"), handler.complete(admin, arrayOf("device", "cleanup", "")))
         assertEquals(listOf(job.id.toString()), handler.complete(admin, arrayOf("device", "cleanup", "retry", "")))
     }
 
@@ -758,6 +784,8 @@ class RealTimeCommandHandlerTest {
                         "command.device.cleanup.empty" to "{prefix}cleanup empty",
                         "command.device.cleanup.item" to "{prefix}{name} {id} {world} pending {pending} attention {attention}",
                         "command.device.cleanup.retry.success" to "{prefix}retry queued {id}",
+                        "command.device.cleanup.dismiss.success" to "{prefix}dismiss {name} {id}",
+                        "command.device.cleanup.dismiss.has-pending" to "{prefix}pending {id}",
                         "command.device.cleanup.invalid-id" to "{prefix}cleanup invalid {id}",
                         "command.device.cleanup.not-found" to "{prefix}cleanup not found {id}",
                         "command.device.cleanup.error" to "{prefix}cleanup error {reason}",
@@ -888,11 +916,17 @@ class RealTimeCommandHandlerTest {
         private val jobs: List<DeviceCleanupJob>,
     ) : DeviceCleanupAdministration {
         var retryCount = 0
+        var dismissCount = 0
 
         override fun list(): List<DeviceCleanupJob> = jobs
 
         override fun retry(jobId: UUID): DeviceCleanupJob {
             retryCount += 1
+            return jobs.first { it.id == jobId }
+        }
+
+        override fun dismiss(jobId: UUID): DeviceCleanupJob {
+            dismissCount += 1
             return jobs.first { it.id == jobId }
         }
     }

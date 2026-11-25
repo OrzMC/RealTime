@@ -7,6 +7,13 @@ interface DeviceCleanupAdministration {
     fun list(): List<DeviceCleanupJob>
 
     fun retry(jobId: UUID): DeviceCleanupJob
+
+    /**
+     * Drops a job whose remaining entries are all `NEEDS_ATTENTION`, i.e. the
+     * operator confirms the blocks stay as they are (terrain the demo never
+     * replaced, a build they want to keep).
+     */
+    fun dismiss(jobId: UUID): DeviceCleanupJob
 }
 
 class DeviceCleanupJobNotFoundException(
@@ -16,6 +23,10 @@ class DeviceCleanupJobNotFoundException(
 class DeviceCleanupJobHasNoAttentionOutputsException(
     id: UUID,
 ) : IllegalStateException("Cleanup job has no outputs requiring attention: $id")
+
+class DeviceCleanupJobHasPendingOutputsException(
+    id: UUID,
+) : IllegalStateException("Cleanup job still has pending outputs: $id")
 
 /**
  * Read-only queue inspection plus an explicit operator retry after a
@@ -80,5 +91,22 @@ class DeviceCleanupAdministrationService(
             replaceState(updated)
             requestCleanup()
             retriedJob
+        }
+
+    override fun dismiss(jobId: UUID): DeviceCleanupJob =
+        synchronized(stateLock) {
+            val current = stateProvider()
+            val job =
+                current.cleanupJobs.firstOrNull { it.id == jobId }
+                    ?: throw DeviceCleanupJobNotFoundException(jobId)
+            val hasPending =
+                job.outputs.any { it.status == DeviceCleanupStatus.PENDING } ||
+                    job.display.any { it.status == DeviceCleanupStatus.PENDING }
+            if (hasPending) throw DeviceCleanupJobHasPendingOutputsException(jobId)
+
+            val updated = current.copy(cleanupJobs = current.cleanupJobs.filterNot { it.id == jobId })
+            persistStore(DeviceStoreSnapshot(updated.devices, updated.cleanupJobs))
+            replaceState(updated)
+            job
         }
 }

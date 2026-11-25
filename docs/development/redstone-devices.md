@@ -1,4 +1,7 @@
-# Redstone Time Devices
+# Redstone Time Devices — Implementation Notes
+
+Configuration, data structures, encoding details and runtime behaviour. **Operators and builders should read the
+[usage guide](../usage.md)** for commands, permissions, wiring and the cleanup queue.
 
 ## Configuration
 
@@ -175,134 +178,22 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 
-## Teaching example (`device demo`)
+## Layout defaults and authoring pipeline
 
-```
-/rtime device demo <bcd|analog> <world> <x> <y> <z> <x+|x-|z+|z->
-```
+New devices are laid out by `DeviceLayout`: `offset = index * stride + (index / groupSize) * groupGap`. Defaults are
+`stride = 2` (one empty block between neighbours, so adjacent power sources cannot feed each other's circuit),
+`groupSize = 4` with `groupGap = 1` for BCD (the four bits of a digit read as one visual block), and a plain
+`stride = 2` row for analog (room for the reading comparator). A `minute` device spans 34 blocks, a `second` device 52.
+An explicit `[stride]` replaces the intra-group spacing but keeps the digit boundaries; the whole layout is capped at
+512 blocks from the origin.
 
-Builds one complete, readable clock next to the origin block and **enables it immediately**, so an operator can see how
-an encoding works before wiring anything by hand:
+Commands are validated off the world thread (Folia-safe): resolution/encoding/axis/stride and slot-index sanity, the
+`limits.allowed-areas` box, `limits.max-devices`, no overlap with another device, demo display block or pending cleanup
+job, and a per-player `limits.edit-cooldown-seconds` throttle (console exempt). The command never reads or writes blocks;
+the manager performs all world access through the owning region on the next forced refresh. Every create/set/demo/remove
+is written to the plugin log with the actor, device UUID and coordinates.
 
-| Encoding | What the plugin places | What you read |
-|---|---|---|
-| `analog` | one lectern per digit (6 for `HHmmss`) plus, per digit, `comparator → dust → lamp` on a two-block support row perpendicular to the axis | lamp brightness = digit level; the comparator output is the level (1–10) |
-| `bcd` | one slot per bit (24 for `HHmmss`) plus one lamp **above** every slot | lamp lit = bit 1, lamp off = bit 0 |
-
-A `redstone_block` powers the lamp directly above it, so the BCD demo needs no dust: 24 lamps in a row are the display.
-The demo always uses `second` resolution so the display visibly moves.
-
-Demo display blocks are recorded in the device (`demo:` in `data/devices.yml`), so they are part of the device's
-lifecycle:
-
-- `device disable` removes the display blocks and empties the slots (the build is re-created on the next `device enable`)
-- `device remove` (after disabling) queues a cleanup job that clears the slots **and** the display blocks
-- the plugin only removes a block whose type still matches what it placed; anything else is reported as
-  `NEEDS_ATTENTION` and left alone
-
-The command uses the same permissions, area whitelist, device cap and cooldown as `device create`
-(`realtime.device.edit`). It is meant for a test world or a tutorial area: a real build should use `device create` plus
-your own display circuit, so the plugin never owns blocks you want to keep.
-
-## Creating, changing and removing a device
-
-Both encodings use the same lifecycle, so everything below works for `bcd` and `analog` alike:
-
-| Step | Command | Permission | Notes |
-|---|---|---|---|
-| Create | `device create <name> <minute\|second> <world> <x> <y> <z> <axis> [stride] [bcd\|analog]` | `realtime.device.edit` | Created **disabled**; `analog` slots may be air (the plugin places the lecterns) |
-| Inspect | `device info <uuid>`, `device list`, `device status` | `realtime.device.view` | Shows encoding, resolution and every slot coordinate |
-| Enable | `device enable <uuid>` | `realtime.device.toggle` | Starts driving the display; `analog` lecterns and books are placed here |
-| Change a slot | `device set <uuid> <slot> <x> <y> <z>` | `realtime.device.edit` | **Disabled only**: disable → set → enable, so the old slot cannot be left behind |
-| Disable | `device disable <uuid>` | `realtime.device.toggle` | Every slot is emptied (BCD → air, analog → book + lectern removed) |
-| Remove | `device remove <uuid>` | `realtime.device.retire` | Disabled only; creates a durable cleanup job for every slot |
-
-There is no command to change the encoding or the resolution of an existing device: retire it and create a new one. That
-keeps the stored slot list and the in-world build consistent, because 16 BCD slots and 4 analog slots are different
-layouts, not a re-labelling.
-
-Cleanup after `remove` runs through the same durable job pipeline as the other mutations: a slot is cleared when it is
-air, a redstone block, or a lectern this device drove (with or without its book); anything else is reported as
-`NEEDS_ATTENTION` and left untouched. Inspect with `device cleanup list`, fix the block, then `device cleanup retry
-<job-uuid>`.
-
-## In-game device administration
-
-The device records remain YAML-defined so each output position is explicit and reviewable; a slot is a power source, not a display wire. After the plugin loads the file, operators can inspect and manage existing records in-game:
-
-| Command | Permission | Behavior |
-|---|---|---|
-| `/rtime device create <name> <minute\|second> <world> <x> <y> <z> <x+\|x-\|z+\|z-> [stride] [bcd\|analog]` | `realtime.device.edit` | Creates a disabled device whose slots run from the start position along the axis (default stride 2, BCD bits grouped four to a digit) |
-| `/rtime device set <uuid> <slot> <x> <y> <z>` | `realtime.device.edit` | Moves one output slot of a **disabled** device |
-| `/rtime device list` | `realtime.device.view` | Lists configured devices, UUID, world, and enabled state |
-| `/rtime device info <uuid>` | `realtime.device.view` | Shows metadata, resolution, and every bit-to-coordinate mapping |
-| `/rtime device status` | `realtime.device.view` | Shows aggregate output health and refresh counters |
-| `/rtime device cleanup list` | `realtime.device.view` | Lists durable cleanup jobs with pending and operator-attention counts |
-| `/rtime device cleanup retry <job-uuid>` | `realtime.device.retire` | Requeues only `NEEDS_ATTENTION` outputs after an operator has corrected their blocks |
-| `/rtime device remove <uuid>` | `realtime.device.retire` | Retires a disabled device and atomically creates its deferred cleanup job |
-| `/rtime device enable <uuid>` | `realtime.device.toggle` | Persists enabled state and schedules a redstone refresh |
-| `/rtime device disable <uuid>` | `realtime.device.toggle` | Persists disabled state and schedules a redstone refresh |
-
-Permission defaults: `realtime.command` and `realtime.device.view` are `true` for everyone, `realtime.device.toggle` / `realtime.device.edit` / `realtime.device.retire` are `op`, and `realtime.admin` (op) grants reload plus all of the above. Grant `realtime.device.edit` only to people who may place redstone blocks at chosen coordinates; combine it with `limits.allowed-areas` on public servers.
-
-Use the full UUID shown by `device list`; device names are labels and are not identifiers. A failed persistence operation leaves the current in-memory state unchanged. Mutations and `/rtime reload` share a runtime-state lock so one operation cannot overwrite the other's device list.
-
-These commands never inspect or mutate world blocks directly. The redstone manager receives a refresh request and performs all world/block access through the existing Paper/Folia scheduler ownership rules. Disabled devices remain in the device store so their outputs can be driven to zero when their chunks are loaded.
-
-Device retirement is available through the admin-only `/rtime device remove <uuid>` command, but only after the device has been disabled. The command atomically removes the active record and persists every output coordinate (16 or 24, matching the device resolution) as a durable cleanup job. Do not manually delete device records or cleanup jobs from YAML. Operators can inspect the durable queue and retry `NEEDS_ATTENTION` outputs after correcting the affected target block. Paper/Folia restart, unloaded-chunk, chunk-load, and retirement behavior has automated runtime coverage; production deployment still requires the real-server acceptance checklist in [Production acceptance 0.1.0](../operations/production-acceptance-0.1.0.md).
-
-Device records are persisted in `data/devices.yml`; the plugin never loads a chunk to create or edit a device.
-
-## In-game authoring
-
-`device create` fills the layout for you; the physical slot positions are still yours to prepare:
-
-```
-/rtime device create lobby-clock second world 39985 79 -32 x+            # 24 BCD slots at x=39985..40036
-/rtime device create lobby-clock minute world 40985 79 -32 z+ 3          # 16 BCD slots, 3 blocks apart
-/rtime device create wall-clock second world 39985 79 -32 x+ analog     # 6 analog lecterns, 2 blocks apart
-/rtime device create wall-clock second world 39985 79 -32 x+ 3 analog   # same, 3 blocks apart
-/rtime device set 77777777-8888-9999-aaaa-bbbbbbbbbbbb 5 41000 79 -30
-```
-
-Both optional arguments may be given in either order; `bcd` (alias `binary`) is the default encoding.
-
-### Default layout
-
-The default spacing is `stride = 2`, so **every two neighbouring slots have one empty block between them**. Adjacent
-power sources can feed into each other's circuits, and a slot with air on both sides is also what a receiving
-repeater or comparator expects.
-
-BCD adds a group gap after each digit, so the four bits of a digit read as one visual block:
-
-```
-digit 1        digit 2        digit 3
-x  x  x  x  ··  x  x  x  x  ··  x  x  x  x
-0  2  4  6  7  9 11 13 15 16 18 20 22 24
-```
-
-Offsets are `index * stride + (index / 4) * 1`, so a `minute` device spans 34 blocks (offsets 0–33) and a `second`
-device 52 blocks (offsets 0–51). The grouping is applied to the BCD layout only — an analog slot is a whole digit, so
-its layout is a plain `stride = 2` row. An explicit `[stride]` changes the intra-group spacing but keeps the digit
-boundaries: `... x+ 3` puts bits 3 blocks apart and leaves a 4-block gap between digits.
-
-Existing devices are unaffected: the layout is only used to compute the coordinates of a **new** device, and every
-stored device keeps its own explicit slot list.
-
-What the commands validate (all without touching the world, so they are Folia-safe):
-
-- resolution must be `minute` or `second`, encoding `bcd` (`binary`) or `analog`, stride 1–16, axis one of `x+ x- z+ z-`
-- the whole layout must stay within 512 blocks from the origin block, so a device cannot walk across the world
-- every coordinate must fall inside `limits.allowed-areas` (when configured)
-- the new device must stay under `limits.max-devices`
-- no coordinate may overlap another device or a pending cleanup job
-- `device set` must use a slot index that exists for that device's resolution and encoding (0–15 / 0–23 for BCD, 0–3 / 0–5 for analog)
-- `device set` refuses a **enabled** device, because the running device would keep writing the old slot and leave a stray redstone block or lectern behind; disable, move, enable
-- each player is throttled by `limits.edit-cooldown-seconds`; console commands are not throttled
-
-They do **not** inspect blocks. A slot that already contains something else is reported as an invalid output and left alone — clear it first. Analog slots are the exception to "prepare it yourself": when the slot is air the plugin places the lectern and its book on the next refresh, because the lectern *is* the output and has to carry the plugin's book. Each create/set is written to the plugin log with the acting player, device UUID and coordinates.
-
-New devices start disabled: review `/rtime device info <uuid>`, then `/rtime device enable <uuid>`.
+User-facing usage (commands, permissions, wiring, cleanup queue) lives in [the usage guide](../usage.md).
 
 ## Output diagnostics
 
