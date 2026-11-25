@@ -127,8 +127,11 @@ gh workflow run release.yml -f ref=main -f version=0.5.0 -f dry_run=true
 gh run watch
 ```
 
-演练会完整执行：**版本解析 → 发布元数据检查 → 构建 + jar 检查 → 受保护 job 的分布预检（含远程 API）→ 摘要**，
+演练会完整执行：**版本解析 → 发布元数据检查 → 构建 + jar 检查 → 分布预检（含远程 API）→ 摘要**，
 但**不**创建 GitHub Release、**不**上传 Hangar/Modrinth。摘要表会写明每一步是 skipped 还是 attempted。
+
+> 演练的 `publish` job 跑在 **`release-dry-run`** 环境里（无审批、无密钥、无分支限制），因为 `release` 环境被锁在
+> `v*` tag 上、并且持有发布令牌。这样演练既能执行预检，又拿不到任何发布凭据。
 
 > `dry_run=true` 时跳过 tag/CHANGELOG 严格校验（因为版本还没写进 CHANGELOG），改用最新一段做 notes 预览；
 > 真实 tag 运行时仍然强校验。
@@ -153,6 +156,7 @@ gh run watch
 | Modrinth `400` + `version_number` 冲突 | 该版本号已存在（重跑同一次发布） | 不要重跑上传步骤；补一个新 patch 版本，或先在平台删除草稿版本 |
 | Modrinth 拒绝 loaders/game_versions | payload 与项目设置不一致 | 先在项目设置里允许 `folia` 与 `26.3` |
 | 上传成功但平台上显示"Folia 不支持" | 只看 Hangar 平台标签 | 以 `plugin.yml` 的 `folia-supported` 为准；Hangar 侧在描述里写明 |
+| run 在 `Publish protected release` 上 3 秒失败、**没有任何步骤日志** | 环境分支策略拒绝了这次部署（`release` 只允许 `v*` tag，而这是一次 `main` 上的手动运行） | 用 `dry_run=true`（走 `release-dry-run` 环境），或推送真正的 tag |
 
 ## 7. 安全约束（硬性）
 

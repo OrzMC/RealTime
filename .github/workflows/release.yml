@@ -113,8 +113,12 @@ jobs:
     needs: build
     if: ${{ vars.RELEASE_PUBLISH_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    # `release` is locked to `v*` tags and holds the publishing tokens, so a
+    # manual dry run (which only reads repository variables) uses a separate,
+    # unprotected environment. Otherwise the job would fail at setup, not in a
+    # step, which is impossible to diagnose from the logs.
     environment:
-      name: release
+      name: ${{ needs.build.outputs.dry_run == 'true' && 'release-dry-run' || 'release' }}
     permissions:
       contents: write
     steps:

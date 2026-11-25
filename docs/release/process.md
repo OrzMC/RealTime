@@ -87,7 +87,9 @@ gh workflow run release.yml -f ref=main -f version=0.5.0 -f dry_run=true
 
 A dry run resolves the version, checks the distribution metadata, builds and inspects the shaded JAR, runs the
 distribution preflight against the public APIs, and writes a summary — but creates no GitHub Release and uploads
-nothing. Use it to verify Hangar/Modrinth wiring without burning a version number or pushing a tag.
+nothing. Its `publish` job uses the unprotected `release-dry-run` environment, so it needs no approval and never sees
+the publishing tokens (the `release` environment stays restricted to `v*` tags). Use it to verify Hangar/Modrinth
+wiring without burning a version number or pushing a tag.
 
 ## Reproducibility and artifact integrity
 
