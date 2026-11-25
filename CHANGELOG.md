@@ -6,6 +6,8 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 文档
 
+- 平台发布文档补上 Modrinth 的审核阶段（`draft → Under Review → approved`）：审核期间可继续上传版本、被拒时不要复用版本号、
+  用一条匿名请求判断是否已公开。
 - 新增 [`docs/operations/platform-listings.md`](docs/operations/platform-listings.md)：Hangar / Modrinth 项目页的权威文案与
   元数据（简介、长描述、分类、许可证、链接），并记录两个平台的可编辑性差异（Hangar 只能网页改、Modrinth 可 PATCH）。
 

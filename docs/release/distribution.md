@@ -122,6 +122,25 @@ changelog 直接使用 `CHANGELOG.md` 对应版本的段落（与 GitHub Release
 
 > 新建项目后还需要在项目页点 **Submit for review**：只上传版本、不提交审核时，项目会一直停留在 draft，对外仍然 404。
 
+### 4.1.1 审核阶段（draft → Under Review → approved）
+
+| 阶段 | 项目页显示 | 公开 API | 说明 |
+|---|---|---|---|
+| draft | Draft | 404（对团队也只在登录后可见） | 还没提交审核 |
+| 提交后 | **Under Review**（API `status: processing`） | 404 | Modrinth 版主审核中，通常几分钟到一天 |
+| 通过 | Approved | **200** | 项目公开，出现在搜索/列表里 |
+| 被拒 | Rejected（附审核意见） | 404 | 按意见改完可重新提交 |
+
+- **审核期间可以继续上传版本**（发布工作流照常工作），新版本会跟随项目一起进入审核流程，不会报错。
+- 项目公开与否**不影响**发布工作流：上传只要求 `CREATE_VERSION` 与项目 id 正确，状态由平台处理。
+- 被拒时不要重发同一个版本号（Modrinth 会返回版本号冲突）：按意见改完项目信息，用下一个 patch 版本发。
+- 判定"是否已公开"只需一条匿名请求，不需要令牌：
+
+  ```bash
+  curl -s -o /dev/null -w '%{http_code}\n' https://api.modrinth.com/v2/project/<项目ID>
+  # 200 = 已公开；404 = 仍是 draft / 审核中 / 被拒
+  ```
+
 ## 4.3 把凭据配进 GitHub（两种方式）
 
 ### 方式 A：网页
