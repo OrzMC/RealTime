@@ -107,33 +107,35 @@ rtime() {
 }
 
 # Folia answers region-owned commands asynchronously and sometimes returns an
-# empty body, so a single-shot probe is not a verdict. The probe body is
-# `run list` (plugin commands are not echoed by `execute ... run` on Folia), an
-# empty body means "ask again", and only a full window of misses is a failure.
+# empty body, so a single answer is not a verdict. The probe body is `run list`
+# (Folia does not echo plugin commands run through `execute`), each position gets
+# its own retry window, and only a position that never answers fails the check --
+# requiring all positions to answer in the same round made this test measurably
+# flaky.
 wait_blocks_air() {
   local label="$1"
   shift
-  local position attempt output
-  for attempt in $(seq 1 30); do
-    local all_air=1
-    for position in "$@"; do
+  local position output deadline=$((SECONDS + 90))
+  for position in "$@"; do
+    local answered=0
+    while ((SECONDS < deadline)); do
       # shellcheck disable=SC2086 # position is "<x> <y> <z>"
       output="$(rcon execute if block $position minecraft:air run list 2>/dev/null || true)"
-      if [[ "$output" != *"players online"* ]]; then
-        all_air=0
+      if [[ "$output" == *"players online"* ]]; then
+        answered=1
         break
       fi
+      sleep 1
     done
-    if [[ "$all_air" == "1" ]]; then
-      return 0
+    if ((answered == 0)); then
+      echo "$label: block at $position is not air on $PROJECT" >&2
+      rtime device cleanup list >&2 || true
+      cat "$WORK_DIR/plugins/RealTime/data/devices.yml" >&2 || true
+      tail -40 "$WORK_DIR/server.log" >&2 || true
+      return 1
     fi
-    sleep 1
   done
-  echo "$label: still not air after ${attempt}s on $PROJECT" >&2
-  rtime device cleanup list >&2 || true
-  cat "$WORK_DIR/plugins/RealTime/data/devices.yml" >&2 || true
-  tail -40 "$WORK_DIR/server.log" >&2 || true
-  return 1
+  return 0
 }
 
 # The cleanup queue is persisted by a global callback, so the job can take a
