@@ -2,6 +2,8 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
+## [Unreleased]
+
 ## [0.4.0]
 
 ### 新增
