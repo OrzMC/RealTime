@@ -5,6 +5,9 @@ RealTime uses SemVer tags prefixed with `v`. The release workflow accepts stable
 ## Prepare a release
 
 1. Update `CHANGELOG.md` with a non-empty section whose heading exactly matches `## [MAJOR.MINOR.PATCH]` or the full prerelease version.
+   The section is rendered as the GitHub Release notes, so it must contain a short **升级须知 / upgrade notes** subsection
+   whenever a user has to do something manually (migration, behaviour change, a fixed bug that leaves stale state behind).
+   Commit lists alone do not tell an operator what to do.
 2. Review compatibility, configuration/data migrations, Paper/Folia runtime evidence, and the shaded JAR contents.
 3. Merge the release-preparation changes to `main`.
 4. Create and push an annotated tag from the verified commit, for example:
