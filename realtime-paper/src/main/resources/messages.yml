@@ -57,7 +57,8 @@ command:
       area: '{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}'
       conflict: '{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}'
     set:
-      success: '{prefix}&a位 {bit} 已改为 &f{x}, {y}, {z}'
+      success: '{prefix}&a槽 {bit} 已改为 &f{x}, {y}, {z}'
+      must-disable: '{prefix}&c请先禁用设备再改槽位（启用中的设备会持续写旧槽位）：&f{id}'
       index: '{prefix}&c位号超出范围（0–{max}）：&f{bit}'
     edit:
       cooldown: '{prefix}&c操作太快，请 &f{seconds} &c秒后再试。'

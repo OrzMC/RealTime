@@ -512,6 +512,41 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun deviceSetAsksForADisabledDevice() {
+        val device = device()
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler =
+            handler(
+                deviceAdministration =
+                    object : DeviceAdministration by RecordingDeviceAdministration(listOf(device)) {
+                        override fun setOutput(
+                            id: UUID,
+                            bitIndex: Int,
+                            x: Int,
+                            y: Int,
+                            z: Int,
+                        ): RedstoneDevice = throw DeviceMustBeDisabledException(id)
+                    },
+            )
+
+        handler.execute(target, arrayOf("device", "set", device.id.toString(), "0", "1", "2", "3"))
+
+        assertTrue(target.messages.any { it.contains("禁用") }, target.messages.toString())
+    }
+
+    @Test
+    fun deviceSetCompletionSkipsEnabledDevices() {
+        val disabled = device(enabled = false)
+        val enabled = device(enabled = true)
+        val editor = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(disabled, enabled)))
+
+        val suggested = handler.complete(editor, arrayOf("device", "set", ""))
+
+        assertEquals(listOf(disabled.id.toString()), suggested)
+    }
+
+    @Test
     fun deviceSetReportsOutOfRangeBitIndex() {
         val device = device()
         val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
@@ -651,6 +686,7 @@ class RealTimeCommandHandlerTest {
                         "command.device.create.area" to "{prefix}区域 {world} {x} {z}",
                         "command.device.create.conflict" to "{prefix}冲突 {x} {y} {z}",
                         "command.device.set.success" to "{prefix}已移动 {bit} 到 {x} {y} {z}",
+                        "command.device.set.must-disable" to "{prefix}请先禁用设备再改槽位 {id}",
                         "command.device.set.index" to "{prefix}范围 {max} 给了 {bit}",
                         "command.device.edit.cooldown" to "{prefix}秒后再试 {seconds}",
                         "command.device.enable.success" to "{prefix}enabled {name}",
@@ -689,18 +725,20 @@ class RealTimeCommandHandlerTest {
         )
     }
 
-    private fun device(resolution: OutputResolution = OutputResolution.MINUTE) =
-        RedstoneDevice(
-            id = UUID.randomUUID(),
-            name = "clock",
-            worldName = "world",
-            enabled = true,
-            outputs =
-                (0 until resolution.outputCount).map { bit ->
-                    DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
-                },
-            resolution = resolution,
-        )
+    private fun device(
+        resolution: OutputResolution = OutputResolution.MINUTE,
+        enabled: Boolean = true,
+    ) = RedstoneDevice(
+        id = UUID.randomUUID(),
+        name = "clock",
+        worldName = "world",
+        enabled = enabled,
+        outputs =
+            (0 until resolution.outputCount).map { bit ->
+                DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
+            },
+        resolution = resolution,
+    )
 
     private class RecordingDeviceAdministration(
         initialDevices: List<RedstoneDevice>,

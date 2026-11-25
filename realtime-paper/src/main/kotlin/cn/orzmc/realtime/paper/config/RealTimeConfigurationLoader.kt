@@ -221,7 +221,9 @@ class RealTimeConfigurationLoader {
                 "command.device.create.limit" to "{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。",
                 "command.device.create.area" to "{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}",
                 "command.device.create.conflict" to "{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}",
-                "command.device.set.success" to "{prefix}&a位 {bit} 已改为 &f{x}, {y}, {z}",
+                "command.device.set.success" to "{prefix}&a槽 {bit} 已改为 &f{x}, {y}, {z}",
+                "command.device.set.must-disable" to
+                    "{prefix}&c请先禁用设备再改槽位（启用中的设备会持续写旧槽位）：&f{id}",
                 "command.device.set.index" to "{prefix}&c位号超出范围（0–{max}）：&f{bit}",
                 "command.device.edit.cooldown" to "{prefix}&c操作太快，请 &f{seconds} &c秒后再试。",
                 "command.device.enable.success" to "{prefix}&a设备 {name} 已启用。&7({id})",

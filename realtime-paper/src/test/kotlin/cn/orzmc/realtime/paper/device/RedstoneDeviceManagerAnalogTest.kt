@@ -90,7 +90,7 @@ class RedstoneDeviceManagerAnalogTest {
     }
 
     @Test
-    fun `disabling the device removes the books so the comparator reads zero`() {
+    fun `disabling the device empties the slot so the comparator reads zero`() {
         val fixture = fixture(OutputResolution.MINUTE)
         fixture.startAndRefresh()
         fixture.runPendingRegions()
@@ -106,7 +106,9 @@ class RedstoneDeviceManagerAnalogTest {
 
         for (slot in 0 until 4) {
             val lectern = fixture.lectern(slot)
-            assertEquals(Material.LECTERN, fixture.typeAt(slot), "slot $slot keeps its lectern")
+            // The slot ends up empty, exactly like a BCD slot: level 0 comes from
+            // air, so a moved slot cannot leave an orphaned lectern behind.
+            assertEquals(Material.AIR, fixture.typeAt(slot), "slot $slot must be cleared")
             assertNull(lectern.marker, "slot $slot book must be removed")
             assertFalse(fixture.books.owns(lectern), "slot $slot")
         }
