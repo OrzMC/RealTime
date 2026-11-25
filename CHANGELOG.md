@@ -2,16 +2,28 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
-## [Unreleased]
+## [0.4.0]
 
 ### 新增
 
 - `/rtime device cleanup dismiss <job-uuid>`（`realtime.device.retire`）：丢弃一个只剩 `需人工处理` 的清理任务，
   相关方块保持原样。用于"这些方块本来就不该清"的场景（典型：`device demo` 建在草地上，支撑位是原始地形），
   以前只能手改 `data/devices.yml`。仍有 `待处理` 项时会拒绝。
-- `device demo` 的成功提示补充了"建示例前请确认该区域是空地"，减少地形占位导致的非法方块。
+- `device demo` 现在会单独提示"建示例前请确认该区域是空地"（独立消息键 `command.device.demo.hint`，老服的
+  `messages.yml` 缺这个键时会自动使用内置文案），减少地形占位导致的非法方块。
 - 新增面向使用者的 [usage guide](docs/usage.md)：安装、命令与权限、两种编码的接线、教学示例、清理队列、
   诊断、占位符与 FAQ；README、需求文档与实现说明改为引用它，去掉重复的命令表。
+
+### 安装与升级须知（0.4.0）
+
+- **无强制操作**：直接替换 jar 重启即可；`data/devices.yml` 仍是 schema **v5**，配置与数据结构均无变化。
+- **新增可选命令** `/rtime device cleanup dismiss <job-uuid>`（`realtime.device.retire`）：当清理任务只剩
+  `需人工处理`、而那些方块本来就不该由插件清理（地形、玩家建筑）时，用它确认并丢弃任务。以前只能手改
+  `data/devices.yml`（文档禁止）。
+- **会看到一条新提示**：`device demo` 之后多输出一行"建示例前请确认该区域是空地"。这是独立消息键
+  `command.device.demo.hint`，不想保留就把它从 `messages.yml` 删掉（缺失时会退回内置文案，如需彻底隐藏请设成空字符串）。
+- **命令与用法以 [usage guide](docs/usage.md) 为准**：README 与需求文档里的重复命令表已移除，历史文档
+  （`docs/operations/*0.1.0*`）标注为历史快照。
 
 ## [0.3.0]
 
