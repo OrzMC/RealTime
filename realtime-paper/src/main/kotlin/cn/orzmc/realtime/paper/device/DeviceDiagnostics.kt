@@ -16,6 +16,10 @@ data class RedstoneDiagnosticsSnapshot(
     val lecternPlacements: Long = 0,
     /** Books installed into (or removed from) analog output lecterns. */
     val bookWrites: Long = 0,
+    /** Display blocks placed for `device demo` builds. */
+    val demoBlocksPlaced: Long = 0,
+    /** Display blocks removed again when a demo device was disabled or retired. */
+    val demoBlocksCleared: Long = 0,
 )
 
 fun interface DeviceDiagnostics {

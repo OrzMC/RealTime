@@ -167,6 +167,35 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 
+## Teaching example (`device demo`)
+
+```
+/rtime device demo <bcd|analog> <world> <x> <y> <z> <x+|x-|z+|z->
+```
+
+Builds one complete, readable clock next to the origin block and **enables it immediately**, so an operator can see how
+an encoding works before wiring anything by hand:
+
+| Encoding | What the plugin places | What you read |
+|---|---|---|
+| `analog` | one lectern per digit (6 for `HHmmss`) plus, per digit, `comparator → dust → lamp` on a two-block support row perpendicular to the axis | lamp brightness = digit level; the comparator output is the level (1–10) |
+| `bcd` | one slot per bit (24 for `HHmmss`) plus one lamp **above** every slot | lamp lit = bit 1, lamp off = bit 0 |
+
+A `redstone_block` powers the lamp directly above it, so the BCD demo needs no dust: 24 lamps in a row are the display.
+The demo always uses `second` resolution so the display visibly moves.
+
+Demo display blocks are recorded in the device (`demo:` in `data/devices.yml`), so they are part of the device's
+lifecycle:
+
+- `device disable` removes the display blocks and empties the slots (the build is re-created on the next `device enable`)
+- `device remove` (after disabling) queues a cleanup job that clears the slots **and** the display blocks
+- the plugin only removes a block whose type still matches what it placed; anything else is reported as
+  `NEEDS_ATTENTION` and left alone
+
+The command uses the same permissions, area whitelist, device cap and cooldown as `device create`
+(`realtime.device.edit`). It is meant for a test world or a tutorial area: a real build should use `device create` plus
+your own display circuit, so the plugin never owns blocks you want to keep.
+
 ## Creating, changing and removing a device
 
 Both encodings use the same lifecycle, so everything below works for `bcd` and `analog` alike:

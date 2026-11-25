@@ -3,17 +3,20 @@ package cn.orzmc.realtime.paper.device
 import cn.orzmc.realtime.core.device.AnalogScale
 import cn.orzmc.realtime.core.device.BcdTimeEncoder
 import cn.orzmc.realtime.core.device.BcdTimeFrame
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
 import org.bukkit.block.Lectern
+import org.bukkit.block.data.BlockData
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
@@ -60,6 +63,7 @@ class RedstoneDeviceManager(
     private val stateProvider: () -> RuntimeState,
     private val logger: Logger,
     private val books: AnalogBookFactory = DeviceBooks,
+    private val blockDataFactory: (String) -> BlockData = { data -> Bukkit.createBlockData(data) },
 ) : Listener,
     DeviceDiagnostics {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
@@ -73,10 +77,13 @@ class RedstoneDeviceManager(
     private val writeFailures = AtomicLong()
     private val lecternPlacements = AtomicLong()
     private val bookWrites = AtomicLong()
+    private val demoBlocksPlaced = AtomicLong()
+    private val demoBlocksCleared = AtomicLong()
     private var lastMinuteEpoch: Long? = null
     private var lastSecondEpoch: Long? = null
     private var lastFullCheckEpoch: Long? = null
     private val lastWritten = ConcurrentHashMap<UUID, WrittenFrame>()
+    private val demoState = ConcurrentHashMap<UUID, Boolean>()
 
     /** Device state captured when a write batch was dispatched. */
     private data class WrittenFrame(
@@ -99,6 +106,8 @@ class RedstoneDeviceManager(
             writeFailures = writeFailures.get(),
             lecternPlacements = lecternPlacements.get(),
             bookWrites = bookWrites.get(),
+            demoBlocksPlaced = demoBlocksPlaced.get(),
+            demoBlocksCleared = demoBlocksCleared.get(),
         )
     }
 
@@ -118,6 +127,7 @@ class RedstoneDeviceManager(
             lastSecondEpoch = null
             lastFullCheckEpoch = null
             lastWritten.clear()
+            demoState.clear()
             refreshCurrentFrame(force = true)
         }
     }
@@ -141,6 +151,14 @@ class RedstoneDeviceManager(
                     output = output,
                     value = state.valuesFor(device, frame)[output.bitIndex],
                 )
+            }
+        state.devices
+            .asSequence()
+            .filter { it.worldName == world.name && it.demoBlocks.isNotEmpty() }
+            .forEach { device ->
+                device.demoBlocks
+                    .filter { it.x shr 4 == chunk.x && it.z shr 4 == chunk.z }
+                    .forEach { block -> applyDemoBlock(world, device, block, present = device.enabled) }
             }
     }
 
@@ -169,6 +187,109 @@ class RedstoneDeviceManager(
             }
         val frame = BcdTimeEncoder.encode(snapshot.zonedDateTime.toLocalTime())
         scheduleOutputs(state, frame, resolutions, includeDisabled = force)
+        if (force || fullCheckDue) scheduleDemoBlocks(state, includeDisabled = force)
+    }
+
+    /**
+     * Places or removes the display blocks of a demo build.
+     *
+     * Demo blocks are static, so this only runs on a forced refresh (enable,
+     * disable, reload, start) and on the 30 s full re-check; the per-device
+     * [demoState] cache keeps a settled demo at one region task per change.
+     */
+    private fun scheduleDemoBlocks(
+        state: RuntimeState,
+        includeDisabled: Boolean,
+    ) {
+        state.devices
+            .asSequence()
+            .filter { it.demoBlocks.isNotEmpty() }
+            .filter { includeDisabled || it.enabled }
+            .forEach { device ->
+                val present = state.isDemoPresent(device)
+                if (demoState[device.id] == present) return@forEach
+                val world = server.getWorld(device.worldName) ?: return@forEach
+                device.demoBlocks
+                    .groupBy { (it.x shr 4) to (it.z shr 4) }
+                    .forEach { (chunk, blocks) ->
+                        val anchor = blocks.first()
+                        val location =
+                            Location(world, anchor.x.toDouble(), anchor.y.toDouble(), anchor.z.toDouble())
+                        scheduler.runRegion(location) { target ->
+                            val targetWorld = target.world ?: return@runRegion
+                            if (!targetWorld.isChunkLoaded(chunk.first, chunk.second)) return@runRegion
+                            val current = stateProvider()
+                            val currentDevice = current.devices.firstOrNull { it.id == device.id } ?: return@runRegion
+                            val currentPresent = current.isDemoPresent(currentDevice)
+                            blocks.forEach { block ->
+                                applyDemoBlock(targetWorld, currentDevice, block, currentPresent)
+                            }
+                            demoState[currentDevice.id] = currentPresent
+                        }
+                    }
+            }
+    }
+
+    private fun RuntimeState.isDemoPresent(device: RedstoneDevice): Boolean =
+        device.enabled && configuration.generalEnabled && redstoneConfiguration.enabled
+
+    private fun applyDemoBlock(
+        world: World,
+        device: RedstoneDevice,
+        block: DemoBlock,
+        present: Boolean,
+    ) {
+        val expected =
+            try {
+                blockDataFactory(block.data)
+            } catch (exception: IllegalArgumentException) {
+                logger.warning("RealTime device '${device.name}' demo block ${block.data} is invalid: ${exception.message}")
+                return
+            }
+        val target = world.getBlockAt(block.x, block.y, block.z)
+        val current = target.type
+        try {
+            if (present) {
+                when {
+                    current == expected.material -> Unit
+                    current == Material.AIR -> {
+                        target.setBlockData(expected, true)
+                        demoBlocksPlaced.incrementAndGet()
+                    }
+                    else -> invalidDemoBlock(device, block, world, "is $current, expected AIR or ${expected.material}")
+                }
+            } else {
+                when {
+                    current == Material.AIR -> Unit
+                    current == expected.material -> {
+                        target.setType(Material.AIR, true)
+                        demoBlocksCleared.incrementAndGet()
+                    }
+                    else -> invalidDemoBlock(device, block, world, "is $current, expected AIR or ${expected.material}")
+                }
+            }
+        } catch (exception: Exception) {
+            writeFailures.incrementAndGet()
+            logger.warning(
+                "RealTime device '${device.name}' demo block at " +
+                    "${world.name}:${block.x},${block.y},${block.z} failed: ${exception.message}",
+            )
+        }
+    }
+
+    private fun invalidDemoBlock(
+        device: RedstoneDevice,
+        block: DemoBlock,
+        world: World,
+        detail: String,
+    ) {
+        invalidOutputBlocks.incrementAndGet()
+        if (warnedOutputs.add("demo:${device.id}:${block.x},${block.y},${block.z}")) {
+            logger.warning(
+                "RealTime device '${device.name}' demo block at " +
+                    "${world.name}:${block.x},${block.y},${block.z} $detail.",
+            )
+        }
     }
 
     private fun scheduleOutputs(

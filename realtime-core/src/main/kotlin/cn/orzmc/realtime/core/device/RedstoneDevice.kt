@@ -17,6 +17,12 @@ class RedstoneDevice(
     outputs: List<DeviceOutput>,
     val resolution: OutputResolution = OutputResolution.MINUTE,
     val encoding: OutputEncoding = OutputEncoding.BCD,
+    /**
+     * Display blocks of a `device demo` build: lamps, comparators and dust the
+     * plugin places and removes together with the device. Empty for a normal
+     * device, which only ever touches its own slots.
+     */
+    val demoBlocks: List<DemoBlock> = emptyList(),
 ) {
     val outputs: List<DeviceOutput> = outputs.sortedBy(DeviceOutput::bitIndex)
 
@@ -42,5 +48,21 @@ class RedstoneDevice(
         ) {
             "Device output block positions must be unique"
         }
+        val slotPositions = this.outputs.map { Triple(it.x, it.y, it.z) }.toSet()
+        require(
+            this.demoBlocks
+                .map { Triple(it.x, it.y, it.z) }
+                .toSet()
+                .size == demoBlocks.size,
+        ) {
+            "Device demo block positions must be unique"
+        }
+        require(this.demoBlocks.none { Triple(it.x, it.y, it.z) in slotPositions }) {
+            "Device demo blocks must not overlap output slots"
+        }
     }
+
+    /** A demo device also owns the display blocks of its teaching build. */
+    val isDemo: Boolean
+        get() = demoBlocks.isNotEmpty()
 }

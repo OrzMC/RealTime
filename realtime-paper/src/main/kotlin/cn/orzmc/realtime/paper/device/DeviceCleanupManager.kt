@@ -91,6 +91,10 @@ class DeviceCleanupManager(
                     .asSequence()
                     .filter { it.status == DeviceCleanupStatus.PENDING }
                     .forEach { output -> scheduleOutput(world, job, output) }
+                job.display
+                    .asSequence()
+                    .filter { it.status == DeviceCleanupStatus.PENDING }
+                    .forEachIndexed { index, demo -> scheduleDemo(world, job, demo, index) }
             }
     }
 
@@ -110,7 +114,86 @@ class DeviceCleanupManager(
                     .filter { it.status == DeviceCleanupStatus.PENDING }
                     .filter { it.output.x shr 4 == chunkX && it.output.z shr 4 == chunkZ }
                     .forEach { output -> scheduleOutput(world, job, output) }
+                job.display.forEachIndexed { index, demo ->
+                    if (demo.status == DeviceCleanupStatus.PENDING &&
+                        demo.block.x shr 4 == chunkX &&
+                        demo.block.z shr 4 == chunkZ
+                    ) {
+                        scheduleDemo(world, job, demo, index)
+                    }
+                }
             }
+    }
+
+    /**
+     * Clears one display block of a demo build.
+     *
+     * Only a block whose type still matches what the demo placed is removed; a
+     * player build that replaced it is reported instead of destroyed.
+     */
+    private fun scheduleDemo(
+        world: World,
+        job: DeviceCleanupJob,
+        demo: DeviceCleanupDemo,
+        index: Int,
+    ) {
+        val key = CleanupKey(job.id, demoKey(index))
+        if (!inFlight.add(key)) return
+
+        val block = demo.block
+        val location = Location(world, block.x.toDouble(), block.y.toDouble(), block.z.toDouble())
+        try {
+            scheduler.runRegion(location) { target ->
+                var resultQueued = false
+                try {
+                    val targetWorld = target.world ?: return@runRegion
+                    if (!targetWorld.isChunkLoaded(block.x shr 4, block.z shr 4)) return@runRegion
+                    val currentJob = stateProvider().cleanupJobs.firstOrNull { it.id == job.id } ?: return@runRegion
+                    val currentDemo =
+                        currentJob.display.getOrNull(index)?.takeIf { it.status == DeviceCleanupStatus.PENDING }
+                            ?: return@runRegion
+
+                    val expectedMaterial = Material.matchMaterial(block.material)
+                    val target2 = targetWorld.getBlockAt(block.x, block.y, block.z)
+                    val outcome =
+                        when {
+                            expectedMaterial == null ->
+                                DeviceCleanupStatus.NEEDS_ATTENTION to
+                                    "Unsupported demo block data ${block.data}"
+                            target2.type == Material.AIR -> DeviceCleanupStatus.CLEARED to null
+                            target2.type == expectedMaterial -> {
+                                target2.setType(Material.AIR, true)
+                                DeviceCleanupStatus.CLEARED to null
+                            }
+                            else ->
+                                DeviceCleanupStatus.NEEDS_ATTENTION to
+                                    "Expected AIR or $expectedMaterial, found ${target2.type}"
+                        }
+                    pendingResults.add(
+                        CleanupResult(
+                            jobId = currentJob.id,
+                            bitIndex = demoKey(index),
+                            status = outcome.first,
+                            detail = outcome.second,
+                        ),
+                    )
+                    resultQueued = true
+                    scheduleResultDrain()
+                } catch (exception: Exception) {
+                    logger.warning(
+                        "Deferred demo cleanup failed for device '${job.deviceName}' at " +
+                            "${block.x},${block.y},${block.z}: ${exception.message ?: exception::class.simpleName}",
+                    )
+                } finally {
+                    if (!resultQueued) inFlight.remove(key)
+                }
+            }
+        } catch (exception: Exception) {
+            inFlight.remove(key)
+            logger.warning(
+                "Unable to schedule deferred demo cleanup for device '${job.deviceName}': ${exception.message}",
+            )
+        }
     }
 
     private fun attachWorldIdentity(world: World): Boolean =
@@ -192,7 +275,8 @@ class DeviceCleanupManager(
                     scheduleResultDrain()
                 } catch (exception: Exception) {
                     logger.warning(
-                        "Deferred cleanup failed for device '${job.deviceName}' output ${output.bitIndex}: ${exception.message}",
+                        "Deferred cleanup failed for device '${job.deviceName}' output ${output.bitIndex}:" +
+                            " ${exception.message ?: exception::class.simpleName}",
                     )
                 } finally {
                     if (!resultQueued) inFlight.remove(key)
@@ -295,11 +379,19 @@ class DeviceCleanupManager(
                                     DeviceCleanupOutput(output.output, result.status, result.detail)
                                 }
                             }
-                        if (updatedOutputs.all { it.status == DeviceCleanupStatus.CLEARED }) {
-                            null
-                        } else {
-                            job.copy(outputs = updatedOutputs)
-                        }
+                        val updatedDisplay =
+                            job.display.mapIndexed { index, demo ->
+                                val result = resultsByKey[CleanupKey(job.id, demoKey(index))]
+                                if (result == null || demo.status != DeviceCleanupStatus.PENDING) {
+                                    demo
+                                } else {
+                                    DeviceCleanupDemo(demo.block, result.status, result.detail)
+                                }
+                            }
+                        val cleared =
+                            updatedOutputs.all { it.status == DeviceCleanupStatus.CLEARED } &&
+                                updatedDisplay.all { it.status == DeviceCleanupStatus.CLEARED }
+                        if (cleared) null else job.copy(outputs = updatedOutputs, display = updatedDisplay)
                     }
                 if (updatedJobs != current.cleanupJobs) {
                     val updated = current.copy(cleanupJobs = updatedJobs)
@@ -319,6 +411,9 @@ class DeviceCleanupManager(
             if (pendingResults.isNotEmpty()) scheduleResultDrain()
         }
     }
+
+    /** Demo blocks use the negative key range so they cannot collide with slots. */
+    private fun demoKey(index: Int): Int = -1 - index
 
     private data class CleanupKey(
         val jobId: UUID,

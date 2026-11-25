@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
@@ -26,6 +27,21 @@ data class DeviceCleanupOutput(
     }
 }
 
+/** One display block of a demo build, cleared after the device slots. */
+data class DeviceCleanupDemo(
+    val block: DemoBlock,
+    val status: DeviceCleanupStatus = DeviceCleanupStatus.PENDING,
+    val detail: String? = null,
+) {
+    init {
+        if (status == DeviceCleanupStatus.NEEDS_ATTENTION) {
+            require(!detail.isNullOrBlank()) { "NEEDS_ATTENTION cleanup demo requires a detail" }
+        } else {
+            require(detail == null) { "$status cleanup demo must not contain a detail" }
+        }
+    }
+}
+
 data class DeviceCleanupJob(
     val id: UUID,
     val deviceId: UUID,
@@ -35,6 +51,8 @@ data class DeviceCleanupJob(
     val outputs: List<DeviceCleanupOutput>,
     val resolution: OutputResolution = OutputResolution.MINUTE,
     val encoding: OutputEncoding = OutputEncoding.BCD,
+    /** Display blocks of a demo device; empty for a plain device. */
+    val display: List<DeviceCleanupDemo> = emptyList(),
 ) {
     init {
         require(deviceName.isNotBlank()) { "deviceName must not be blank" }
@@ -49,6 +67,13 @@ data class DeviceCleanupJob(
         }
         require(outputs.map { it.output }.distinct().size == outputs.size) {
             "cleanup output coordinates must be unique"
+        }
+        require(display.map { it.block }.distinct().size == display.size) {
+            "cleanup demo block positions must be unique"
+        }
+        val slotPositions = outputs.map { Triple(it.output.x, it.output.y, it.output.z) }.toSet()
+        require(display.none { Triple(it.block.x, it.block.y, it.block.z) in slotPositions }) {
+            "cleanup demo blocks must not overlap output slots"
         }
     }
 
@@ -66,6 +91,7 @@ data class DeviceCleanupJob(
                 outputs = device.outputs.map { output -> DeviceCleanupOutput(output) },
                 resolution = device.resolution,
                 encoding = device.encoding,
+                display = device.demoBlocks.map { block -> DeviceCleanupDemo(block) },
             )
     }
 }

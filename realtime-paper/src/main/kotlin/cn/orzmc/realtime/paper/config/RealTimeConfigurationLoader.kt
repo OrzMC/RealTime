@@ -198,6 +198,7 @@ class RealTimeConfigurationLoader {
                 "command.device.status.outcomes" to
                     "{prefix}&7输出变更：&f{changed} &7无变化：&f{unchanged} &7非法方块：&f{invalid} &7写入失败：&f{failures}",
                 "command.device.status.analog" to "{prefix}&7讲台放置：&f{lecterns} &7书页安装：&f{books}",
+                "command.device.status.demo" to "{prefix}&7示例方块放置：&f{placed} &7清除：&f{cleared}",
                 "command.device.list.header" to "{prefix}&b设备列表（{count}）",
                 "command.device.list.empty" to "{prefix}&7当前没有配置任何设备。",
                 "command.device.list.item" to "{prefix}&f{name} &7[{id}] &8世界：&f{world} &8状态：{enabled}",
@@ -218,6 +219,9 @@ class RealTimeConfigurationLoader {
                     "{prefix}&c分辨率无效：&f{value} &7（可用：minute、second）",
                 "command.device.create.invalid-encoding" to
                     "{prefix}&c编码无效：&f{value} &7（可用：bcd、analog）",
+                "command.device.demo.success" to
+                    "{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + " +
+                    "&f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）",
                 "command.device.create.limit" to "{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。",
                 "command.device.create.area" to "{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}",
                 "command.device.create.conflict" to "{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}",

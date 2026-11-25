@@ -1,5 +1,6 @@
 package cn.orzmc.realtime.paper.device
 
+import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
@@ -75,6 +76,15 @@ class YamlDeviceRepository(
                     "enabled" to device.enabled,
                     "resolution" to device.resolution.configValue,
                     "encoding" to device.encoding.configValue,
+                    "demo" to
+                        device.demoBlocks.map { block ->
+                            linkedMapOf(
+                                "x" to block.x,
+                                "y" to block.y,
+                                "z" to block.z,
+                                "data" to block.data,
+                            )
+                        },
                     "outputs" to
                         device.outputs.map { output ->
                             linkedMapOf(
@@ -98,6 +108,17 @@ class YamlDeviceRepository(
                     "world-uuid" to job.worldId?.toString(),
                     "resolution" to job.resolution.configValue,
                     "encoding" to job.encoding.configValue,
+                    "display" to
+                        job.display.map { demoOutput ->
+                            linkedMapOf(
+                                "x" to demoOutput.block.x,
+                                "y" to demoOutput.block.y,
+                                "z" to demoOutput.block.z,
+                                "data" to demoOutput.block.data,
+                                "status" to demoOutput.status.name,
+                                "detail" to demoOutput.detail,
+                            )
+                        },
                     "outputs" to
                         job.outputs.map { cleanupOutput ->
                             linkedMapOf(
@@ -188,7 +209,8 @@ class YamlDeviceRepository(
 
         val activePositions =
             snapshot.devices.flatMap { device ->
-                device.outputs.map { output -> Position(device.worldName, output.x, output.y, output.z) }
+                device.outputs.map { output -> Position(device.worldName, output.x, output.y, output.z) } +
+                    device.demoBlocks.map { block -> Position(device.worldName, block.x, block.y, block.z) }
             }
         if (activePositions.toSet().size != activePositions.size) {
             throw DeviceRepositoryException("$context: output block positions must be unique across devices")
@@ -198,7 +220,10 @@ class YamlDeviceRepository(
             snapshot.cleanupJobs.flatMap { job ->
                 job.outputs.map { output ->
                     Position(job.worldName, output.output.x, output.output.y, output.output.z)
-                }
+                } +
+                    job.display.map { demoOutput ->
+                        Position(job.worldName, demoOutput.block.x, demoOutput.block.y, demoOutput.block.z)
+                    }
             }
         if (cleanupPositions.toSet().size != cleanupPositions.size) {
             throw DeviceRepositoryException("$context: cleanup output positions must be unique across jobs")
@@ -237,8 +262,9 @@ class YamlDeviceRepository(
                 )
             }
 
+        val demoBlocks = parseDemoBlocks(raw, context)
         return try {
-            RedstoneDevice(id, name, worldName, enabled, outputs, resolution, encoding)
+            RedstoneDevice(id, name, worldName, enabled, outputs, resolution, encoding, demoBlocks)
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
         }
@@ -293,6 +319,7 @@ class YamlDeviceRepository(
                 }
             }
 
+        val display = parseDemoCleanup(raw, context)
         return try {
             DeviceCleanupJob(
                 id = parseUuid(requiredString(raw, "id", context), "$context.id"),
@@ -303,9 +330,84 @@ class YamlDeviceRepository(
                 outputs = outputs,
                 resolution = resolution,
                 encoding = encoding,
+                display = display,
             )
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
+        }
+    }
+
+    private fun parseDemoBlocks(
+        raw: Map<*, *>,
+        context: String,
+    ): List<DemoBlock> {
+        val values =
+            when (val demo = raw["demo"]) {
+                null -> return emptyList()
+                is List<*> -> demo
+                else -> throw DeviceRepositoryException("$context.demo must be a list")
+            }
+        return values.mapIndexed { index, value ->
+            val block =
+                value as? Map<*, *>
+                    ?: throw DeviceRepositoryException("$context.demo[$index] must be a map")
+            val blockContext = "$context.demo[$index]"
+            try {
+                DemoBlock(
+                    x = requiredInt(block, "x", blockContext),
+                    y = requiredInt(block, "y", blockContext),
+                    z = requiredInt(block, "z", blockContext),
+                    data = requiredString(block, "data", blockContext),
+                )
+            } catch (exception: IllegalArgumentException) {
+                throw DeviceRepositoryException("$blockContext is invalid: ${exception.message}", exception)
+            }
+        }
+    }
+
+    private fun parseDemoCleanup(
+        raw: Map<*, *>,
+        context: String,
+    ): List<DeviceCleanupDemo> {
+        val values =
+            when (val display = raw["display"]) {
+                null -> return emptyList()
+                is List<*> -> display
+                else -> throw DeviceRepositoryException("$context.display must be a list")
+            }
+        return values.mapIndexed { index, value ->
+            val block =
+                value as? Map<*, *>
+                    ?: throw DeviceRepositoryException("$context.display[$index] must be a map")
+            val blockContext = "$context.display[$index]"
+            val statusName = requiredString(block, "status", blockContext)
+            val status =
+                try {
+                    DeviceCleanupStatus.valueOf(statusName)
+                } catch (exception: IllegalArgumentException) {
+                    throw DeviceRepositoryException("$blockContext.status is unsupported: $statusName", exception)
+                }
+            val detail =
+                when (val value = block["detail"]) {
+                    null -> null
+                    is String -> value
+                    else -> throw DeviceRepositoryException("$blockContext.detail must be a string or null")
+                }
+            try {
+                DeviceCleanupDemo(
+                    block =
+                        DemoBlock(
+                            x = requiredInt(block, "x", blockContext),
+                            y = requiredInt(block, "y", blockContext),
+                            z = requiredInt(block, "z", blockContext),
+                            data = requiredString(block, "data", blockContext),
+                        ),
+                    status = status,
+                    detail = detail,
+                )
+            } catch (exception: IllegalArgumentException) {
+                throw DeviceRepositoryException("$blockContext is invalid: ${exception.message}", exception)
+            }
         }
     }
 
@@ -382,6 +484,6 @@ class YamlDeviceRepository(
         const val DEVICE_FILE = "data/devices.yml"
         const val BACKUP_FILE = "backups/devices.yml.bak"
         const val LEGACY_SCHEMA_VERSION = 1
-        const val SUPPORTED_SCHEMA_VERSION = 4
+        const val SUPPORTED_SCHEMA_VERSION = 5
     }
 }
