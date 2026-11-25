@@ -2,7 +2,7 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
-## [Unreleased]
+## [0.3.0]
 
 ### 修复
 
@@ -12,7 +12,7 @@ All notable changes to RealTime are documented here. Release automation requires
 - 周期扫描里 demo 展示方块的下标改为按存储列表计算（之前用了过滤后的下标），修掉"队列卡在 `待处理：1` 且永远不动"
   的问题 —— 只影响退役中的 demo 设备，普通 BCD/analog 设备不涉及。
 
-### 升级须知（0.3.0，未发布）
+### 安装与升级须知（0.3.0）
 
 - **谁受影响**：只有**在 0.2.0 上用 `device demo` 建过教学示例**的服务器。普通 `device create` 建的 BCD/analog 设备
   的清理任务没有 `display:` 列表，不受这两个缺陷影响。
@@ -22,6 +22,7 @@ All notable changes to RealTime are documented here. Release automation requires
   `需人工处理`，说明对应位置被非插件方块占着（例如 demo 建在树林里，树干/树叶占位），清掉那几格后再执行一次
   `/rtime device cleanup retry <job-uuid>` 即可。
 - 提醒：`device demo` 只填空位，建示例前先把场地清空，否则槽位/灯位会被地形占住并报 `NEEDS_ATTENTION`。
+- 本版**没有**配置或数据结构变更：`data/devices.yml` 仍是 schema **v5**，0.2.0 的存储可以直接用。
 
 ## [0.2.0]
 
