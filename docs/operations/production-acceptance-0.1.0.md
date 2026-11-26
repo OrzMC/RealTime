@@ -1,5 +1,8 @@
 # RealTime 0.1.0 — production acceptance handoff
 
+> **历史文档（已过时）**：本文记录的是 v0.1.0 时代的实现与验收，包含已移除的 BCD 编码、`device <子命令>` 等旧行为。
+> 当前版本请看 [usage guide](../usage.md) 与 [0.6.0 验收报告](acceptance-report-0.6.0.md)。
+
 > **Historical document (0.1.0).** It describes the acceptance procedure for the first release. Current behaviour
 > differs: devices carry an `encoding` (`bcd`/`analog`), the store is schema **v5**, devices can be authored in game,
 > `/rtime device demo` builds teaching examples, and `device set` requires a disabled device. Use

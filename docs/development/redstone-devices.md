@@ -17,7 +17,7 @@ limits:
 ```
 
 The module is **enabled by default**: with no device configured it costs nothing, and a disabled module would accept
-`/rtime create` while writing nothing. Disabling it makes the plugin read-only (`/rtime`, `/rtime info`, placeholders).
+`/rtime create` while writing nothing. Disabling it makes the plugin read-only (`/rtime`, `/rtime status`, placeholders).
 `limits` only affects the in-game authoring commands (`/rtime create` / `/rtime place`): an empty `allowed-areas` list
 means "no area restriction" — a legal configuration, reported once at `info` level on start — the commands still
 require `realtime.device.edit` (default op), `max-devices` caps how many devices may exist, and

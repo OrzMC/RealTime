@@ -142,7 +142,7 @@ PR 必须**自解释**，审查者不看聊天记录也能看懂。固定四段�
 - 涉及红石行为的改动（编码、布局、demo、比较器）必须在真机/开发服上按
   [`docs/development/redstone-devices.md`](../development/redstone-devices.md) 的探针口径验证，
   并把关键坐标与输出记进 `docs/operations/`（一次性验收写 `<主题>-acceptance-<日期>.md`）。
-- 判定以**持久化状态**为准（`/rtime list`、`/rtime cleanup`、`data/devices.yml`），方块探针只作旁证：
+- 判定以**持久化状态**为准（`/rtime`、`/rtime cleanup`、`data/devices.yml`），方块探针只作旁证：
   Folia 上 `execute ... run <插件命令>` 不回显，统一用 `run list` 之类原生命令探针。
 
 ## 9. 文档分层（避免重复）

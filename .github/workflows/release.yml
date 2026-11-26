@@ -211,6 +211,22 @@ jobs:
           HANGAR_PROJECT_ID: ${{ vars.HANGAR_PROJECT_ID }}
         run: bash scripts/hangar-page.sh
 
+      # The long description and the one-liner live in
+      # docs/operations/platform-listings.md; keep the project page in step with
+      # the repo on every release. Failure must not fail the release itself.
+      - name: Sync the Modrinth project page
+        if: ${{ needs.build.outputs.dry_run != 'true' && vars.MODRINTH_PROJECT_ID != '' }}
+        continue-on-error: true
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+        run: |
+          if [[ -z "$MODRINTH_TOKEN" ]]; then
+            echo "MODRINTH_TOKEN is not configured; skipping the project page sync."
+            exit 0
+          fi
+          bash scripts/modrinth-page.sh
+
       - name: Publish version to Modrinth
         if: ${{ needs.build.outputs.dry_run != 'true' && vars.MODRINTH_PROJECT_ID != '' }}
         env:

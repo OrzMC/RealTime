@@ -195,6 +195,25 @@ curl -s -o /dev/null -w '%{http_code}\n' -H "Authorization: $MODRINTH_TOKEN" \
   https://api.modrinth.com/v2/user                     # 200 = 有效
 ```
 
+## 4.4 项目页自动同步（发布时）
+
+项目页的一句话简介与长描述都以 [`docs/operations/platform-listings.md`](../operations/platform-listings.md) 为唯一源，
+`release.yml` 在正式发布后自动推送（`continue-on-error: true`，失败不影响发版）：
+
+| 平台 | 脚本 | 端点 | 字段 |
+|---|---|---|---|
+| Hangar | `scripts/hangar-page.sh` | `PATCH /api/v1/pages/editmain/{project}`（需 `edit_page`）| 主页（长描述）|
+| Modrinth | `scripts/modrinth-page.sh` | `PATCH /v2/project/{id}`（需 `WRITE_PROJECT`）| `description`（一句话简介）+ `body`（长描述）|
+
+两个坑：
+
+- Modrinth 的**一句话简介字段名是 `description`**，传 `summary` 会被静默忽略（HTTP 仍返回 204，看起来成功了）。
+  另外项目审核中时，平台偶尔会继续展示旧文案——脚本读回比对，不一致会 `warn` 而不是假装成功。
+- Hangar 的项目信息（名称/简介/分类/关键词/链接）**没有** API：`PATCH/PUT /api/v1/projects/{slug}` 均 405，
+  只能网页改；本文与 `platform-listings.md` 只会同步主页。
+
+`scripts/distribution-check.sh` 会断言工作流里这两个同步步骤都在。
+
 ## 5. 校验与演练
 
 ### 5.1 本地/CI 都能跑的静态检查

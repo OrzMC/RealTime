@@ -1,6 +1,6 @@
 # Platform listings (Hangar / Modrinth)
 
-> 状态：生效中｜最后更新：2026-11-25
+> 状态：生效中｜最后更新：2026-11-26
 >
 > 本文保存 **Hangar** 与 **Modrinth** 项目页的权威文案与元数据。改文案先改这里，再同步到平台页面，
 > 避免两个平台各写一版、与 `docs/usage.md` 漂移。发布流程见 [`../release/process.md`](../release/process.md)，
@@ -19,9 +19,30 @@
 | 文档 | <https://github.com/OrzMC/RealTime/blob/main/docs/usage.md> |
 | 服务端 | Paper 26.3+ / Folia 26.3+，`folia-supported: true` |
 | 依赖 | 无（PlaceholderAPI 可选） |
+| 发布时自动同步 | `scripts/hangar-page.sh`（Hangar 主页）+ `scripts/modrinth-page.sh`（Modrinth 一句话简介 + 长描述） |
+| 只能网页改 | Hangar：名称、简介、分类、关键词、链接；Modrinth：名称、slug、图标、画廊、审核状态 |
 
-> Hangar 只能通过网页编辑项目信息（公开 API 没有项目编辑端点：`PATCH/PUT /api/v1/projects/{slug}` 均返回 405）。
-> Modrinth 可以用 `PATCH /v2/project/{id}`（需要 `WRITE_PROJECT` 权限），2026-11-25 已用脚本写入下表内容。
+> **同步机制**：粗体长描述与一句话简介都以本文件为准，`release.yml` 在每次正式发布后自动推送
+> （`continue-on-error`，失败不影响发版；本地可手动执行两个脚本）。Hangar 的 `PATCH /api/v1/pages/editmain/{project}`
+> 需要 `edit_page`；Modrinth 的 `PATCH /v2/project/{id}` 需要 `WRITE_PROJECT`，并且**字段名是 `description`**
+> （项目模型里的一句话简介），`summary` 会被静默忽略。
+>
+> Hangar 的项目信息（名称/简介/分类/关键词/链接）没有 API：`PATCH/PUT /api/v1/projects/{slug}` 都是 405，
+> `/projects/{slug}/settings` 也不存在（404），只能网页改。
+
+### 待网页更新（Hangar）
+
+2026-11-26 核对结果：Hangar 的简介、分类、关键词仍是 0.5.0 之前的值（API 改不了，见上）。请按下面填入：
+
+| 字段 | 当前值（过时） | 应改为 |
+|---|---|---|
+| Description（一句话简介）| `Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia` | `Real-world wall-clock time as redstone: one lectern per digit, comparator level = digit + 1, on Paper and Folia` |
+| Category | `Miscellaneous`（`misc`）| **`Gameplay`**（Hangar 没有 "Management"，见下方枚举）|
+| Keywords | 空 | `redstone, time, clock, utility, folia` |
+| Links | Source / Issues / Wiki 已正确 | 无需改动 |
+
+> 其余平台字段（Modrinth 的 description/body/categories/links、Hangar 的主页）都已与本文一致，
+> 并且发布时由脚本自动同步，不再需要手工粘。
 
 ## 长描述（两个平台共用，Markdown）
 
