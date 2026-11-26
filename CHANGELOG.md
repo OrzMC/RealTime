@@ -13,6 +13,9 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 工程
 
+- Hangar 项目主页（长描述）改由 [`scripts/hangar-page.sh`](scripts/hangar-page.sh) 从
+  `docs/operations/platform-listings.md` 推送（`PATCH /api/v1/pages/editmain/{project}`，需 `edit_page`）；
+  发布工作流在 Hangar 发布后自动同步，失败不影响发版。分类与许可证没有 API，仍是网页操作。
 - 新增 [`scripts/platform-audit.sh`](scripts/platform-audit.sh)：发版后核对 Hangar / Modrinth 项目页是否与本仓库文案一致
   （名称、分类、许可证、简介/长描述、链接、平台与游戏版本、loader，以及每个 Hangar 版本的频道、`26.3` 与 **sha256**）。
   Hangar 无需凭据；Modrinth 需要 `READ_PROJECT`，读不到时如实报「无法核对」而不是假装通过。
@@ -103,6 +106,9 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 工程
 
+- Hangar 项目主页（长描述）改由 [`scripts/hangar-page.sh`](scripts/hangar-page.sh) 从
+  `docs/operations/platform-listings.md` 推送（`PATCH /api/v1/pages/editmain/{project}`，需 `edit_page`）；
+  发布工作流在 Hangar 发布后自动同步，失败不影响发版。分类与许可证没有 API，仍是网页操作。
 - 新增 [`scripts/platform-audit.sh`](scripts/platform-audit.sh)：发版后核对 Hangar / Modrinth 项目页是否与本仓库文案一致
   （名称、分类、许可证、简介/长描述、链接、平台与游戏版本、loader，以及每个 Hangar 版本的频道、`26.3` 与 **sha256**）。
   Hangar 无需凭据；Modrinth 需要 `READ_PROJECT`，读不到时如实报「无法核对」而不是假装通过。

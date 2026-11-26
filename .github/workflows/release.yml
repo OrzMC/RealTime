@@ -174,6 +174,18 @@ jobs:
             -PhangarPaperVersions="26.3" \
             :realtime-paper:publishPluginPublicationToHangar
 
+      # The Hangar main page is the long description in
+      # docs/operations/platform-listings.md; Hangar exposes it as a page that can
+      # be PATCHed, so the release keeps it in sync instead of relying on manual
+      # pastes. A failure here must not fail the release itself.
+      - name: Sync the Hangar main page
+        if: ${{ needs.build.outputs.dry_run != 'true' && vars.HANGAR_PROJECT_ID != '' }}
+        continue-on-error: true
+        env:
+          HANGAR_API_TOKEN: ${{ secrets.HANGAR_API_TOKEN }}
+          HANGAR_PROJECT_ID: ${{ vars.HANGAR_PROJECT_ID }}
+        run: bash scripts/hangar-page.sh
+
       - name: Publish version to Modrinth
         if: ${{ needs.build.outputs.dry_run != 'true' && vars.MODRINTH_PROJECT_ID != '' }}
         env:

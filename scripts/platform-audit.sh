@@ -13,8 +13,13 @@ HANGAR_SLUG="${HANGAR_PROJECT_ID:-RealTime}"
 MODRINTH_ID="${MODRINTH_PROJECT_ID:-pRGtDpaD}"
 API_VERSION="26.3"
 EXPECTED_LICENSE="MIT"
-EXPECTED_CATEGORY="management"
+# Hangar's category list is fixed: admin_tools, chat, dev_tools, economy, gameplay,
+# games, protection, role_playing, world_management, misc. There is no
+# "management", and RealTime is a redstone/technical utility rather than an admin
+# tool, so gameplay is the intended one.
+EXPECTED_CATEGORY="${EXPECTED_HANGAR_CATEGORY:-gameplay}"
 UA="OrzMC/RealTime platform-audit"
+API_HANGAR="https://hangar.papermc.io/api/v1"
 
 problems=0
 fail() { echo "FAIL  $*" >&2; problems=$((problems + 1)); }
@@ -27,7 +32,11 @@ hangar="$(curl -fsS --max-time 25 -A "$UA" "https://hangar.papermc.io/api/v1/pro
 if [[ -z "$hangar" ]]; then
   fail "could not read the Hangar project"
 else
-  read -r name category license desc_len page_len links platforms < <(
+  # The long description lives on the project *page*, not in the project JSON:
+  # `mainPageContent` on /projects/{slug} stays empty even after the page is set,
+  # and the page itself is served as text/plain by /pages/main/{slug}.
+  page_len="$(curl -fsS --max-time 25 -A "$UA" "$API_HANGAR/pages/main/$HANGAR_SLUG" 2>/dev/null | wc -c || echo 0)"
+  read -r name category license desc_len links platforms < <(
     python3 - "$hangar" <<'PY'
 import json, sys
 d = json.loads(sys.argv[1])
@@ -39,7 +48,6 @@ print(
     d.get("category", ""),
     (s.get("license") or {}).get("type", ""),
     len(d.get("description") or ""),
-    len(d.get("mainPageContent") or ""),
     len(links),
     platforms,
 )
@@ -53,8 +61,8 @@ PY
     fail "license is '$license', expected '$EXPECTED_LICENSE'"
   [[ "$desc_len" -gt 20 ]] && pass "short description set ($desc_len chars)" ||
     fail "short description missing ($desc_len chars)"
-  [[ "$page_len" -gt 200 ]] && pass "long description set ($page_len chars)" ||
-    fail "long description missing ($page_len chars) — paste the markdown from platform-listings.md"
+  [[ "$page_len" -gt 200 ]] && pass "main page set ($page_len chars)" ||
+    fail "main page missing ($page_len chars) — run scripts/hangar-page.sh (or paste the markdown from platform-listings.md)"
   [[ "$links" -ge 1 ]] && pass "links: $links entry set(s)" || fail "no links configured"
   case ",$platforms," in
     *",PAPER,"*) pass "platforms: $platforms" ;;
