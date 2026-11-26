@@ -44,9 +44,25 @@ class RealTimeCommandHandler(
     ): Boolean {
         val state = currentState()
         val action = args.firstOrNull()?.lowercase(Locale.ROOT) ?: "now"
+        // Flat verbs are the documented surface; `device <subcommand>` stays as a compatibility alias.
+        val flatArgs = args.toList()
         when (action) {
             "now" -> if (args.isEmpty() || args.size == 1) showNow(target, state) else sendUsage(target, state)
-            "info" -> if (args.size == 1) showInfo(target, state) else sendUsage(target, state)
+            "info" ->
+                when (args.size) {
+                    1 -> {
+                        showInfo(target, state)
+                        if (target.hasPermission(VIEW_PERMISSION)) {
+                            deviceAdministration?.let { showDeviceList(target, state, it.list()) }
+                        }
+                    }
+                    2 -> handleDevice(target, listOf("info", args[1]), state)
+                    else -> sendUsage(target, state)
+                }
+            "list" -> handleDevice(target, listOf("list"), state)
+            "status" -> handleDevice(target, listOf("status"), state)
+            "create", "demo", "place", "set", "remove", "cleanup" -> handleDevice(target, flatArgs, state)
+            "on", "off" -> handleDevice(target, listOf(if (action == "on") "enable" else "disable") + args.drop(1), state)
             "reload" -> if (args.size == 1) reloadConfiguration(target, state) else sendUsage(target, state)
             "help" -> if (args.size <= 2) handleHelp(target, args.drop(1), state) else sendUsage(target, state)
             "device" -> handleDevice(target, args.drop(1), state)
@@ -60,6 +76,18 @@ class RealTimeCommandHandler(
         args: Array<out String>,
     ): List<String> {
         if (args.isEmpty()) return emptyList()
+
+        // Flat verbs behave exactly like their `device ...` counterpart; translate and reuse that logic.
+        val flat = args[0].lowercase(Locale.ROOT)
+        val translated =
+            when (flat) {
+                "create", "demo", "place", "set", "remove", "cleanup", "list", "status" -> listOf("device", flat) + args.drop(1)
+                "on" -> listOf("device", "enable") + args.drop(1)
+                "off" -> listOf("device", "disable") + args.drop(1)
+                "info" -> if (args.size >= 2) listOf("device", "info") + args.drop(1) else null
+                else -> null
+            }
+        if (translated != null) return complete(target, translated.toTypedArray())
 
         val state = currentState()
         val administration = deviceAdministration
@@ -77,7 +105,15 @@ class RealTimeCommandHandler(
                         if (state.configuration.generalEnabled && state.configuration.commandEnabled) add("now")
                         add("info")
                         add("help")
-                        if (administration != null) add("device")
+                        if (administration != null) {
+                            add("create")
+                            add("place")
+                            add("on")
+                            add("off")
+                            add("remove")
+                            add("cleanup")
+                            add("status")
+                        }
                     }
                     if (target.hasPermission(ADMIN_PERMISSION)) add("reload")
                 }
@@ -1130,7 +1166,8 @@ class RealTimeCommandHandler(
         val topic = args.firstOrNull()?.lowercase(Locale.ROOT)
         val lines =
             when (topic) {
-                null -> HELP_OVERVIEW
+                null -> HELP_BASIC
+                "all" -> HELP_BASIC + HELP_ADVANCED
                 "create", "demo" -> listOf("command.help.header", "command.help.create", "command.help.topic.create")
                 "place", "set" -> listOf("command.help.header", "command.help.place", "command.help.topic.place")
                 "cleanup" -> listOf("command.help.header", "command.help.cleanup", "command.help.topic.cleanup")
@@ -1259,17 +1296,26 @@ class RealTimeCommandHandler(
         /** Modifiers accepted by the player-relative `device create` form. */
         private val CREATE_MODIFIERS = listOf("nodisplay", "manual")
 
-        /** Ordered message keys printed by `/rtime help`. */
-        private val HELP_OVERVIEW =
+        /** The five commands that cover the everyday use, printed by `/rtime help`. */
+        private val HELP_BASIC =
             listOf(
                 "command.help.header",
                 "command.help.time",
                 "command.help.create",
-                "command.help.example",
+                "command.help.info",
+                "command.help.toggle",
+                "command.help.remove",
+                "command.help.footer",
+            )
+
+        /** Everything else, appended by `/rtime help all`. */
+        private val HELP_ADVANCED =
+            listOf(
+                "command.help.advanced.header",
                 "command.help.place",
-                "command.help.manage",
+                "command.help.status",
                 "command.help.cleanup",
-                "command.help.demo",
+                "command.help.reload",
             )
     }
 }

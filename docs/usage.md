@@ -30,13 +30,13 @@ BCD 稳、无需方块实体；analog 把 24 条线压成 6 条，代价是要�
 `data/devices.yml`。**红石模块默认开启**（`enabled: true`）。没有设备时它不产生任何写入和开销；不想让插件碰世界就改成 `false`，
 此时 `/rtime now`、`/rtime info` 与占位符仍然可用。
 
-> ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`device create` / `device demo` 会成功返回，
+> ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`/rtime create` / `/rtime create` 会成功返回，
 > 槽位不写入、demo 的灯/讲台/比较器也不会放置。这是**新装服务器的默认状态**，看起来就像"插件不工作"。
 > 三条自查：
 >
 > 1. `/rtime info` 的最后一行 `红石输出模块：` 必须是 `true`
 > 2. 创建/启用设备后若模块是关的，命令会额外提示一行"红石输出模块未启用"
-> 3. `/rtime device status` 里 `输出变更`/`示例方块放置` 一直是 0，而 `配置设备` 正常增长
+> 3. `/rtime status` 里 `输出变更`/`示例方块放置` 一直是 0，而 `配置设备` 正常增长
 
 ```yaml
 # modules/redstone.yml
@@ -52,59 +52,55 @@ limits:
 
 ## 3. 命令与权限
 
-一条命令就能建出一台能看的钟：**站在位置、面向要延伸的方向**，然后
-
-```text
-/rtime device create clock bcd      # 建在准星所指的方块（或你脚下），自动排好源并放好灯
-/rtime device demo analog           # 同上，只是名字是 demo-analog，默认按秒刷新
-```
-
-`Tab` 会补全子命令、设备名、编码/分辨率、槽位号；`/rtime help` 随时查看这一页的精简版，`/rtime help create|place|cleanup` 看细节。
+**日常只有五条**，其余都是进阶项（`/rtime help all` 才会列出来）：
 
 | 命令 | 权限 | 默认 | 作用 |
 |---|---|---|---|
-| `/rtime`、`/rtime now` | `realtime.command` | 所有人 | 当前时间 |
-| `/rtime info` | `realtime.command` | 所有人 | 版本、时区、模块开关（含红石模块） |
-| `/rtime help [create\|place\|cleanup]` | `realtime.command` | 所有人 | 用法与示例 |
-| `/rtime reload` | `realtime.admin` | OP | 重载配置 |
-| `/rtime device list` | `realtime.device.view` | 所有人 | 设备列表与开关状态 |
-| `/rtime device info <设备>` | `realtime.device.view` | 所有人 | 分辨率、编码、每个槽位坐标 |
-| `/rtime device status` | `realtime.device.view` | 所有人 | 输出诊断计数器 |
-| `/rtime device create <名字> <bcd\|analog> [second\|minute] [nodisplay\|manual]` | `realtime.device.edit` | OP | **推荐**：在玩家位置建钟，自动排源 + 放展示方块，立即启用 |
-| `/rtime device create <名字> <minute\|second> <世界> <x> <y> <z> <轴> [间距] [bcd\|analog] [nodisplay]` | `realtime.device.edit` | OP | 显式坐标（脚本/远程用） |
-| `/rtime device demo <bcd\|analog> [second\|minute]` | `realtime.device.edit` | OP | 与 create 相同，名字固定为 `demo-<编码>`，默认按秒 |
-| `/rtime device place <设备> <槽位> [x y z]` | `realtime.device.edit` | OP | 把某个源放到准星位置（或显式坐标）；**设备需先禁用** |
-| `/rtime device enable\|disable <设备>` | `realtime.device.toggle` | OP | 开/关设备 |
-| `/rtime device remove <设备>` | `realtime.device.retire` | OP | 退役（**需先禁用**）→ 入清理队列 |
-| `/rtime device cleanup list` | `realtime.device.view` | 所有人 | 待清理队列 |
-| `/rtime device cleanup retry <任务ID>` | `realtime.device.retire` | OP | 修正方块后重排 `NEEDS_ATTENTION` 项 |
-| `/rtime device cleanup dismiss <任务ID>` | `realtime.device.retire` | OP | 丢弃任务、方块保持原样（仅当没有待处理项） |
+| `/rtime` | `realtime.command` | 所有人 | 现在几点 |
+| `/rtime create <名字> [bcd\|analog] [second\|minute]` | `realtime.device.edit` | OP | **在你面前建一台钟**：站好位置、面向延伸方向即可，自动排源 + 放灯/讲台，建完自动亮 |
+| `/rtime info [设备]` | `realtime.device.view` | 所有人 | 插件状态 + 所有钟的列表；给设备名看细节 |
+| `/rtime on\|off <设备>` | `realtime.device.toggle` | OP | 开机 / 关机 |
+| `/rtime remove <设备>` | `realtime.device.retire` | OP | 拆掉这台钟（自动清理它放下的方块） |
 
-- **设备可以用名字也可以用 ID**：列表里两个都有，命令里写哪个都行；同名设备存在多台时会提示改用 ID。
-- `realtime.device.edit` 是**唯一会按你给的坐标写方块**的权限：只给建筑/红石组，并配合 `limits.allowed-areas` 与 `max-devices`。
-- `realtime.admin` 是父节点，包含以上全部。只给过 OP 的服不需要改任何东西。
-- 创建后**默认立即启用**（`manual` 除外），所以 `device place` 前要先 `disable`。
+进阶（`/rtime help all`）：
+
+| 命令 | 权限 | 作用 |
+|---|---|---|
+| `/rtime create <名字> bcd manual` | `realtime.device.edit` | 建一台**未启用**的空钟，不放展示方块——位置自己逐位摆 |
+| `/rtime place <设备> <槽位> [x y z]` | `realtime.device.edit` | 把某个源放到准星位置（或显式坐标）；**设备要先 `off`** |
+| `/rtime list` / `/rtime status` | `realtime.device.view` | 设备清单 / 输出诊断计数器 |
+| `/rtime cleanup [list\|retry\|dismiss] [任务ID]` | view / retire | 拆钟后的清理队列 |
+| `/rtime help [create\|place\|cleanup\|all]` | `realtime.command` | 用法与示例 |
+| `/rtime reload` | `realtime.admin` | 重载配置 |
+
+补充说明：
+
+- **设备名到处能用**（`info` / `on` / `off` / `remove` / `place`），ID 也接受；同名冲突时会提示改用 ID。
+- **Tab 补全**：命令、设备名、`bcd`/`analog`、`minute`/`second`、`manual`/`nodisplay`、槽位号、轴。
+- 显式坐标的建钟形式仍保留（脚本、远程控制用）：
+  `/rtime create clock bcd second world 100 70 0 x+`，末尾可加 `nodisplay`。
+- 旧写法 `/rtime device <子命令>` **仍然可用**，只是不再出现在帮助和补全里。
 
 ## 4. 五分钟上手（BCD）
 
 ```text
-/rtime device create lobby-clock bcd second      # 站在位置、面向延伸方向；自动排好 24 个源并放灯
-/rtime device info lobby-clock                   # 确认编码/分辨率/所有坐标（名字或 ID 都行）
-/rtime device enable <uuid>                                        # 开始驱动
+/rtime create lobby-clock bcd                    # 站在位置、面向延伸方向；自动排好源并放灯
+/rtime info lobby-clock                          # 确认编码/分辨率/所有坐标（名字或 ID 都行）
+/rtime on <uuid>                                        # 开始驱动
 ```
 
 - 槽位必须先是**空气**（或红石方块）。每个槽位就是一个电源：1 = 放 `redstone_block`、0 = 空气。
 - 在槽位**正上方**放一盏红石灯，就能直接看到每一位：灯亮=1。这是最省事的目视方案。
 - 想做真正的数字显示，就在每个槽位旁边接你的译码电路（红石线 → 七段/机械）。
 
-改一个坐标：`/rtime device disable <设备>` → 对着目标位置执行 `/rtime device place <设备> <槽位>` → `/rtime device enable <设备>`。
+改一个坐标：`/rtime off <设备>` → 对着目标位置执行 `/rtime place <设备> <槽位>` → `/rtime on <设备>`。
 **必须先禁用**，否则运行中的设备会继续写旧槽位，留下一个永远通电的红石块。
 
 ## 5. analog（讲台）编码
 
 ```text
-/rtime device create wall-clock second world 39985 79 -24 x+ analog   # 6 个讲台，间隔 2 格
-/rtime device enable <uuid>
+/rtime create wall-clock second world 39985 79 -24 x+ analog   # 6 个讲台，间隔 2 格
+/rtime on <uuid>
 ```
 
 每个数字一个讲台，插件会自动放置讲台并塞入一本插件生成的 15 页书；**页码 = 数字**，比较器读到的强度 = 页码 + 1（1–10）。
@@ -121,7 +117,7 @@ limits:
 - 关闭设备会**清空槽位**（先移走书再拆讲台，不会掉落物品）；重新启用会重新放置。
 - 插件只操作"书仍属于该设备"的讲台，别人放的书/方块只告警、不覆盖。
 
-## 6. `device create` 与 `device demo`
+## 6. `/rtime create` 与 `/rtime create`
 
 两者是**同一套构建**：源按朝向等距排开（BCD 每 4 位一组），并自动放好展示方块（BCD：每槽正上方一盏灯；
 analog：每位一排讲台/比较器/红石线/灯），建完**立即启用**。区别只有三个：
@@ -133,27 +129,27 @@ analog：每位一排讲台/比较器/红石线/灯），建完**立即启用**�
 | 展示方块 | 默认放，`nodisplay` 关闭 | 默认放 |
 
 ```
-/rtime device create clock bcd            # 站好位置面向一排放
-/rtime device create clock analog second  # 讲台版，按秒
-/rtime device demo analog                 # 给玩家演示用
+/rtime create clock bcd            # 站好位置面向一排放
+/rtime create clock analog second  # 讲台版，按秒
+/rtime create analog                 # 给玩家演示用
 ```
 
 `manual` 模式（只建空钟、不启用、不放展示方块）：
 
 ```
-/rtime device create clock bcd manual     # 全部槽位先按默认布局占位，但设备是禁用的，不会写世界
-/rtime device place clock 0               # 对准第 1 个源要放的位置执行；Tab 补全槽位号
-/rtime device place clock 1 ...           # 逐位放；遇到被占用的格子就换个位置
-/rtime device enable clock                # 全部就位后启用
+/rtime create clock bcd manual     # 全部槽位先按默认布局占位，但设备是禁用的，不会写世界
+/rtime place clock 0                      # 对准第 1 个源要放的位置执行；Tab 补全槽位号
+/rtime place clock 1 ...                  # 逐位放；遇到被占用的格子就换个位置
+/rtime on clock                # 全部就位后启用
 ```
 
 这是给"红石机械里已经有别的方块占位、等距布局放不下"的场景准备的：位置完全由你决定，插件只负责按
 BCD/analog 规则去驱动这些源。
 
-⚠️ **建之前先清场**：`device demo` 只填空位。如果槽位或灯位被地形（树、草、水）占着，那些位置会报"非法方块"，
+⚠️ **建之前先清场**：`/rtime create` 只填空位。如果槽位或灯位被地形（树、草、水）占着，那些位置会报"非法方块"，
 退役时会变成 `NEEDS_ATTENTION` 需要人工处理。选一块平地，或先清空那片区域。
 
-示例的整体清除：`device disable <uuid>` → `device remove <uuid>`（槽位 + 展示方块一起清）。
+示例的整体清除：`/rtime off <设备>` → `/rtime remove <设备>`（槽位 + 展示方块一起清）。
 
 ## 7. 关闭、退役与清理队列
 
@@ -170,9 +166,9 @@ BCD/analog 规则去驱动这些源。
 | `需人工处理` | 该位置是**不是插件放的**东西（玩家的方块、地形、别人的书） | 看一眼：想清就清掉再 `cleanup retry`；想保留就 `cleanup dismiss` |
 
 ```
-/rtime device cleanup list
-/rtime device cleanup retry   <job-uuid>    # 我把方块清好了，再试一次
-/rtime device cleanup dismiss <job-uuid>    # 这些方块就保持原样，任务丢掉（没有待处理项时才能用）
+/rtime cleanup list
+/rtime cleanup retry   <job-uuid>    # 我把方块清好了，再试一次
+/rtime cleanup dismiss <job-uuid>    # 这些方块就保持原样，任务丢掉（没有待处理项时才能用）
 ```
 
 **为什么会出现"需人工处理"**：插件只清"自己放的东西"——红石块、自己的讲台、demo 的灯/比较器/红石线。
@@ -181,7 +177,7 @@ BCD/analog 规则去驱动这些源。
 ## 8. 诊断
 
 ```
-/rtime device status
+/rtime status
 ```
 
 | 行 | 含义 |
@@ -190,7 +186,7 @@ BCD/analog 规则去驱动这些源。
 | 输出检查 / 未加载区块跳过 / 过期配置更新 | 实际派发了多少槽位工作 |
 | 输出变更 / 无变化 / 非法方块 / 写入失败 | 写入结果；`非法方块` 增长说明有槽位被别的东西占着 |
 | 讲台放置 / 书页安装 | 仅 analog 设备 |
-| 示例方块放置 / 清除 | 仅 `device demo` 设备 |
+| 示例方块放置 / 清除 | 仅 `/rtime create` 设备 |
 
 计数器是进程内累计值；配置数反映当前运行状态。
 
@@ -214,7 +210,7 @@ BCD/analog 规则去驱动这些源。
 
 ## 10. 常见问题
 
-**Q：为什么 `device place`（旧名 `set`）要我先把设备禁用？**
+**Q：为什么 `/rtime place`（旧名 `set`）要我先把设备禁用？**
 运行中的设备每 tick 只写"当前槽位表"，旧槽位不会被它清掉——改了坐标就会留下一个永久通电的红石块或一个讲台。
 禁用后槽位会被清零，这时改坐标才干净。
 
@@ -232,10 +228,10 @@ BCD/analog 规则去驱动这些源。
 
 **Q：在新服务器上建了设备/demo，但世界里一个方块都没出现？**
 九成是**红石模块没开**（新装默认 `modules/redstone.yml` → `enabled: false`）。这时命令会成功返回、设备也进了列表，
-但插件从不写方块：`/rtime info` 会显示 `红石输出模块：false`，`device demo`/`create`/`set`/`enable` 会额外提示一行。
+但插件从不写方块：`/rtime info` 会显示 `红石输出模块：false`，`/rtime create`/`create`/`set`/`enable` 会额外提示一行。
 改成 `enabled: true` 后 `/rtime reload` 即可，设备会立刻开始输出（demo 的展示方块也会补上）。
 
-**Q：`device place` 报"该坐标已被其他设备或清理任务占用"？**
+**Q：`/rtime place` 报"该坐标已被其他设备或清理任务占用"？**
 那格属于另一台设备、另一台设备的清理任务，或者**同一台设备的另一个槽位**。换个位置，或先把占用的设备退役并等清理跑完。
 
 **Q：设备坐标能写到任意地方吗？**

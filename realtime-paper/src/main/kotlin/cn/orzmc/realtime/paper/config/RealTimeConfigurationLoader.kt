@@ -184,29 +184,29 @@ class RealTimeConfigurationLoader {
                 "command.device.warn.redstone-disabled" to
                     "{prefix}&e注意：红石输出模块未启用（plugins/RealTime/modules/redstone.yml → enabled: true），" +
                     "设备不会真的输出或放置方块。改完执行 /rtime reload。",
-                "command.help.header" to "{prefix}&bRealTime 帮助 &7（/rtime help <主题>：create / place / cleanup）",
-                "command.help.time" to "{prefix}&f/rtime &7或 &f/rtime now &7- 现实时间",
+                "command.help.header" to "{prefix}&bRealTime &7常用命令（&f/rtime help all&7 看全部）",
+                "command.help.time" to "{prefix}&f/rtime &7- 现在几点",
                 "command.help.create" to
-                    "{prefix}&f/rtime device create <名字> <bcd|analog> [second|minute] [nodisplay|manual] &7- " +
-                    "在准星所指（或脚下）方块处建钟，自动排好源并放好展示方块",
-                "command.help.example" to
-                    "{prefix}&7例：站好位置、面向要延伸的方向 → &f/rtime device create clock bcd &7；" +
-                    "再逐位微调 → &f/rtime device place clock 3",
+                    "{prefix}&f/rtime create <名字> [bcd|analog] [second|minute] &7- 在你面前建一台钟（默认 bcd + 按分），建完自动亮",
+                "command.help.info" to "{prefix}&f/rtime info [设备] &7- 看插件状态与所有钟；给设备名看细节",
+                "command.help.toggle" to "{prefix}&f/rtime on|off <设备> &7- 开机 / 关机",
+                "command.help.remove" to "{prefix}&f/rtime remove <设备> &7- 拆掉这台钟（自动清理它放下的方块）",
+                "command.help.footer" to "{prefix}&7设备名和槽位号都能用 Tab 补全；示例见 &f/rtime help create",
+                "command.help.advanced.header" to "{prefix}&b进阶",
                 "command.help.place" to
-                    "{prefix}&f/rtime device place <设备> <槽位> [x y z] &7- 逐位精确放置/移动某个源（不给坐标就对准目标方块执行）",
-                "command.help.manage" to
-                    "{prefix}&f/rtime device list|info|enable|disable|remove <设备> &7- 设备名或 ID 都行（Tab 可补全）",
-                "command.help.cleanup" to "{prefix}&f/rtime device cleanup list|retry|dismiss [任务ID] &7- 退役后的清理队列",
-                "command.help.demo" to "{prefix}&f/rtime device demo <bcd|analog> &7- 建一台演示用的钟（等同 create，默认按秒刷新）",
+                    "{prefix}&f/rtime place <设备> <槽位> [x y z] &7- 把某个源放到准星位置，用来避开被占的格子",
+                "command.help.status" to "{prefix}&f/rtime status &7- 输出诊断（排查\"为什么不亮\"）",
+                "command.help.cleanup" to "{prefix}&f/rtime cleanup [list|retry|dismiss] [任务ID] &7- 拆钟后的清理队列",
+                "command.help.reload" to "{prefix}&f/rtime reload &7- 重载配置",
                 "command.help.topic.create" to
-                    "{prefix}&7create 细节：不给坐标就用玩家位置与朝向；&fmanual &7只建一台未启用的空钟（用 place 逐位放）、" +
-                    "&fnodisplay &7不放展示方块；显式坐标形式仍然可用",
+                    "{prefix}&7细节：不给坐标就用玩家位置与朝向；&fmanual &7建一台未启用的空钟（用 place 逐位放），" +
+                    "&fnodisplay &7不放灯/讲台；显式坐标形式 &f/rtime create clock bcd second world 100 70 0 x+ &7仍可用",
                 "command.help.topic.place" to
-                    "{prefix}&7place 细节：设备必须先 &fdisable&7；槽位号从 0 开始（Tab 补全）；" +
-                    "源位置可按需任意调整，用来避开已被占用的格子",
+                    "{prefix}&7细节：设备要先 &f/rtime off <设备>&7；槽位号从 0 开始（Tab 补全）；" +
+                    "位置可以反复改，用来避开已经被占用的格子",
                 "command.help.topic.cleanup" to
-                    "{prefix}&7cleanup 细节：&flist &7看队列；&fretry <任务ID> &7重试\"需人工处理\"的项；" +
-                    "&fdismiss <任务ID> &7确认方块保持原样并丢弃任务",
+                    "{prefix}&7细节：&f/rtime cleanup &7看队列；&f/rtime cleanup retry <任务ID> &7重试\"需人工处理\"的项；" +
+                    "&f/rtime cleanup dismiss <任务ID> &7确认方块保持原样并丢弃任务",
                 "command.device.create.built" to
                     "{prefix}&a已创建 &f{name} &7[{id}] &8{encoding} {resolution} &8{world} &7{count} 个源 + " +
                     "&f{display} &7个展示方块 &8状态：{state}",
