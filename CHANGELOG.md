@@ -11,6 +11,21 @@ All notable changes to RealTime are documented here. Release automation requires
 - 新增 [`docs/operations/platform-listings.md`](docs/operations/platform-listings.md)：Hangar / Modrinth 项目页的权威文案与
   元数据（简介、长描述、分类、许可证、链接），并记录两个平台的可编辑性差异（Hangar 只能网页改、Modrinth 可 PATCH）。
 
+### 变更（命令面收敛）
+
+命令从「三层 + 18 条路径」收敛为**一条命令一台钟**，`/rtime help` 只列 5 条日常用法：
+
+| 日常 | 命令 |
+|---|---|
+| 时间 | `/rtime` |
+| 建钟 | `/rtime create <名字> [bcd\|analog] [second\|minute]` |
+| 看状态/列表 | `/rtime info [设备]` |
+| 开关 | `/rtime on\|off <设备>` |
+| 拆除 | `/rtime remove <设备>` |
+
+进阶项（`/rtime help all`）：`place`（逐位摆源）、`status`（诊断）、`cleanup`（清理队列）、`reload`。
+`list` 保留为独立命令；`device <子命令>` 作为兼容别名继续可用，但不再出现在帮助与补全里。
+
 ### 新增
 
 - **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
@@ -83,6 +98,21 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [0.3.0]
 
+### 变更（命令面收敛）
+
+命令从「三层 + 18 条路径」收敛为**一条命令一台钟**，`/rtime help` 只列 5 条日常用法：
+
+| 日常 | 命令 |
+|---|---|
+| 时间 | `/rtime` |
+| 建钟 | `/rtime create <名字> [bcd\|analog] [second\|minute]` |
+| 看状态/列表 | `/rtime info [设备]` |
+| 开关 | `/rtime on\|off <设备>` |
+| 拆除 | `/rtime remove <设备>` |
+
+进阶项（`/rtime help all`）：`place`（逐位摆源）、`status`（诊断）、`cleanup`（清理队列）、`reload`。
+`list` 保留为独立命令；`device <子命令>` 作为兼容别名继续可用，但不再出现在帮助与补全里。
+
 ### 新增
 
 - **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
@@ -144,6 +174,21 @@ All notable changes to RealTime are documented here. Release automation requires
   再多 1 格空隙，方便目视区分。`minute` 设备占 34 格、`second` 占 52 格；**已存设备坐标不变**，显式 `[stride]` 仍可覆盖
   组内间距。
 
+### 变更（命令面收敛）
+
+命令从「三层 + 18 条路径」收敛为**一条命令一台钟**，`/rtime help` 只列 5 条日常用法：
+
+| 日常 | 命令 |
+|---|---|
+| 时间 | `/rtime` |
+| 建钟 | `/rtime create <名字> [bcd\|analog] [second\|minute]` |
+| 看状态/列表 | `/rtime info [设备]` |
+| 开关 | `/rtime on\|off <设备>` |
+| 拆除 | `/rtime remove <设备>` |
+
+进阶项（`/rtime help all`）：`place`（逐位摆源）、`status`（诊断）、`cleanup`（清理队列）、`reload`。
+`list` 保留为独立命令；`device <子命令>` 作为兼容别名继续可用，但不再出现在帮助与补全里。
+
 ### 新增
 
 - **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
@@ -170,6 +215,21 @@ All notable changes to RealTime are documented here. Release automation requires
   旧槽位会留下一个永久通电的红石块（或一个讲台）。
 - analog 设备 `disable` 现在把槽位整体清空（而不是只移走书留下空讲台），与 BCD "归 air" 一致，也让"改槽位不留残留"成立。
 - 退役 analog 设备时，`disable` 留下的空白讲台现在也会被清理（先清空库存再拆方块，书不掉落），不再需要人工手拆 6 个讲台。
+
+### 变更（命令面收敛）
+
+命令从「三层 + 18 条路径」收敛为**一条命令一台钟**，`/rtime help` 只列 5 条日常用法：
+
+| 日常 | 命令 |
+|---|---|
+| 时间 | `/rtime` |
+| 建钟 | `/rtime create <名字> [bcd\|analog] [second\|minute]` |
+| 看状态/列表 | `/rtime info [设备]` |
+| 开关 | `/rtime on\|off <设备>` |
+| 拆除 | `/rtime remove <设备>` |
+
+进阶项（`/rtime help all`）：`place`（逐位摆源）、`status`（诊断）、`cleanup`（清理队列）、`reload`。
+`list` 保留为独立命令；`device <子命令>` 作为兼容别名继续可用，但不再出现在帮助与补全里。
 
 ### 新增
 

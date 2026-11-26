@@ -737,8 +737,85 @@ class RealTimeCommandHandlerTest {
 
         handler.execute(target, arrayOf("help"))
 
+        // The default help only lists the five everyday commands.
         assertTrue(target.messages.any { it.contains("help create") }, target.messages.toString())
+        assertTrue(target.messages.any { it.contains("help info") }, target.messages.toString())
+        assertTrue(target.messages.any { it.contains("help toggle") }, target.messages.toString())
+        assertFalse(target.messages.any { it.contains("help place") }, target.messages.toString())
+    }
+
+    @Test
+    fun helpAllAppendsTheAdvancedCommands() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler()
+
+        handler.execute(target, arrayOf("help", "all"))
+
         assertTrue(target.messages.any { it.contains("help place") }, target.messages.toString())
+        assertTrue(target.messages.any { it.contains("help status") }, target.messages.toString())
+    }
+
+    @Test
+    fun flatCreateBuildsAClockWithoutTheDeviceVerb() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("create", "clock", "analog"))
+
+        val request = checkNotNull(administration.created)
+        assertEquals(OutputEncoding.ANALOG, request.encoding)
+        assertTrue(request.enabled)
+    }
+
+    @Test
+    fun flatInfoListsDevicesAndAcceptsAName() {
+        val configured = device()
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.VIEW_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(configured)))
+
+        handler.execute(target, arrayOf("info", configured.name))
+
+        assertTrue(target.messages.any { it.contains("clock") }, target.messages.toString())
+    }
+
+    @Test
+    fun flatOnAndOffToggleByDeviceName() {
+        val configured = device()
+        val administration = RecordingDeviceAdministration(listOf(configured))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.TOGGLE_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("off", configured.name))
+        handler.execute(target, arrayOf("on", configured.name))
+
+        assertEquals(2, administration.mutationCount, target.messages.toString())
+    }
+
+    @Test
+    fun flatPlaceMovesASlot() {
+        val configured = device(enabled = false)
+        val administration = RecordingDeviceAdministration(listOf(configured))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("place", configured.name, "2", "5", "64", "1"))
+
+        assertEquals(Triple(configured.id, 2, Triple(5, 64, 1)), administration.movedOutput)
+    }
+
+    @Test
+    fun flatVerbsCompleteTheirArguments() {
+        val configured = device(enabled = false)
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.ADMIN_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(configured)))
+
+        val verbs = handler.complete(target, arrayOf(""))
+        assertTrue(verbs.containsAll(listOf("create", "place", "on", "off", "info", "help")), verbs.toString())
+        assertEquals(
+            listOf(configured.name, configured.id.toString()),
+            handler.complete(target, arrayOf("off", "")),
+        )
     }
 
     @Test
@@ -939,11 +1016,15 @@ class RealTimeCommandHandlerTest {
                         "command.help.header" to "{prefix}help",
                         "command.help.time" to "{prefix}help time",
                         "command.help.create" to "{prefix}help create",
-                        "command.help.example" to "{prefix}help example",
+                        "command.help.info" to "{prefix}help info",
+                        "command.help.toggle" to "{prefix}help toggle",
+                        "command.help.remove" to "{prefix}help remove",
+                        "command.help.footer" to "{prefix}help footer",
+                        "command.help.advanced.header" to "{prefix}help advanced",
                         "command.help.place" to "{prefix}help place",
-                        "command.help.manage" to "{prefix}help manage",
+                        "command.help.status" to "{prefix}help status",
                         "command.help.cleanup" to "{prefix}help cleanup",
-                        "command.help.demo" to "{prefix}help demo",
+                        "command.help.reload" to "{prefix}help reload",
                         "command.help.topic.create" to "{prefix}help topic create",
                         "command.help.topic.place" to "{prefix}help topic place",
                         "command.help.topic.cleanup" to "{prefix}help topic cleanup",

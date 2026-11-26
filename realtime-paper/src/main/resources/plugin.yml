@@ -11,13 +11,14 @@ commands:
   rtime:
     description: Query RealTime plugin status and real-world time.
     usage: |
-      /rtime [now|info|help [create|place|cleanup]|reload]
-      /rtime device create <name> <bcd|analog> [second|minute] [nodisplay|manual]
-      /rtime device create <name> <minute|second> <world> <x> <y> <z> <axis> [stride] [bcd|analog] [nodisplay]
-      /rtime device demo <bcd|analog> [second|minute] | demo <bcd|analog> <world> <x> <y> <z> <axis>
-      /rtime device place <device> <slot> [x y z]
-      /rtime device list|info <device>|status|enable <device>|disable <device>|remove <device>
-      /rtime device cleanup list|retry <job>|dismiss <job>
+      /rtime                     现在几点
+      /rtime create <名字> [bcd|analog] [second|minute] [manual|nodisplay]   在你面前建一台钟
+      /rtime info [设备]         插件状态 + 所有钟；给名字看细节
+      /rtime on|off <设备>       开机 / 关机
+      /rtime remove <设备>       拆掉（自动清理方块）
+      /rtime place <设备> <槽位> [x y z]   逐位调整某个源的位置
+      /rtime list|status|cleanup [retry|dismiss] <任务ID>|help [all]|reload
+      （旧写法 /rtime device <子命令> 仍可用）
     permission: realtime.command
 permissions:
   realtime.command:
