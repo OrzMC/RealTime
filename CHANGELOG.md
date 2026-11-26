@@ -2,36 +2,76 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
-## [Unreleased]
+## [0.6.0]
+
+> **这是一个破坏性版本**：BCD 编码被移除，命令面重写。升级前请读下面的「安装与升级须知」。
 
 ### 新增
 
-- **命令面重写**（不再保留旧写法）：读两条 `/rtime`（时间 + 所有钟）与 `/rtime <钟名>`（一台钟的详情）；
+- **命令面重写**：读两条 `/rtime`（时间 + 所有钟）与 `/rtime <钟名>`（一台钟的详情）；
   写 `create` / `on` / `off` / `place` / `remove`；运维 `status` / `cleanup` / `help` / `reload`。
-  选项改成关键字（`minute`、`manual`、`nodisplay`、`at <x y z>`、`facing <朝向>`），顺序随意、写错会点名是哪个词；
-  旧动词 `info`/`list`/`device`/`demo`/`set`/`now` 会回一行"已移除，改用 …"。
-- **钟名唯一且不能与动词重名**：`/rtime <钟名>` 因此没有歧义，也不再需要 UUID 寻址（ID 只出现在日志与 `status`）。
-- **Tab 补全按语法重写**：一级为动词 + 钟名，`create` 补选项关键字，`place` 补钟名再补槽位号。
+  选项改成关键字（`minute`、`manual`、`nodisplay`、`at <x y z>`、`facing <朝向>`），顺序随意，写错会点名是哪个词。
+- **钟名唯一、且不能与动词重名**：`/rtime <钟名>` 因此没有歧义；设备 UUID 不再需要手输（只出现在日志与 `status`）。
+- **Tab 补全按语法重写**：一级为动词 + 钟名，`create` 补选项关键字，`place` 补钟名后再补槽位号。
 - **`place` 立刻立讲台**：摆一个槽位就把讲台放到目标位置、正面朝向你、写上当前数字，
-  同时清掉这个槽位原来那格的讲台（仅限本钟的空讲台）；槽位位置不再"看不见"。
-- `/rtime status` 增加"旧版 BCD 钟已忽略"计数。
+  同时清掉这个槽位原来那格讲台（仅限本钟的空讲台/带本书的讲台）。逐位摆放从"改个坐标"变成"看得见的施工"。
+- `/rtime status` 增加「旧版 BCD 钟已忽略」计数，并显示模块开关、版本、时区。
 
 ### 变更（破坏性）
 
-- **移除 BCD 编码**，只保留讲台（一个数字一个讲台）：真机验收发现四位并联的译码器延时不可控，显示效果无法保证。
-  随之删除 `OutputEncoding`、BCD 位帧/编码器、`%realtime_bcd%` / `%realtime_bcd_bits%` 占位符、
-  `bcd`/`binary` 参数，以及按 4 位分组的布局（`groupSize`/`groupGap`）。
-- **默认精度改为 `second`**：`/rtime create <名字>` 建出来就是 6 个讲台、按秒跳。
-- **关机语义**：不再清空槽位，而是取走书（比较器读数归 0）并保留讲台 —— 位置可见、可继续调整；
-  `remove` 才真正拆掉。
-- 持久化 schema **v7**：设备记录不再有 `encoding`；v1–v6 文件里 `encoding: bcd`（或没有该字段）的钟会被
-  **跳过并记录**（`/rtime status` 可见），不会按讲台几何误加载。
-- `demo` 概念合并进 `create`（名字不再自动生成，`manual` 代替原来的"空钟"）。
+- **移除 BCD 编码，只保留讲台**（一个数字一个讲台，比较器读数 = 数字 + 1）：
+  真机验收发现四位并联需要译码器，其延时不可控、显示对不上时间，故整条路径删除
+  （`OutputEncoding`、BCD 位帧/编码器、`bcd`/`binary` 参数、按 4 位分组的布局参数、`%realtime_bcd%` 与 `%realtime_bcd_bits%` 占位符）。
+- **默认精度改为 `second`**：`/rtime create <名字>` 建出来就是 6 个讲台、按秒跳；要 `HHmm` 才写 `minute`。
+- **关机语义**：不再清空槽位，而是取走书（比较器读数归 0）并**保留讲台** —— 位置可见、可继续调整；`remove` 才真正拆。
+- **持久化 schema v7**：设备记录不再写 `encoding`。v1–v6 文件里 `encoding: bcd`（或没有该字段，历史上等于 BCD）的钟
+  会被**跳过**、写入一条 WARN 日志、并在 `/rtime status` 里列出，不会按讲台几何误加载。
+- `demo` 概念并入 `create`；`device <子命令>` 兼容层删除（旧动词只回一行"已移除，改用 …"）。
+- 退役（`remove`）仍然要求先 `off`：避免拆到一半还在写方块。
+
+### 修复
+
+- `place` 在设备开机的状态下仍然拒绝执行并给出提示，而不是静默改坐标后继续写旧槽位。
+- 重名钟（只可能来自旧数据）会明确提示"有 N 台钟都叫这个名字"，而不是含糊的"未找到"。
 
 ### 工程
 
 - 修 Modrinth 上传：payload 必须带 `dependencies`（空数组也要），`v0.5.0` 因此被拒（`400 missing field dependencies`）；
-  现已在工作流中补上，并由 `scripts/distribution-check.sh` 断言防回归。`v0.5.0` 已手工补传。
+  已在工作流中补上，并由 `scripts/distribution-check.sh` 断言防回归。
+- 命令解析抽成 `CommandSyntax`（纯 Kotlin、无 Bukkit 依赖）与 `CommandCompletion`，handler 变成薄分发器；
+  单测从 166 增加到 118 项（删除 BCD 用例、新增解析/补全/名字规则/即时立讲台/关机保留讲台/schema v7 与旧数据跳过）。
+- 两个 smoke 脚本改成讲台 + 扁平动词 + 名字寻址，CI 覆盖的就是文档里教的命令。
+
+### 安装与升级须知（0.6.0）
+
+**替换 jar 重启即可**，数据文件会自动迁移到 schema v7 —— 但本版有以下**必须知道**的变化：
+
+1. **BCD 钟不再可用**：旧数据里 `encoding: bcd`（或老到没有 `encoding` 字段）的钟会**跳过加载**，
+   启动日志有一条 WARN，`/rtime status` 会列出它们。这些钟的方块布局无法当作讲台钟复用，
+   请用新命令重建（`/rtime create <名字>` 或 `manual` + `place`），然后从 `data/devices.yml` 里删掉旧条目。
+   讲台钟（`encoding: analog`）**会自动迁移并继续工作**。
+2. **命令全换了写法**（旧写法只提示、不执行）：
+
+   | 旧 | 新 |
+   |---|---|
+   | `/rtime` | `/rtime`（现在同时列出所有钟） |
+   | `/rtime info` / `/rtime list` | `/rtime` |
+   | `/rtime info <设备>` | `/rtime <钟名>` |
+   | `/rtime create <名字> <bcd\|analog> [second\|minute]` | `/rtime create <名字> [minute]`（讲台是唯一形式） |
+   | `/rtime create … manual` | `/rtime create <名字> manual`（不变） |
+   | `/rtime demo analog` | `/rtime create demo`（`demo` 不再特殊） |
+   | `/rtime place <设备> <槽位>` / `set` | `/rtime place <钟名> <槽位>` |
+   | `/rtime on\|off <设备>` | `/rtime on\|off <钟名>` |
+   | `/rtime remove <设备>` | `/rtime remove <钟名>`（仍需先 `off`） |
+   | `/rtime device <子命令>` | 直接写动词 |
+   | `/rtime help all` | `/rtime help`（一页列全部） |
+
+   设备名现在是**唯一**的：如果你有同名钟（只可能来自旧数据），先用 `/rtime` 看清并在 `devices.yml` 里改名。
+3. **默认按秒**：不带 `minute` 的 `create` 会建 6 个讲台。想省空间就写 `minute`。
+4. **`off` 不再拆方块**：关机只是取走书（比较器读数 0），讲台留在原地。要拆用 `remove`。
+5. **`%realtime_bcd%` / `%realtime_bcd_bits%` 已删除**：用到它们的地方请改用 `%realtime_time%` 等（完整列表见 usage）。
+6. **建议重新生成 `messages.yml`**：旧文件里的旧键（`command.device.…`）不会报错也不会生效，
+   新版文案用的是新键。备份后删掉该文件再 `/rtime reload` 即可重新生成，只保留你自定义的 `prefix`。
 
 ## [0.5.0]
 
