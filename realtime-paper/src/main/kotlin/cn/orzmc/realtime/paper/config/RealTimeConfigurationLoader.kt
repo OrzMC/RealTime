@@ -250,6 +250,20 @@ class RealTimeConfigurationLoader {
                 "command.help.remove" to "{prefix}&f/rtime remove <钟名> &7- 拆掉并清理方块（先 off）",
                 "command.help.status" to "{prefix}&f/rtime status &7- 输出诊断（排查\"为什么不亮\"）",
                 "command.help.cleanup" to "{prefix}&f/rtime cleanup [retry|dismiss <任务ID>] &7- 拆钟后的清理队列",
+                "command.help.update" to
+                    "{prefix}&f/rtime update [check|download] &7- 检查新版本 / 下载到 plugins/update（重启生效）",
+                "command.update.checking" to "{prefix}&7正在检查新版本…",
+                "command.update.downloading" to "{prefix}&7正在下载新版本…",
+                "command.update.idle" to "{prefix}&7更新：还没有检查过（&f/rtime update&7 立刻检查）",
+                "command.update.latest" to "{prefix}&7更新：已是最新（&f{version}&7）",
+                "command.update.available" to
+                    "{prefix}&e更新：&f{version}&e 可用（当前 &f{current}&e，来源 &f{source}&e）· &f/rtime update download&7 下载到更新目录",
+                "command.update.downloaded" to
+                    "{prefix}&a已下载 &f{version}&a 到 &f{file}&a（&f{bytes}&a 字节，校验通过）。重启服务器即生效。",
+                "command.update.pending" to "{prefix}&e更新：&f{version}&e 已下载待重启（&f{file}&e）",
+                "command.update.disabled" to "{prefix}&7更新检查已关闭：&f{reason}",
+                "command.update.failed" to "{prefix}&c更新检查失败：&f{reason}",
+                "command.update.refused" to "{prefix}&c没有下载：&f{reason}",
                 "command.help.reload" to "{prefix}&f/rtime reload &7- 重载配置",
                 "command.help.footer" to "{prefix}&7名字和槽位号都能 Tab 补全；&fmanual &7建一台自己摆位的钟，&fnodisplay &7不放比较器/灯。",
                 "command.removed" to "{prefix}&e&f{verb}&e 这个写法已经移除，改用 &f{replacement}&e。",

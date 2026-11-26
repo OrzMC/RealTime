@@ -36,4 +36,12 @@ interface CommandTarget {
     fun hasPermission(permission: String): Boolean
 
     fun sendMessage(message: String)
+
+    /**
+     * Runs [action] where this sender may be touched again.
+     *
+     * Commands are synchronous, but the updater answers from an async thread, and
+     * Folia forbids sending to a player from anywhere but that player's region.
+     */
+    fun runOnOwner(action: () -> Unit) = action()
 }

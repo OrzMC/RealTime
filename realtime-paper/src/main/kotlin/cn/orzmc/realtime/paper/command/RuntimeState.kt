@@ -6,6 +6,7 @@ import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.DeviceCleanupJob
 import cn.orzmc.realtime.paper.device.RedstoneConfiguration
 import cn.orzmc.realtime.paper.message.MessageCatalog
+import cn.orzmc.realtime.paper.update.UpdateConfiguration
 
 data class RuntimeState(
     val configuration: RealTimeConfiguration,
@@ -14,4 +15,5 @@ data class RuntimeState(
     val redstoneConfiguration: RedstoneConfiguration = RedstoneConfiguration(enabled = false),
     val devices: List<RedstoneDevice> = emptyList(),
     val cleanupJobs: List<DeviceCleanupJob> = emptyList(),
+    val updateConfiguration: UpdateConfiguration = UpdateConfiguration(),
 )

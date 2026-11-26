@@ -24,7 +24,7 @@
 | 安装 | 把 `RealTime-<版本>.jar` 放进 `plugins/` 后启动 |
 
 首次启动会生成 `plugins/RealTime/`：`config.yml`、`messages.yml`、`modules/command.yml`、
-`modules/redstone.yml`、`data/devices.yml`。**红石模块默认开启**（`enabled: true`）。没有钟时它不产生任何写入和开销；
+`modules/redstone.yml`、`modules/updates.yml`、`data/devices.yml`、`data/updates.yml`。**红石模块默认开启**（`enabled: true`）。没有钟时它不产生任何写入和开销；
 不想让插件碰世界就改成 `false`，此时 `/rtime`、`/rtime status` 与占位符仍然可用。
 
 > ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`/rtime create` 会成功返回，
@@ -46,6 +46,24 @@ limits:
 
 `allowed-areas` 为空是**合法配置**（全图放置），启动日志里会以 `info` 说明一次；填了区域则只允许在范围内建/改钟。
 
+### 自动更新（`modules/updates.yml`，默认只提示）
+
+插件会每 6 小时问一次 Hangar（失败再问 GitHub Releases）有没有新版本，**只会把新 jar 放进
+`plugins/update/`，不会热替换自己、也不会重启服务器**——重启由你决定：
+
+```yaml
+enabled: true
+mode: notify        # notify = 只提示；download = 发现就自动下载到 plugins/update/
+channel: release    # release = 只要正式版；any = 连 -SNAPSHOT 一起
+```
+
+- 看到提示后执行 `/rtime update download`（或直接把 `mode` 改成 `download` 让它自己下）。
+- 下载会**先校验平台公布的 sha256/sha512**，再落盘成 `plugins/update/RealTime-<新版本>.jar`；
+  校验不通过会删掉下载并说明原因，不会留下任何文件。
+- 重启后 Paper 会把 `plugins/update/` 里的 jar 覆盖到当前 jar，并把文件名改成新版本（见
+  [开发文档](development/updates.md)），所以更新后 `plugins/` 里只有一个 RealTime。
+- 开发构建（`0.8.0-SNAPSHOT` 之类）默认不检查（`safety.skip-dev-builds: true`）。
+
 ## 3. 命令
 
 **两读 + 六管 + 一诊断**，名字和槽位号都能 Tab 补全：
@@ -60,6 +78,7 @@ limits:
 | `/rtime remove <钟名>` | `realtime.device.retire` | OP | 拆掉并清理方块（要先 `off`） |
 | `/rtime status` | `realtime.device.view` | 所有人 | 版本/时区/模块状态 + 输出诊断计数器 |
 | `/rtime cleanup [retry\|dismiss <任务ID>]` | `view`（dismiss 要 `retire`） | OP | 拆钟后的清理队列 |
+| `/rtime update [check\|download]` | `realtime.update` | OP | 检查新版本 / 下载到 `plugins/update/`（重启后生效） |
 | `/rtime help` | `realtime.command` | 所有人 | 一页帮助 |
 | `/rtime reload` | `realtime.admin` | OP | 重载配置 |
 
@@ -147,6 +166,7 @@ limits:
 | `写入失败` | 调度或写入异常 |
 | `讲台：放置 / 书页写入` | 讲台放置数、书的安装/移除数 |
 | `旧版 BCD 钟已忽略` | 数据里还有 BCD 编码的旧钟（本版本已移除 BCD），需要手工删掉 |
+| `更新：…` | 更新检查状态：已是最新 / `X` 可用 / 已下载待重启 / 检查失败 / 开发构建不检查 |
 
 `非法方块` 增长说明钟的位置被别的建筑占了：`/rtime machine` 看清是哪个槽位，`/rtime off` → `place` 换个位置，或 `remove` 后重建。
 
@@ -186,6 +206,13 @@ limits:
 
 **关机后讲台还在，是不是没关？**
 这是预期行为：关机只取走书，比较器读数归 0，讲台保留方便你继续调整。要真正拆掉用 `/rtime remove`。
+
+**`/rtime update` 说"没有下载：…"？**
+最常见的是已经有更新的版本在等重启（`plugins/update/` 里那份）、或者已经是最新。真要看原因就把
+`modules/updates.yml` 的 `enabled` 打开、检查服务器能否出网（Hangar/GitHub 的 443）。
+
+**更新下载好了，但版本没变？**
+更新目录里的 jar 要**重启**才生效，插件不会热替换自己。重启后 `plugins/` 里的文件名会变成新版本。
 
 **能同时显示日期吗？**
 不能。钟只表达时间；日期用占位符（`%realtime_date%`）放到告示牌/计分板上。

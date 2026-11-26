@@ -52,6 +52,7 @@ object CommandCompletion {
                         add(CommandSyntax.STATUS)
                         add(CommandSyntax.CLEANUP)
                     }
+                    if (hasPermission(RealTimeCommandHandler.UPDATE_PERMISSION)) add(CommandSyntax.UPDATE)
                     if (hasPermission(RealTimeCommandHandler.ADMIN_PERMISSION)) add(CommandSyntax.RELOAD)
                     add(CommandSyntax.HELP)
                 }
@@ -67,6 +68,12 @@ object CommandCompletion {
                 val device = devices.firstOrNull { it.name.equals(typed[1], ignoreCase = true) } ?: return emptyList()
                 if (typed.size == 2) matching((0 until device.slots).map { it.toString() }) else emptyList()
             }
+            CommandSyntax.UPDATE ->
+                if (typed.size == 1) {
+                    matching(listOf(CommandSyntax.UPDATE_CHECK, CommandSyntax.UPDATE_DOWNLOAD))
+                } else {
+                    emptyList()
+                }
             CommandSyntax.CLEANUP -> {
                 if (typed.size == 1) return matching(listOf("retry", "dismiss"))
                 if (typed.size == 2 && !typed[1].equals("retry", true) && !typed[1].equals("dismiss", true)) {

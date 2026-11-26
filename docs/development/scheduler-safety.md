@@ -9,7 +9,7 @@ RealTime targets Paper 26.3 and Folia 26.3. The scheduler choice is part of the 
 | Server-wide state without a specific location | Global region | Do not use it to access arbitrary region-owned blocks/entities |
 | Block or location work | Region | Schedule using the target location; do not use it for entity work |
 | Entity work | Entity | Use the entity's scheduler so work follows it across teleports and region transfers |
-| Pure computation or detached-data I/O | No Bukkit scheduler in this adapter | If later added, pass immutable/detached data only; never access Bukkit world/block/entity objects |
+| Pure computation or detached-data I/O | Paper `AsyncScheduler` (`server.asyncScheduler`) | Used by the updater for HTTP and file I/O. It owns no region, so it must only touch detached data; replies to a player are bounced through `CommandTarget.runOnOwner` |
 
 ## Entity retirement
 

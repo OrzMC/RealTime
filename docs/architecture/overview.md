@@ -24,9 +24,11 @@ PR2 implements `RealTimeService`, `ClockRealTimeService`, and immutable `RealTim
 
 Use the Folia global scheduler for global state, region scheduler for block/location work, and entity scheduler for entity work. Never access Bukkit world/block/entity objects from arbitrary async threads. Multi-region devices fan out to region-local tasks and must not force-load chunks to refresh displays.
 
+Blocking work (the update check's HTTP calls and the jar download) runs on Paper's `AsyncScheduler`, which owns no region and therefore cannot touch world state. Answers that must reach a player are bounced back through `CommandTarget.runOnOwner` (the player's own region, or the global region for the console).
+
 ## Configuration
 
-Root config owns global enabled state, timezone, locale, and logging. Optional features own separate files under `plugins/RealTime/modules/`; device records live under `data/` separately from editable settings.
+Root config owns global enabled state, timezone, locale, and logging. Optional features own separate files under `plugins/RealTime/modules/` (`command.yml`, `redstone.yml`, `updates.yml`); device records and updater state live under `data/` separately from editable settings.
 
 ## Current state
 

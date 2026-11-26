@@ -19,6 +19,9 @@ import cn.orzmc.realtime.paper.device.DevicePlacement
 import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
 import cn.orzmc.realtime.paper.device.RedstoneConfiguration
 import cn.orzmc.realtime.paper.message.MessageCatalog
+import cn.orzmc.realtime.paper.update.UpdateAdministration
+import cn.orzmc.realtime.paper.update.UpdateOutcome
+import cn.orzmc.realtime.paper.update.UpdateStatus
 import org.bukkit.block.BlockFace
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -272,9 +275,10 @@ class RealTimeCommandHandlerTest {
 
         handler.execute(target, arrayOf("help"))
 
-        assertEquals(11, target.messages.size)
+        assertEquals(12, target.messages.size)
         assertTrue(target.messages.any { it.contains("/rtime create") })
         assertTrue(target.messages.any { it.contains("/rtime place") })
+        assertTrue(target.messages.any { it.contains("/rtime update") })
     }
 
     @Test
@@ -361,6 +365,7 @@ class RealTimeCommandHandlerTest {
         placement: DevicePlacement? = null,
         retirement: DeviceRetirementAdministration? = null,
         cleanup: DeviceCleanupAdministration? = null,
+        updates: UpdateAdministration? = null,
     ) = RealTimeCommandHandler(
         pluginVersion = "0.6.0-SNAPSHOT",
         currentState = { state() },
@@ -370,6 +375,7 @@ class RealTimeCommandHandlerTest {
         devicePlacement = placement,
         cleanupAdministration = cleanup,
         deviceRetirement = retirement,
+        updateAdministration = updates,
         skippedLegacyDevices = { emptyList() },
     )
 
@@ -410,6 +416,111 @@ class RealTimeCommandHandlerTest {
             unchangedOutputs = 7,
             writeFailures = 0,
         )
+
+    @Test
+    fun `update needs the update permission`() {
+        val target = target(VIEW)
+        val handler = handler(updates = RecordingUpdates(UpdateStatus.UpToDate(version("0.6.0"), Instant.EPOCH)))
+
+        handler.execute(target, arrayOf("update"))
+
+        assertTrue(target.messages.single().contains("没有权限"), target.messages.toString())
+    }
+
+    @Test
+    fun `update reports the offered version and how to fetch it`() {
+        val manifest = manifest("0.7.0")
+        val target = target(UPDATE)
+        val handler = handler(updates = RecordingUpdates(UpdateStatus.Available(manifest, Instant.EPOCH)))
+
+        handler.execute(target, arrayOf("update"))
+
+        assertTrue(target.messages.any { it.contains("正在检查") }, target.messages.toString())
+        assertTrue(target.messages.any { it.contains("0.7.0") }, target.messages.toString())
+    }
+
+    @Test
+    fun `update says the build is current when nothing newer exists`() {
+        val target = target(UPDATE)
+        val handler = handler(updates = RecordingUpdates(UpdateStatus.UpToDate(version("0.6.0"), Instant.EPOCH)))
+
+        handler.execute(target, arrayOf("update", "check"))
+
+        assertTrue(target.messages.any { it.contains("已是最新") }, target.messages.toString())
+    }
+
+    @Test
+    fun `update download reports the file it wrote`() {
+        val updates =
+            RecordingUpdates(
+                UpdateStatus.Available(manifest("0.7.0"), Instant.EPOCH),
+                download =
+                    UpdateOutcome.Installed(
+                        java.nio.file.Path
+                            .of("/srv/plugins/update/RealTime-0.7.0.jar"),
+                        version("0.7.0"),
+                        2183111,
+                    ),
+            )
+        val target = target(UPDATE)
+        val handler = handler(updates = updates)
+
+        handler.execute(target, arrayOf("update", "download"))
+
+        assertTrue(target.messages.any { it.contains("正在下载") }, target.messages.toString())
+        assertTrue(target.messages.any { it.contains("RealTime-0.7.0.jar") && it.contains("2183111") }, target.messages.toString())
+    }
+
+    @Test
+    fun `a refused download explains why`() {
+        val updates =
+            RecordingUpdates(
+                UpdateStatus.UpToDate(version("0.6.0"), Instant.EPOCH),
+                download = UpdateOutcome.Refused("RealTime 0.6.0 is already the newest version"),
+            )
+        val target = target(UPDATE)
+        val handler = handler(updates = updates)
+
+        handler.execute(target, arrayOf("update", "download"))
+
+        assertTrue(target.messages.any { it.contains("没有下载") && it.contains("already the newest") }, target.messages.toString())
+    }
+
+    @Test
+    fun `status shows the updater state`() {
+        val target = target(VIEW)
+        val handler = handler(updates = RecordingUpdates(UpdateStatus.Available(manifest("0.7.0"), Instant.EPOCH)))
+
+        handler.execute(target, arrayOf("status"))
+
+        assertTrue(target.messages.any { it.contains("0.7.0") && it.contains("更新") }, target.messages.toString())
+    }
+
+    private fun version(text: String) =
+        cn.orzmc.realtime.core.update.SemanticVersion
+            .parse(text)
+
+    private fun manifest(text: String) =
+        cn.orzmc.realtime.core.update.UpdateManifest(
+            version = version(text),
+            downloadUrl = "https://hangarcdn.papermc.io/plugins/OrzMC/RealTime/versions/$text/PAPER/RealTime-$text.jar",
+            digest =
+                cn.orzmc.realtime.core.update.Digest
+                    .of(cn.orzmc.realtime.core.update.DigestAlgorithm.SHA256, "a".repeat(64)),
+            sizeBytes = 2183111,
+            source = cn.orzmc.realtime.core.update.UpdateSource.HANGAR,
+        )
+
+    private class RecordingUpdates(
+        private val current: UpdateStatus,
+        private val download: UpdateOutcome = UpdateOutcome.Refused("no update"),
+    ) : UpdateAdministration {
+        override fun status(): UpdateStatus = current
+
+        override fun checkNow(onResult: (UpdateOutcome) -> Unit) = onResult(UpdateOutcome.Checked(current))
+
+        override fun download(onResult: (UpdateOutcome) -> Unit) = onResult(download)
+    }
 
     private class RecordingDeviceAdministration(
         initial: List<RedstoneDevice>,
@@ -574,5 +685,6 @@ class RealTimeCommandHandlerTest {
         const val TOGGLE = RealTimeCommandHandler.TOGGLE_PERMISSION
         const val RETIRE = RealTimeCommandHandler.RETIRE_PERMISSION
         const val ADMIN = RealTimeCommandHandler.ADMIN_PERMISSION
+        const val UPDATE = RealTimeCommandHandler.UPDATE_PERMISSION
     }
 }

@@ -18,6 +18,7 @@
 | 源码 | <https://github.com/OrzMC/RealTime> |
 | 问题追踪 | <https://github.com/OrzMC/RealTime/issues> |
 | 文档 | <https://github.com/OrzMC/RealTime/blob/main/docs/usage.md> |
+| 更新方式 | `/rtime update` 检查新版本，`/rtime update download` 下载到 `plugins/update/`，重启生效（校验 sha256/sha512，不热替换、不自动重启）|
 | 服务端 | Paper 26.3+ / Folia 26.3+，`folia-supported: true` |
 | 依赖 | 无（PlaceholderAPI 可选） |
 | 发布时自动同步 | `scripts/hangar-page.sh`（Hangar 主页）+ `scripts/modrinth-page.sh`（Modrinth 一句话简介 + 长描述） |

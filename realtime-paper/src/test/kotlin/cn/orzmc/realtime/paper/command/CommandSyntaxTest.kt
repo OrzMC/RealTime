@@ -143,6 +143,25 @@ class CommandSyntaxTest {
     }
 
     @Test
+    fun `update checks by default and takes check or download`() {
+        assertEquals(CommandSyntax.Invocation.Update(CommandSyntax.UpdateAction.CHECK), parse("update"))
+        assertEquals(CommandSyntax.Invocation.Update(CommandSyntax.UpdateAction.CHECK), parse("update", "check"))
+        assertEquals(CommandSyntax.Invocation.Update(CommandSyntax.UpdateAction.DOWNLOAD), parse("update", "download"))
+        assertEquals(CommandSyntax.Invocation.Update(CommandSyntax.UpdateAction.DOWNLOAD), parse("UPDATE", "DOWNLOAD"))
+        assertEquals("command.usage", (parse("update", "install") as CommandSyntax.Invocation.Invalid).key)
+        assertEquals("command.usage", (parse("update", "check", "now") as CommandSyntax.Invocation.Invalid).key)
+    }
+
+    @Test
+    fun `update is a reserved name so a clock cannot shadow it`() {
+        assertTrue(CommandSyntax.RESERVED_NAMES.contains("update"))
+        assertEquals(
+            "command.create.reserved-name",
+            (parse("create", "update") as CommandSyntax.Invocation.Invalid).key,
+        )
+    }
+
+    @Test
     fun `verbs removed in this version point at their replacement`() {
         listOf("info", "list", "device", "demo", "set", "now").forEach { verb ->
             val removed = parse(verb) as CommandSyntax.Invocation.Removed

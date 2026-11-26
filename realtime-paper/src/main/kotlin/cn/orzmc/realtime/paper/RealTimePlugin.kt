@@ -18,12 +18,27 @@ import cn.orzmc.realtime.paper.device.YamlDeviceRepository
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import cn.orzmc.realtime.paper.placeholder.PlaceholderApiBridge
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
+import cn.orzmc.realtime.paper.update.GitHubUpdateSource
+import cn.orzmc.realtime.paper.update.HangarUpdateSource
+import cn.orzmc.realtime.paper.update.ModrinthUpdateSource
+import cn.orzmc.realtime.paper.update.PaperUpdateScheduler
+import cn.orzmc.realtime.paper.update.UpdateConfiguration
+import cn.orzmc.realtime.paper.update.UpdateConfigurationLoader
+import cn.orzmc.realtime.paper.update.UpdateHttp
+import cn.orzmc.realtime.paper.update.UpdateInstaller
+import cn.orzmc.realtime.paper.update.UpdateManifestSource
+import cn.orzmc.realtime.paper.update.UpdateNotifier
+import cn.orzmc.realtime.paper.update.UpdateService
+import cn.orzmc.realtime.paper.update.UpdateSourcePreference
+import cn.orzmc.realtime.paper.update.UpdateStateStore
+import cn.orzmc.realtime.paper.update.UpdateStatus
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
 import org.bukkit.command.TabExecutor
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
+import java.nio.file.Path
 import java.time.Clock
 import java.util.UUID
 
@@ -32,6 +47,7 @@ class RealTimePlugin :
     TabExecutor {
     private val configurationLoader = RealTimeConfigurationLoader()
     private val redstoneConfigurationLoader = RedstoneConfigurationLoader()
+    private val updateConfigurationLoader = UpdateConfigurationLoader()
     private val runtimeStateLock = Any()
 
     @Volatile
@@ -46,12 +62,17 @@ class RealTimePlugin :
     private var schedulerAdapter: PaperFoliaScheduler? = null
     private var redstoneDeviceManager: RedstoneDeviceManager? = null
     private var placeholderExpansion: Any? = null
+    private var updateService: UpdateService? = null
+    private var updateNotifier: UpdateNotifier? = null
+    private var updateHttp: UpdateHttp? = null
+    private var updateHttpKey: Pair<Set<String>, Boolean>? = null
 
     override fun onEnable() {
         saveDefaultConfig()
         ensureBundledResource("messages.yml")
         ensureBundledResource("modules/command.yml")
         ensureBundledResource("modules/redstone.yml")
+        ensureBundledResource("modules/updates.yml")
         ensureBundledResource("data/devices.yml")
         deviceRepository = YamlDeviceRepository(dataFolder)
 
@@ -121,6 +142,7 @@ class RealTimePlugin :
                 replaceState = { runtimeState = it },
                 requestRefresh = { redstoneDeviceManager?.requestRefresh() },
             )
+        updateService = createUpdateService()
         commandHandler =
             RealTimeCommandHandler(
                 pluginVersion = description.version,
@@ -132,6 +154,7 @@ class RealTimePlugin :
                 skippedLegacyDevices = { deviceRepository.skippedLegacyEntries },
                 cleanupAdministration = cleanupAdministration,
                 deviceRetirement = deviceRetirementService,
+                updateAdministration = updateService,
                 logger = logger,
             )
 
@@ -143,6 +166,9 @@ class RealTimePlugin :
         }
         command.setExecutor(this)
         command.tabCompleter = this
+
+        updateService?.start()
+        updateNotifier?.let { notifier -> server.pluginManager.registerEvents(notifier, this) }
 
         if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) {
             placeholderExpansion =
@@ -164,6 +190,11 @@ class RealTimePlugin :
     }
 
     override fun onDisable() {
+        updateService?.stop()
+        updateService = null
+        updateNotifier = null
+        updateHttp = null
+        updateHttpKey = null
         placeholderExpansion?.let { PlaceholderApiBridge.unregister(it) }
         placeholderExpansion = null
         deviceAdministration = null
@@ -191,9 +222,74 @@ class RealTimePlugin :
         args: Array<out String>,
     ): List<String> = commandHandler.complete(BukkitCommandTarget(sender), args)
 
+    /**
+     * Builds the updater. Everything here is optional on purpose: a server whose
+     * `bukkit.yml` disables the update folder, or an operator who turned updates off,
+     * simply gets a service that reports why it is idle.
+     */
+    private fun createUpdateService(): UpdateService {
+        val notifier =
+            UpdateNotifier(
+                status = { updateService?.status() ?: UpdateStatus.Idle },
+                pluginVersion = description.version,
+                stateProvider = { runtimeState },
+            )
+        updateNotifier = notifier
+        val service =
+            UpdateService(
+                configuration = { checkNotNull(runtimeState).updateConfiguration },
+                currentVersion = description.version,
+                sources = ::updateSources,
+                installer = UpdateInstaller(httpFor(checkNotNull(runtimeState).updateConfiguration), logger),
+                updateFolder = ::updateFolderPath,
+                stateStore = UpdateStateStore(dataFolder) { message -> logger.warning("RealTime update state: $message") },
+                scheduler = PaperUpdateScheduler(plugin = this, asyncScheduler = server.asyncScheduler),
+                logger = logger,
+                onAvailable = { notifier.reset() },
+            )
+        return service
+    }
+
+    private fun updateSources(configuration: UpdateConfiguration): List<UpdateManifestSource> {
+        val http = httpFor(configuration)
+        val hangar = HangarUpdateSource(http, apiBase = configuration.apiBaseOverride ?: HangarUpdateSource.DEFAULT_API)
+        val github = GitHubUpdateSource(http, apiBase = configuration.apiBaseOverride ?: GitHubUpdateSource.DEFAULT_API)
+        val modrinth = ModrinthUpdateSource(http, apiBase = configuration.apiBaseOverride ?: ModrinthUpdateSource.DEFAULT_API)
+        return when (configuration.source) {
+            UpdateSourcePreference.AUTO -> listOf(hangar, github)
+            UpdateSourcePreference.HANGAR -> listOf(hangar)
+            UpdateSourcePreference.GITHUB -> listOf(github)
+            UpdateSourcePreference.MODRINTH -> listOf(modrinth)
+        }
+    }
+
+    /** Caches the HTTP client per allowlist so repeated checks do not rebuild it. */
+    private fun httpFor(configuration: UpdateConfiguration): UpdateHttp {
+        val key = configuration.allowedHostSet to configuration.allowInsecureHttp
+        val cached = updateHttp
+        if (cached != null && updateHttpKey == key) return cached
+        val created =
+            UpdateHttp(
+                allowedHosts = configuration.allowedHostSet,
+                allowInsecureHttp = configuration.allowInsecureHttp,
+                userAgent = "RealTime/${description.version} (+https://github.com/OrzMC/RealTime)",
+            )
+        updateHttp = created
+        updateHttpKey = key
+        return created
+    }
+
+    /** `bukkit.yml -> settings.update-folder`; an empty value disables the folder. */
+    private fun updateFolderPath(): Path? {
+        val name = server.updateFolder
+        if (name.isBlank()) return null
+        return server.updateFolderFile.toPath()
+    }
+
     private fun createRuntimeState(): RuntimeState {
         val configuration = configurationLoader.load(dataFolder)
         val redstoneConfiguration = redstoneConfigurationLoader.load(dataFolder)
+        val updateConfiguration = updateConfigurationLoader.load(dataFolder)
         val deviceStore = deviceRepository.loadStore()
         return RuntimeState(
             configuration = configuration,
@@ -205,6 +301,7 @@ class RealTimePlugin :
                 ),
             messages = MessageCatalog(configuration.messages),
             redstoneConfiguration = redstoneConfiguration,
+            updateConfiguration = updateConfiguration,
             devices = deviceStore.devices,
             cleanupJobs = deviceStore.cleanupJobs,
         )
@@ -217,6 +314,7 @@ class RealTimePlugin :
                 runtimeState = candidate
                 logModuleState(candidate)
                 redstoneDeviceManager?.requestRefresh()
+                updateService?.reconfigure()
                 candidate
             }.onFailure { exception ->
                 logger.warning(
@@ -263,7 +361,7 @@ class RealTimePlugin :
         const val PLACEMENT_REACH = 6
     }
 
-    private class BukkitCommandTarget(
+    private inner class BukkitCommandTarget(
         private val sender: CommandSender,
     ) : CommandTarget {
         override val actorName: String = if (sender is Player) sender.name else "console"
@@ -303,6 +401,20 @@ class RealTimePlugin :
 
         override fun sendMessage(message: String) {
             sender.sendMessage(message)
+        }
+
+        /**
+         * Async answers (the updater) are moved back to a thread that may touch this
+         * sender: the player's own region under Folia, the global region for the
+         * console. A retired player simply receives nothing.
+         */
+        override fun runOnOwner(action: () -> Unit) {
+            val player = sender as? Player
+            if (player == null) {
+                server.globalRegionScheduler.run(this@RealTimePlugin, java.util.function.Consumer { action() })
+                return
+            }
+            player.scheduler.run(this@RealTimePlugin, java.util.function.Consumer { action() }, Runnable { })
         }
     }
 }
