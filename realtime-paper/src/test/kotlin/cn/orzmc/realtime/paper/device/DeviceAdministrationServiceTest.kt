@@ -49,6 +49,38 @@ class DeviceAdministrationServiceTest {
     }
 
     @Test
+    fun enablingADeviceWithUnplacedSlotsIsRefused() {
+        // `device create ... manual` leaves every slot without a position; enabling then would write nothing and
+        // silently do nothing, so the service refuses and says how many are missing.
+        val manual =
+            RedstoneDevice(
+                id = UUID.randomUUID(),
+                name = "manual",
+                worldName = "world",
+                enabled = false,
+                outputs = (0 until 16).map { bit -> DeviceOutput(bit, 0, 64, 0, unplaced = true) },
+            )
+        val initial = state(listOf(manual))
+        var active = initial
+        val service =
+            DeviceAdministrationService(
+                stateLock = Any(),
+                stateProvider = { active },
+                persistDevices = { },
+                replaceState = { active = it },
+                requestRefresh = {},
+            )
+
+        val exception =
+            assertThrows(DeviceIncompleteException::class.java) {
+                service.setEnabled(manual.id, true)
+            }
+
+        assertEquals(16, exception.unplaced)
+        assertFalse(active.devices.single().enabled)
+    }
+
+    @Test
     fun repeatedEnableIsAnIdempotentNoOp() {
         val initial = state(listOf(device(enabled = true)))
         var active = initial

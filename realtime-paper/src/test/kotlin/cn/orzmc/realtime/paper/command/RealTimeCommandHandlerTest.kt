@@ -679,6 +679,36 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun explicitCreateHonoursManualAndNodisplay() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(
+            target,
+            arrayOf("create", "clock", "analog", "second", "world", "100", "70", "0", "x+", "manual"),
+        )
+
+        val request = checkNotNull(administration.created)
+        assertFalse(request.enabled)
+        assertTrue(request.demoBlocks.isEmpty())
+        assertEquals(OutputEncoding.ANALOG, request.encoding)
+        assertEquals(6, request.outputs.size)
+    }
+
+    @Test
+    fun manualCreateLeavesEverySlotUnplaced() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("create", "clock", "analog", "manual"))
+
+        val request = checkNotNull(administration.created)
+        assertEquals(request.outputs.size, request.outputs.count { it.unplaced })
+    }
+
+    @Test
     fun deviceCreateWithoutAPlayerAsksForCoordinates() {
         val administration = RecordingDeviceAdministration(emptyList())
         val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
@@ -1034,6 +1064,7 @@ class RealTimeCommandHandlerTest {
                         "command.device.placement-required" to "{prefix}needs a player",
                         "command.device.ambiguous" to "{prefix}ambiguous {name} {count}",
                         "command.device.place.world-mismatch" to "{prefix}world mismatch {world} {current}",
+                        "command.device.place.display-hint" to "{prefix}display does not move {encoding}",
                         "command.device.warn.redstone-disabled" to "{prefix}warn redstone disabled",
                         "command.reload.success" to "{prefix}reloaded",
                         "command.reload.failure" to "{prefix}failed {reason}",

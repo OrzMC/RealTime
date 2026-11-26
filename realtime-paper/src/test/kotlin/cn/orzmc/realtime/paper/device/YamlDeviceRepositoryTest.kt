@@ -26,7 +26,7 @@ class YamlDeviceRepositoryTest {
         assertTrue(repository.loadStore().devices.isEmpty())
         val yaml = YamlConfiguration()
         yaml.load(temporaryDirectory.resolve("data/devices.yml").toFile())
-        assertEquals(5, yaml.getInt("schema-version"))
+        assertEquals(6, yaml.getInt("schema-version"))
         assertTrue(yaml.getList("cleanup-jobs").orEmpty().isEmpty())
     }
 
@@ -166,7 +166,7 @@ class YamlDeviceRepositoryTest {
         assertTrue(migrated.cleanupJobs.isEmpty())
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(5, stored.getInt("schema-version"))
+        assertEquals(6, stored.getInt("schema-version"))
         assertEquals("minute", stored.getMapList("devices").single()["resolution"])
         assertEquals("bcd", stored.getMapList("devices").single()["encoding"])
         assertTrue(stored.getList("cleanup-jobs").orEmpty().isEmpty())
@@ -290,7 +290,7 @@ class YamlDeviceRepositoryTest {
         )
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(5, stored.getInt("schema-version"))
+        assertEquals(6, stored.getInt("schema-version"))
     }
 
     @Test
@@ -328,7 +328,7 @@ class YamlDeviceRepositoryTest {
         assertEquals(OutputEncoding.BCD, migrated.devices.single().encoding)
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(5, stored.getInt("schema-version"))
+        assertEquals(6, stored.getInt("schema-version"))
         assertEquals("bcd", stored.getMapList("devices").single()["encoding"])
     }
 

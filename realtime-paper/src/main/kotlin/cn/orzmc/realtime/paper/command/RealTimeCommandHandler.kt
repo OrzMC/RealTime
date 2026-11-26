@@ -14,6 +14,7 @@ import cn.orzmc.realtime.paper.device.DeviceCleanupJobNotFoundException
 import cn.orzmc.realtime.paper.device.DeviceCleanupStatus
 import cn.orzmc.realtime.paper.device.DeviceCreateRequest
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
+import cn.orzmc.realtime.paper.device.DeviceIncompleteException
 import cn.orzmc.realtime.paper.device.DeviceLimitReachedException
 import cn.orzmc.realtime.paper.device.DeviceMustBeDisabledException
 import cn.orzmc.realtime.paper.device.DeviceNotFoundException
@@ -612,6 +613,9 @@ class RealTimeCommandHandler(
         val demoBlocks =
             if (noDisplay || manual) emptyList() else DeviceDemo.display(encoding, placement.axis, outputs)
         if (!acquireEditSlot(target, state)) return
+        // `manual` exists so each source can be positioned by hand: mark every slot as unplaced so nothing is
+        // written, nothing collides, and `enable` refuses until all of them have a position.
+        val effectiveOutputs = if (manual) outputs.map { it.copy(unplaced = true) } else outputs
 
         runCatching {
             administration.create(
@@ -619,7 +623,7 @@ class RealTimeCommandHandler(
                     name = name,
                     worldName = placement.worldName,
                     resolution = resolution,
-                    outputs = outputs,
+                    outputs = effectiveOutputs,
                     encoding = encoding,
                     demoBlocks = demoBlocks,
                     enabled = !manual,
@@ -715,8 +719,12 @@ class RealTimeCommandHandler(
         val effectiveResolution = resolution ?: defaultResolution
         val optional = args.drop(index + 5)
         val stride = optional.firstOrNull { it.toIntOrNull() != null }?.toInt()
-        val noDisplay = optional.any { it.equals("nodisplay", true) }
-        val encodingValue = optional.firstOrNull { it.toIntOrNull() == null && !it.equals("nodisplay", true) }
+        val manual = optional.any { it.equals("manual", true) }
+        val noDisplay = manual || optional.any { it.equals("nodisplay", true) }
+        val encodingValue =
+            optional.firstOrNull {
+                it.toIntOrNull() == null && !it.equals("nodisplay", true) && !it.equals("manual", true)
+            }
         val encoding =
             when {
                 encodingOverride != null -> encodingOverride
@@ -742,6 +750,7 @@ class RealTimeCommandHandler(
                 customLayout.outputs(encoding, effectiveResolution, axis, x, y, z)
             }.getOrElse { return sendUsage(target, state) }
         val demoBlocks = if (noDisplay) emptyList() else DeviceDemo.display(encoding, axis, outputs)
+        val effectiveOutputs = if (manual) outputs.map { it.copy(unplaced = true) } else outputs
 
         runCatching {
             administration.create(
@@ -749,10 +758,10 @@ class RealTimeCommandHandler(
                     name = name,
                     worldName = worldName,
                     resolution = effectiveResolution,
-                    outputs = outputs,
+                    outputs = effectiveOutputs,
                     encoding = encoding,
                     demoBlocks = demoBlocks,
-                    enabled = true,
+                    enabled = !manual,
                 ),
             )
         }.fold(
@@ -889,6 +898,16 @@ class RealTimeCommandHandler(
                         mapOf("bit" to bitIndex.toString(), "x" to x.toString(), "y" to y.toString(), "z" to z.toString()),
                     ),
                 )
+                // Display blocks (BCDs lamps, analog comparator rows) belong to the default layout and do not
+                // follow a moved slot; say so once instead of leaving a dangling comparator behind unexplained.
+                if (updated.demoBlocks.isNotEmpty()) {
+                    target.sendMessage(
+                        state.messages.render(
+                            "command.device.place.display-hint",
+                            mapOf("name" to updated.name, "encoding" to updated.encoding.configValue),
+                        ),
+                    )
+                }
                 warnIfRedstoneDisabled(target, state)
             },
             onFailure = { exception -> sendEditFailure(target, state, exception) },
@@ -1035,9 +1054,10 @@ class RealTimeCommandHandler(
             ),
         )
         device.outputs.forEach { output ->
+            val key = if (output.unplaced) "command.device.info.output-unplaced" else "command.device.info.output"
             target.sendMessage(
                 state.messages.render(
-                    "command.device.info.output",
+                    key,
                     mapOf(
                         "bit" to output.bitIndex.toString(),
                         "x" to output.x.toString(),
@@ -1116,6 +1136,15 @@ class RealTimeCommandHandler(
         id: UUID,
         exception: Throwable,
     ) {
+        if (exception is DeviceIncompleteException) {
+            target.sendMessage(
+                state.messages.render(
+                    "command.device.enable.incomplete",
+                    mapOf("count" to exception.unplaced.toString()),
+                ),
+            )
+            return
+        }
         if (exception is DeviceNotFoundException) {
             target.sendMessage(state.messages.render("command.device.not-found", mapOf("id" to id.toString())))
         } else {

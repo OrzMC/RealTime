@@ -218,6 +218,17 @@ class RealTimeConfigurationLoader {
                 "command.device.placement-required" to
                     "{prefix}&c这条命令需要玩家视角：请以玩家身份站在目标位置，或在 6 格内看着一个方块。",
                 "command.device.ambiguous" to "{prefix}&c找到 {count} 台同名设备，请改用 ID：&f{name}",
+                "command.device.place.display-hint" to
+                    "{prefix}&7提示：灯/比较器这些展示方块是建钟时按默认布局放好的，不会跟着槽位移动。" +
+                    "&f{encoding} &7设备只需要源本身（BCD 红石块 / analog 讲台），展示部分请自己接，" +
+                    "或用 &fmanual &7模式建一台不带展示方块的钟。",
+                "command.device.enable.incomplete" to
+                    "{prefix}&c还有 {count} 个槽位没有位置，先用 /rtime place <设备> <槽位> 逐个摆好再开机。",
+                "command.device.info.output-unplaced" to "{prefix}&8槽 {bit}：&7未放置（用 /rtime place <设备> {bit} 定位）",
+                "command.device.place.display-hint" to
+                    "{prefix}&7提示：灯/比较器这些展示方块是建钟时按默认布局放好的，不会跟着槽位移动。" +
+                    "&f{encoding} &7设备只需要源本身（BCD 红石块 / analog 讲台），展示部分请自己接，" +
+                    "或用 &fmanual &7模式建一台不带展示方块的钟。",
                 "command.device.place.world-mismatch" to
                     "{prefix}&c这台设备属于世界 &f{world}&c，你当前在 &f{current}&c。",
                 "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",

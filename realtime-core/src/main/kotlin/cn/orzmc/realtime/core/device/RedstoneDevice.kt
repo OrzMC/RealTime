@@ -26,6 +26,10 @@ class RedstoneDevice(
 ) {
     val outputs: List<DeviceOutput> = outputs.sortedBy(DeviceOutput::bitIndex)
 
+    /** Slots whose position has not been chosen yet (`device create ... manual`). */
+    val unplacedOutputs: List<DeviceOutput>
+        get() = outputs.filter(DeviceOutput::unplaced)
+
     /** Number of output slots this device must define. */
     val outputCount: Int
         get() = encoding.outputCount(resolution)
@@ -40,15 +44,13 @@ class RedstoneDevice(
         require(this.outputs.map(DeviceOutput::bitIndex).toSet() == (0 until outputCount).toSet()) {
             "Device output slot indexes must cover 0 through ${outputCount - 1} exactly once"
         }
+        val placedOutputs = this.outputs.filterNot(DeviceOutput::unplaced)
         require(
-            this.outputs
-                .map { Triple(it.x, it.y, it.z) }
-                .toSet()
-                .size == outputCount,
+            placedOutputs.map { Triple(it.x, it.y, it.z) }.toSet().size == placedOutputs.size,
         ) {
             "Device output block positions must be unique"
         }
-        val slotPositions = this.outputs.map { Triple(it.x, it.y, it.z) }.toSet()
+        val slotPositions = placedOutputs.map { Triple(it.x, it.y, it.z) }.toSet()
         require(
             this.demoBlocks
                 .map { Triple(it.x, it.y, it.z) }
