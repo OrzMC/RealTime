@@ -2,6 +2,13 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
+## [Unreleased]
+
+### 工程
+
+- 修 Modrinth 上传：payload 必须带 `dependencies`（空数组也要），`v0.5.0` 因此被拒（`400 missing field dependencies`）；
+  现已在工作流中补上，并由 `scripts/distribution-check.sh` 断言防回归。`v0.5.0` 已手工补传。
+
 ## [0.5.0]
 
 ### 新增

@@ -6,8 +6,9 @@
 
 **RealTime** is an independent Minecraft real-world time plugin for Paper and Folia, maintained by [OrzMC](https://github.com/OrzMC).
 
-> **Status: `v0.4.0` released** (2026-11-25) — see the [release](https://github.com/OrzMC/RealTime/releases/tag/v0.4.0) and
-> [CHANGELOG](CHANGELOG.md). `main` is now on `0.5.0-SNAPSHOT`.
+> **Status: `v0.5.0` released** (2026-11-26) — see the [release](https://github.com/OrzMC/RealTime/releases/tag/v0.5.0) and
+> [CHANGELOG](CHANGELOG.md). `main` is now on `0.6.0-SNAPSHOT`. Also on
+> [Hangar](https://hangar.papermc.io/OrzMC/RealTime) and [Modrinth](https://modrinth.com/project/pRGtDpaD).
 > The plugin provides timezone-aware time and Paper/Folia scheduler-safe redstone clocks in two encodings — **BCD**
 > (16/24 power-source slots for `HHmm`/`HHmmss`) and **analog** (one lectern per digit, so `HHmmss` needs six lines
 > instead of twenty-four) — plus **one command to build a working clock** (`/rtime create clock`), per-slot placement,
@@ -57,8 +58,8 @@ Requirements: JDK 25.
 
 The Gradle Wrapper pins Gradle 9.2.1. The first build downloads the Gradle distribution and project dependencies.
 
-The distributable shaded JAR is written to `realtime-paper/build/libs/RealTime-<version>.jar` (`0.5.0-SNAPSHOT` on
-`main`). Release builds use the tag, e.g. `PROJECT_VERSION=0.4.0 ./scripts/package.sh`.
+The distributable shaded JAR is written to `realtime-paper/build/libs/RealTime-<version>.jar` (`0.6.0-SNAPSHOT` on
+`main`). Release builds use the tag, e.g. `PROJECT_VERSION=0.5.0 ./scripts/package.sh`.
 
 ## AI-agent development
 
