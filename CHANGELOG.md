@@ -2,19 +2,35 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
-## [Unreleased]
+## [0.7.0]
+
+> 本版**没有**游戏内行为变化：只动文档与发布自动化。替换 jar 即可，数据仍是 schema v7，无需迁移。
 
 ### 工程
 
-- 发布工作流可重跑：`Create GitHub Release` 遇到已存在的 Release 时改为刷新资产与说明（`--clobber` / `gh release edit`），
-  Hangar 上传失败会重试一次。`v0.6.0` 就是卡在 Maven Central 403 上、只能手工补传的。
 - **发布时自动同步平台项目页**：新增 `scripts/modrinth-page.sh`（`PATCH /v2/project`，写 `description` + `body`），
-  与已有的 `scripts/hangar-page.sh` 一起接进 `release.yml`，项目页不再需要手工粘；
-  `scripts/distribution-check.sh` 断言两步都在。注意 Modrinth 的一句话简介字段是 `description`（`summary` 会被静默忽略）。
-- `scripts/platform-audit.sh` 增加 Hangar **关键词**核对（分类、主页长度、每版本频道/游戏版本/sha256 原本就有），
-  平台项目信息现在两端都可审计。
-- 文档与 0.6.0 对齐：清掉 `docs/` 里残留的 `/rtime info`、`/rtime list`、BCD/analog 双编码描述与 `per-encoding` 说法，
-  旧验收报告加上"历史文档"横幅，README 索引补上 0.6.0 验收报告与平台文案源文件。
+  与已有的 `scripts/hangar-page.sh` 一起接进 `release.yml`，发版后两端项目页不再需要手工粘贴；
+  `scripts/distribution-check.sh` 断言这两个步骤都在，删掉就 CI 红。
+  一句话简介/长描述的唯一源仍是 `docs/operations/platform-listings.md`。
+  注意 Modrinth 的一句话简介字段叫 `description`，传 `summary` 会被**静默忽略**（仍返回 204）。
+- **发布 job 可重跑**：`Create GitHub Release` 遇到已存在的 Release 时改为刷新资产（`--clobber`）与说明（`gh release edit`）；
+  Hangar 上传失败自动重试一次。`v0.6.0` 就是卡在 Maven Central 403 上、只能手工补传的。
+- **平台审计补齐**：`scripts/platform-audit.sh` 增加 Hangar **关键词**核对（分类、主页长度、每版本频道 / 游戏版本 / sha256
+  原本就有），现在两端的项目信息都能一条命令审计。
+
+### 文档
+
+- `docs/` 与 0.6.0 对齐：清掉残留的 `/rtime info`、`/rtime list`、BCD/analog 双编码描述与 "per-encoding slot counts"。
+- 旧验收报告（0.1.0、analog-2026-11-25）顶部加「历史文档（已过时）」横幅，指向当前报告。
+- README 文档索引补上 [0.6.0 验收报告](docs/operations/acceptance-report-0.6.0.md) 与
+  [平台文案源文件](docs/operations/platform-listings.md)。
+- [`docs/release/distribution.md`](docs/release/distribution.md) 新增「项目页自动同步」一节：端点、权限、两个字段名坑。
+
+### 安装与升级须知（0.7.0）
+
+- **游戏内行为与 0.6.0 完全一致**：命令、配置、数据格式、占位符都没有变化，直接替换 jar 重启即可。
+- 如果你是从 **0.5.0 或更早**升级，请先读 [0.6.0 的升级须知](#060)：BCD 钟不会再加载、命令面已重写。
+- 本版新增的是**发布侧**能力：维护者发版后，Hangar 主页与 Modrinth 简介/长描述会自动从仓库文案同步，无需手工粘贴。
 
 ## [0.6.0]
 
