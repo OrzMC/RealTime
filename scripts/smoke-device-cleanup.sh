@@ -12,7 +12,7 @@ PROJECT="${1:?Usage: smoke-device-cleanup.sh <paper|folia>}"
 MC_VERSION="${MC_VERSION:-26.3}"
 RCON_PORT="${RCON_PORT:-25575}"
 RCON_PASSWORD="${RCON_PASSWORD:-realtime-ci-rcon-password}"
-PLUGIN_JAR="${ROOT_DIR}/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.7.0-SNAPSHOT}.jar"
+PLUGIN_JAR="${ROOT_DIR}/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.8.0-SNAPSHOT}.jar"
 
 if [[ ! -f "$PLUGIN_JAR" ]]; then
   echo "Missing $PLUGIN_JAR; run ./gradlew build first." >&2

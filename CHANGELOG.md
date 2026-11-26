@@ -2,6 +2,10 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
+## [Unreleased]
+
+_尚无条目。_
+
 ## [0.7.0]
 
 > 本版**没有**游戏内行为变化：只动文档与发布自动化。替换 jar 即可，数据仍是 schema v7，无需迁移。

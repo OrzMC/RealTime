@@ -35,5 +35,5 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 - M6: crash-safe deferred cleanup and safe device retirement.
 - M7: lectern output (one per digit), in-game authoring with split permissions, `manual` per-slot builds.
 
-Every stage above is merged and included in `v0.2.0` … `v0.6.0` (released 2026-11-26); `main` is on `0.7.0-SNAPSHOT`.
+Every stage above is merged and included in `v0.2.0` … `v0.7.0` (released 2026-11-26/27); `main` is on `0.8.0-SNAPSHOT`.
 Split new work into small PRs with explicit acceptance criteria.
