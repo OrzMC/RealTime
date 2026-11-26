@@ -233,6 +233,7 @@ class RealTimeCommandHandler(
                                     mapOf("name" to device.name, "id" to device.id.toString()),
                                 ),
                             )
+                            if (enabled) warnIfRedstoneDisabled(target, state)
                         },
                         onFailure = { exception -> sendDeviceFailure(target, state, id, exception) },
                     )
@@ -571,6 +572,7 @@ class RealTimeCommandHandler(
                         ),
                     ),
                 )
+                warnIfRedstoneDisabled(target, state)
             },
             onFailure = { exception -> sendEditFailure(target, state, exception) },
         )
@@ -653,6 +655,7 @@ class RealTimeCommandHandler(
                         ),
                     ),
                 )
+                warnIfRedstoneDisabled(target, state)
             },
             onFailure = { exception -> sendEditFailure(target, state, exception) },
         )
@@ -686,6 +689,7 @@ class RealTimeCommandHandler(
                         mapOf("bit" to bitIndex.toString(), "x" to x.toString(), "y" to y.toString(), "z" to z.toString()),
                     ),
                 )
+                warnIfRedstoneDisabled(target, state)
             },
             onFailure = { exception -> sendEditFailure(target, state, exception) },
         )
@@ -944,6 +948,28 @@ class RealTimeCommandHandler(
                 mapOf("enabled" to configuration.commandEnabled.toString()),
             ),
         )
+        target.sendMessage(
+            state.messages.render(
+                "command.info.redstone-enabled",
+                mapOf("enabled" to state.redstoneConfiguration.enabled.toString()),
+            ),
+        )
+    }
+
+    /**
+     * Warns once per command when the redstone module is off.
+     *
+     * With `modules/redstone.yml` disabled nothing is ever written: outputs stay
+     * empty and demo blocks are treated as absent, so `device demo` used to report
+     * success while the world stayed untouched. Say so at the moment the device is
+     * created instead of leaving the operator to guess.
+     */
+    private fun warnIfRedstoneDisabled(
+        target: CommandTarget,
+        state: RuntimeState,
+    ) {
+        if (state.redstoneConfiguration.enabled) return
+        target.sendMessage(state.messages.render("command.device.warn.redstone-disabled"))
     }
 
     private fun reloadConfiguration(

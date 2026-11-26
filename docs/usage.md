@@ -29,6 +29,14 @@ BCD 稳、无需方块实体；analog 把 24 条线压成 6 条，代价是要�
 首次启动会生成 `plugins/RealTime/`：`config.yml`、`messages.yml`、`modules/command.yml`、`modules/redstone.yml`、
 `data/devices.yml`。**红石模块默认关闭**，确认无误后把 `modules/redstone.yml` 的 `enabled` 改成 `true` 再 `/rtime reload`。
 
+> ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`device create` / `device demo` 会成功返回，
+> 槽位不写入、demo 的灯/讲台/比较器也不会放置。这是**新装服务器的默认状态**，看起来就像"插件不工作"。
+> 三条自查：
+>
+> 1. `/rtime info` 的最后一行 `红石输出模块：` 必须是 `true`
+> 2. 创建/启用设备后若模块是关的，命令会额外提示一行"红石输出模块未启用"
+> 3. `/rtime device status` 里 `输出变更`/`示例方块放置` 一直是 0，而 `配置设备` 正常增长
+
 ```yaml
 # modules/redstone.yml
 enabled: true
@@ -151,6 +159,8 @@ limits:
 
 计数器是进程内累计值；配置数反映当前运行状态。
 
+`输出变更` 与 `示例方块放置` 长时间为 0，而 `配置设备` 不为 0 → 先看 `/rtime info` 的 `红石输出模块` 是不是 `false`。
+
 ## 9. PlaceholderAPI（可选）
 
 装 PlaceholderAPI 即可用，不装也能正常运行。常用：
@@ -184,6 +194,11 @@ limits:
 
 **Q：为什么我的 demo 退役后队列里有"需人工处理"？**
 该位置被地形/玩家方块占着（例如 demo 建在树林里）。清掉那几格后 `cleanup retry`，或者确认要保留它们就 `cleanup dismiss`。
+
+**Q：在新服务器上建了设备/demo，但世界里一个方块都没出现？**
+九成是**红石模块没开**（新装默认 `modules/redstone.yml` → `enabled: false`）。这时命令会成功返回、设备也进了列表，
+但插件从不写方块：`/rtime info` 会显示 `红石输出模块：false`，`device demo`/`create`/`set`/`enable` 会额外提示一行。
+改成 `enabled: true` 后 `/rtime reload` 即可，设备会立刻开始输出（demo 的展示方块也会补上）。
 
 **Q：设备坐标能写到任意地方吗？**
 能，但建议配 `limits.allowed-areas` 限定范围，并只把 `realtime.device.edit` 给可信的人——这条权限本质上是"在指定坐标放方块"。

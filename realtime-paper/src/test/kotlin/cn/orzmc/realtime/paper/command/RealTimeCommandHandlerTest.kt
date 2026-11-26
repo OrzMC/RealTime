@@ -17,6 +17,7 @@ import cn.orzmc.realtime.paper.device.DeviceCreateRequest
 import cn.orzmc.realtime.paper.device.DeviceDiagnostics
 import cn.orzmc.realtime.paper.device.DeviceMustBeDisabledException
 import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
+import cn.orzmc.realtime.paper.device.RedstoneConfiguration
 import cn.orzmc.realtime.paper.device.RedstoneDiagnosticsSnapshot
 import cn.orzmc.realtime.paper.message.MessageCatalog
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -52,6 +53,7 @@ class RealTimeCommandHandlerTest {
         assertTrue(target.messages.any { it.contains("version 1.2.3") })
         assertTrue(target.messages.any { it.contains("timezone Asia/Shanghai") })
         assertTrue(target.messages.any { it.contains("locale zh-CN") })
+        assertTrue(target.messages.any { it.contains("redstone true") }, target.messages.toString())
     }
 
     @Test
@@ -583,6 +585,39 @@ class RealTimeCommandHandlerTest {
     }
 
     @Test
+    fun deviceDemoWarnsWhenTheRedstoneModuleIsDisabled() {
+        // The module is off on a fresh install, so nothing is ever placed; the
+        // command must not look like a success with no explanation.
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration, redstoneEnabled = false)
+
+        handler.execute(target, arrayOf("device", "demo", "analog", "world", "100", "70", "0", "x+"))
+
+        assertTrue(target.messages.any { it.contains("warn redstone disabled") }, target.messages.toString())
+    }
+
+    @Test
+    fun deviceDemoIsQuietWhenTheRedstoneModuleIsEnabled() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(emptyList()))
+
+        handler.execute(target, arrayOf("device", "demo", "analog", "world", "100", "70", "0", "x+"))
+
+        assertFalse(target.messages.any { it.contains("warn redstone disabled") }, target.messages.toString())
+    }
+
+    @Test
+    fun deviceCreateWarnsWhenTheRedstoneModuleIsDisabled() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(emptyList()), redstoneEnabled = false)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "minute", "world", "0", "64", "0", "x+"))
+
+        assertTrue(target.messages.any { it.contains("warn redstone disabled") }, target.messages.toString())
+    }
+
+    @Test
     fun deviceDemoRejectsUnknownEncoding() {
         val administration = RecordingDeviceAdministration(emptyList())
         val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
@@ -680,9 +715,10 @@ class RealTimeCommandHandlerTest {
         cleanupAdministration: DeviceCleanupAdministration? = null,
         deviceRetirement: DeviceRetirementAdministration? = null,
         nowMillis: () -> Long = System::currentTimeMillis,
+        redstoneEnabled: Boolean = true,
     ) = RealTimeCommandHandler(
         pluginVersion = "1.2.3",
-        currentState = ::state,
+        currentState = { state(redstoneEnabled) },
         reload = reload,
         deviceAdministration = deviceAdministration,
         deviceDiagnostics = deviceDiagnostics,
@@ -725,7 +761,7 @@ class RealTimeCommandHandlerTest {
             writeFailures = 1,
         )
 
-    private fun state(): RuntimeState {
+    private fun state(redstoneEnabled: Boolean = true): RuntimeState {
         val configuration =
             RealTimeConfiguration(
                 generalEnabled = true,
@@ -744,6 +780,8 @@ class RealTimeCommandHandlerTest {
                         "command.info.locale" to "{prefix}locale {locale}",
                         "command.info.global-enabled" to "{prefix}global {enabled}",
                         "command.info.command-enabled" to "{prefix}command {enabled}",
+                        "command.info.redstone-enabled" to "{prefix}redstone {enabled}",
+                        "command.device.warn.redstone-disabled" to "{prefix}warn redstone disabled",
                         "command.reload.success" to "{prefix}reloaded",
                         "command.reload.failure" to "{prefix}failed {reason}",
                         "command.no-permission" to "{prefix}denied",
@@ -809,6 +847,7 @@ class RealTimeCommandHandlerTest {
                     locale = configuration.locale,
                 ),
             messages = MessageCatalog(configuration.messages),
+            redstoneConfiguration = RedstoneConfiguration(enabled = redstoneEnabled),
         )
     }
 

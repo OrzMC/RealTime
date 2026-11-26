@@ -180,6 +180,10 @@ class RealTimeConfigurationLoader {
 
         private val OPTIONAL_MESSAGES =
             mapOf(
+                "command.info.redstone-enabled" to "{prefix}&7红石输出模块：&f{enabled}",
+                "command.device.warn.redstone-disabled" to
+                    "{prefix}&e注意：红石输出模块未启用（plugins/RealTime/modules/redstone.yml → enabled: true），" +
+                    "设备不会真的输出或放置方块。改完执行 /rtime reload。",
                 "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",
                 "command.device.cleanup.header" to "{prefix}&b待清理设备队列（{count}）",
                 "command.device.cleanup.empty" to "{prefix}&7当前没有待清理设备。",
