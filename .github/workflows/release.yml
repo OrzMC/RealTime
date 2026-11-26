@@ -222,7 +222,8 @@ jobs:
               status: "listed",
               project_id: $project,
               file_parts: ["plugin"],
-              primary_file: "plugin"
+              primary_file: "plugin",
+              dependencies: []
             }')"
 
           curl --fail-with-body --retry 2 \
