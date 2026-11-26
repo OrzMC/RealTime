@@ -34,12 +34,15 @@
 | 14 | 清理后世界状态 | 六个槽位回到空气 | ✅ `execute if block 40060/40064/40070 86 -45 air` 全部命中 |
 | 15 | `/rtime status` | 版本/时区/模块 + 计数器 | ✅ `版本：0.6.0-SNAPSHOT`、`红石输出模块：true`、`输出检查/变化/无变化/非法方块/写入失败`、`讲台/书页` |
 | 16 | 旧数据（v6，`encoding: analog`）| 正常加载，不影响 | ✅ 两台旧钟迁移后可用；`skippedLegacyEntries` 为空 |
+| 17 | 手工塞入一条 `encoding: bcd` 旧钟 + `/rtime reload` | 跳过、日志、`status` 计数、不出现在 `/rtime` | ✅ `/rtime` 仍显示"还没有任何钟"；`status` 追加 `有 1 台旧版 BCD 钟已不再加载…：data/devices.yml: devices[0] (legacy-bcd)`；删掉该条目再 reload 后该行消失 |
+| 18 | 数据文件被自动迁移 | 写回 schema 7 | ✅ `schema-version: 7`、设备/队列结构保留 |
 
 ## 未覆盖（交由玩家或 CI）
 
 - **游戏内 `create`**：控制台没有世界/朝向，命令按设计拒绝；`create` 的三种模式（带展示方块 / `nodisplay` / `manual`）
   由单元测试覆盖（`RealTimeCommandHandlerTest`），需要玩家在游戏内复核手感。
-- **Folia**：由 CI 的 `smoke (folia)` / `cleanup-smoke (folia)` / `placeholderapi-smoke (folia)` 覆盖。
+- **Folia**：由 CI 的 `smoke (folia)` / `cleanup-smoke (folia)` / `placeholderapi-smoke (folia)` 覆盖（三者均通过）。
+  本机 Folia 实例是**在用的服务端**（AuthMe / Essentials / 十余个插件），不部署测试构建。
 - **Tab 补全**：`CommandCompletion` 有单元测试（动词、钟名、槽位号、`create` 选项），客户端实际观感需玩家确认。
 
 ## 收尾
