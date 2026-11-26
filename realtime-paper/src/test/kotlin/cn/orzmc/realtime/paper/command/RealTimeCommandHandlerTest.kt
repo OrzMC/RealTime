@@ -2,6 +2,7 @@ package cn.orzmc.realtime.paper.command
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.LayoutAxis
 import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
@@ -182,11 +183,11 @@ class RealTimeCommandHandlerTest {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.VIEW_PERMISSION))
         val handler = handler(deviceAdministration = administration)
 
-        handler.execute(target, arrayOf("device", "info", "not-a-uuid"))
+        handler.execute(target, arrayOf("device", "info", "no-such-device"))
         handler.execute(target, arrayOf("device", "info", UUID.randomUUID().toString()))
 
-        assertTrue(target.messages.any { it.contains("invalid not-a-uuid") })
-        assertTrue(target.messages.any { it.contains("not found") })
+        // Names are accepted, so an unknown token is simply "not found" rather than a syntax error.
+        assertEquals(2, target.messages.count { it.contains("not found") }, target.messages.toString())
         assertEquals(0, administration.mutationCount)
     }
 
@@ -225,7 +226,7 @@ class RealTimeCommandHandlerTest {
         val unauthorized = RecordingTarget(emptySet())
 
         assertEquals(
-            listOf(device.id.toString()),
+            listOf(device.name, device.id.toString()),
             handler.complete(readOnly, arrayOf("device", "info", "")),
         )
         assertTrue(handler.complete(readOnly, arrayOf("device", "disable", "")).isEmpty())
@@ -348,7 +349,11 @@ class RealTimeCommandHandlerTest {
     fun removeDeviceRequiresAdminPermission() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.VIEW_PERMISSION))
         val retirement = RecordingRetirementAdministration(cleanupJob())
-        val handler = handler(deviceRetirement = retirement)
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(device(id = retirement.deviceId))),
+                deviceRetirement = retirement,
+            )
 
         handler.execute(target, arrayOf("device", "remove", retirement.deviceId.toString()))
 
@@ -360,13 +365,17 @@ class RealTimeCommandHandlerTest {
     fun removeDeviceRetiresDisabledDeviceAndReportsCleanupJob() {
         val target = RecordingTarget(setOf(RealTimeCommandHandler.RETIRE_PERMISSION))
         val retirement = RecordingRetirementAdministration(cleanupJob())
-        val handler = handler(deviceRetirement = retirement)
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(device(id = retirement.deviceId))),
+                deviceRetirement = retirement,
+            )
 
         handler.execute(target, arrayOf("device", "remove", retirement.deviceId.toString()))
 
         assertEquals(1, retirement.retireCount)
-        assertTrue(target.messages.single().contains("retired"))
-        assertTrue(target.messages.single().contains(retirement.job.id.toString()))
+        assertTrue(target.messages.single().contains("retired"), target.messages.toString())
+        assertTrue(target.messages.single().contains(retirement.job.id.toString()), target.messages.toString())
     }
 
     @Test
@@ -384,7 +393,7 @@ class RealTimeCommandHandlerTest {
 
         assertFalse(handler.complete(readOnly, arrayOf("device", "remove", "")).contains(retirement.deviceId.toString()))
         assertEquals(
-            listOf(retirement.deviceId.toString()),
+            listOf(configuredDevice.name, retirement.deviceId.toString()),
             handler.complete(admin, arrayOf("device", "remove", "")),
         )
     }
@@ -398,11 +407,15 @@ class RealTimeCommandHandlerTest {
                 failure = DeviceMustBeDisabledException(job.deviceId),
             )
         val target = RecordingTarget(setOf(RealTimeCommandHandler.RETIRE_PERMISSION))
-        val handler = handler(deviceRetirement = retirement)
+        val handler =
+            handler(
+                deviceAdministration = RecordingDeviceAdministration(listOf(device(id = job.deviceId))),
+                deviceRetirement = retirement,
+            )
 
         handler.execute(target, arrayOf("device", "remove", job.deviceId.toString()))
 
-        assertTrue(target.messages.single().contains("must disable"))
+        assertTrue(target.messages.single().contains("must disable"), target.messages.toString())
     }
 
     @Test
@@ -589,20 +602,20 @@ class RealTimeCommandHandlerTest {
         // The module is off on a fresh install, so nothing is ever placed; the
         // command must not look like a success with no explanation.
         val administration = RecordingDeviceAdministration(emptyList())
-        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
         val handler = handler(deviceAdministration = administration, redstoneEnabled = false)
 
-        handler.execute(target, arrayOf("device", "demo", "analog", "world", "100", "70", "0", "x+"))
+        handler.execute(target, arrayOf("device", "demo", "analog"))
 
         assertTrue(target.messages.any { it.contains("warn redstone disabled") }, target.messages.toString())
     }
 
     @Test
     fun deviceDemoIsQuietWhenTheRedstoneModuleIsEnabled() {
-        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
         val handler = handler(deviceAdministration = RecordingDeviceAdministration(emptyList()))
 
-        handler.execute(target, arrayOf("device", "demo", "analog", "world", "100", "70", "0", "x+"))
+        handler.execute(target, arrayOf("device", "demo", "analog"))
 
         assertFalse(target.messages.any { it.contains("warn redstone disabled") }, target.messages.toString())
     }
@@ -615,6 +628,148 @@ class RealTimeCommandHandlerTest {
         handler.execute(target, arrayOf("device", "create", "clock", "minute", "world", "0", "64", "0", "x+"))
 
         assertTrue(target.messages.any { it.contains("warn redstone disabled") }, target.messages.toString())
+    }
+
+    @Test
+    fun deviceCreateAtThePlayerBuildsADisplayedClock() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "bcd"))
+
+        val request = checkNotNull(administration.created)
+        assertEquals("world", request.worldName)
+        assertEquals(OutputResolution.MINUTE, request.resolution)
+        assertEquals(16, request.outputs.size)
+        assertEquals(100, request.outputs.first().x)
+        assertEquals(70, request.outputs.first().y)
+        assertTrue(request.enabled)
+        // Same build as demo: one lamp above every slot.
+        assertEquals(request.outputs.size, request.demoBlocks.size)
+        assertTrue(request.demoBlocks.all { it.data == "minecraft:redstone_lamp" })
+    }
+
+    @Test
+    fun deviceCreateManualStaysDisabledAndLeavesTheWorldAlone() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "analog", "manual"))
+
+        val request = checkNotNull(administration.created)
+        assertFalse(request.enabled)
+        assertTrue(request.demoBlocks.isEmpty())
+        assertTrue(target.messages.any { it.contains("manual clock") || it.contains("clock") }, target.messages.toString())
+    }
+
+    @Test
+    fun deviceCreateNodisplayKeepsTheWorldUntouched() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "bcd", "second", "nodisplay"))
+
+        val request = checkNotNull(administration.created)
+        assertEquals(OutputResolution.SECOND, request.resolution)
+        assertTrue(request.demoBlocks.isEmpty())
+        assertTrue(request.enabled)
+    }
+
+    @Test
+    fun deviceCreateWithoutAPlayerAsksForCoordinates() {
+        val administration = RecordingDeviceAdministration(emptyList())
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "create", "clock", "bcd"))
+
+        assertEquals(null, administration.created)
+        assertEquals(listOf("[RealTime] needs a player"), target.messages)
+    }
+
+    @Test
+    fun devicePlaceUsesThePlayerAimWhenNoCoordinatesAreGiven() {
+        val configured = device(enabled = false)
+        val administration = RecordingDeviceAdministration(listOf(configured))
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION), placement = placement())
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "place", configured.name, "3"))
+
+        assertEquals(Triple(configured.id, 3, Triple(100, 70, 0)), administration.movedOutput)
+    }
+
+    @Test
+    fun devicePlaceRejectsCoordinatesInAnotherWorld() {
+        val configured = device(enabled = false)
+        val administration = RecordingDeviceAdministration(listOf(configured))
+        val target =
+            RecordingTarget(
+                setOf(RealTimeCommandHandler.EDIT_PERMISSION),
+                placement = PlayerPlacement("nether", 1, 2, 3, LayoutAxis.X_PLUS),
+            )
+        val handler = handler(deviceAdministration = administration)
+
+        handler.execute(target, arrayOf("device", "place", configured.name, "0"))
+
+        assertEquals(null, administration.movedOutput)
+        assertTrue(target.messages.single().contains("world mismatch"), target.messages.toString())
+    }
+
+    @Test
+    fun deviceLookupAcceptsTheDeviceName() {
+        val configured = device()
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.VIEW_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(configured)))
+
+        handler.execute(target, arrayOf("device", "info", configured.name))
+
+        assertTrue(target.messages.any { it.contains("clock") }, target.messages.toString())
+    }
+
+    @Test
+    fun helpListsTheCoreCommands() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler()
+
+        handler.execute(target, arrayOf("help"))
+
+        assertTrue(target.messages.any { it.contains("help create") }, target.messages.toString())
+        assertTrue(target.messages.any { it.contains("help place") }, target.messages.toString())
+    }
+
+    @Test
+    fun helpTopicCreateExplainsTheModifiers() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.COMMAND_PERMISSION))
+        val handler = handler()
+
+        handler.execute(target, arrayOf("help", "create"))
+
+        assertTrue(target.messages.any { it.contains("help topic create") }, target.messages.toString())
+    }
+
+    @Test
+    fun createCompletionOffersEncodingsAndResolutions() {
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(emptyList()))
+
+        val suggested = handler.complete(target, arrayOf("device", "create", "clock", ""))
+
+        assertTrue(suggested.containsAll(listOf("bcd", "analog", "minute", "second")), suggested.toString())
+    }
+
+    @Test
+    fun placeCompletionOffersSlotIndexes() {
+        val configured = device(enabled = false)
+        val target = RecordingTarget(setOf(RealTimeCommandHandler.EDIT_PERMISSION))
+        val handler = handler(deviceAdministration = RecordingDeviceAdministration(listOf(configured)))
+
+        val suggested = handler.complete(target, arrayOf("device", "place", configured.name, ""))
+
+        assertEquals((0 until configured.outputCount).map { it.toString() }, suggested)
     }
 
     @Test
@@ -661,7 +816,7 @@ class RealTimeCommandHandlerTest {
 
         val suggested = handler.complete(editor, arrayOf("device", "set", ""))
 
-        assertEquals(listOf(disabled.id.toString()), suggested)
+        assertEquals(listOf(disabled.name, disabled.id.toString()), suggested)
     }
 
     @Test
@@ -700,12 +855,12 @@ class RealTimeCommandHandlerTest {
         handler.execute(target, arrayOf("device", "create", "a", "minute", "world", "0", "64", "0", "x+"))
         handler.execute(target, arrayOf("device", "create", "b", "minute", "world", "0", "64", "20", "x+"))
 
-        assertEquals(1, target.messages.count { it.contains("已创建") }, target.messages.toString())
+        assertEquals(1, target.messages.count { it.contains("created") }, target.messages.toString())
         assertTrue(target.messages.any { it.contains("秒后再试") })
 
         now += 4_000
         handler.execute(target, arrayOf("device", "create", "c", "minute", "world", "0", "64", "40", "x+"))
-        assertEquals(2, target.messages.count { it.contains("已创建") })
+        assertEquals(2, target.messages.count { it.contains("created") })
     }
 
     private fun handler(
@@ -781,6 +936,23 @@ class RealTimeCommandHandlerTest {
                         "command.info.global-enabled" to "{prefix}global {enabled}",
                         "command.info.command-enabled" to "{prefix}command {enabled}",
                         "command.info.redstone-enabled" to "{prefix}redstone {enabled}",
+                        "command.help.header" to "{prefix}help",
+                        "command.help.time" to "{prefix}help time",
+                        "command.help.create" to "{prefix}help create",
+                        "command.help.example" to "{prefix}help example",
+                        "command.help.place" to "{prefix}help place",
+                        "command.help.manage" to "{prefix}help manage",
+                        "command.help.cleanup" to "{prefix}help cleanup",
+                        "command.help.demo" to "{prefix}help demo",
+                        "command.help.topic.create" to "{prefix}help topic create",
+                        "command.help.topic.place" to "{prefix}help topic place",
+                        "command.help.topic.cleanup" to "{prefix}help topic cleanup",
+                        "command.device.create.built" to "{prefix}created {name} {id} {count} {display} {state}",
+                        "command.device.create.manual-hint" to "{prefix}manual {name} {max}",
+                        "command.device.create.invalid-modifier" to "{prefix}bad modifier {value}",
+                        "command.device.placement-required" to "{prefix}needs a player",
+                        "command.device.ambiguous" to "{prefix}ambiguous {name} {count}",
+                        "command.device.place.world-mismatch" to "{prefix}world mismatch {world} {current}",
                         "command.device.warn.redstone-disabled" to "{prefix}warn redstone disabled",
                         "command.reload.success" to "{prefix}reloaded",
                         "command.reload.failure" to "{prefix}failed {reason}",
@@ -851,11 +1023,14 @@ class RealTimeCommandHandlerTest {
         )
     }
 
+    private fun placement() = PlayerPlacement("world", 100, 70, 0, LayoutAxis.X_PLUS)
+
     private fun device(
         resolution: OutputResolution = OutputResolution.MINUTE,
         enabled: Boolean = true,
+        id: UUID = UUID.randomUUID(),
     ) = RedstoneDevice(
-        id = UUID.randomUUID(),
+        id = id,
         name = "clock",
         worldName = "world",
         enabled = enabled,
@@ -974,6 +1149,7 @@ class RealTimeCommandHandlerTest {
     private class RecordingTarget(
         private val permissions: Set<String>,
         override val actorId: UUID? = null,
+        override val placement: PlayerPlacement? = null,
     ) : CommandTarget {
         override val actorName: String = if (actorId == null) "console" else "tester"
 

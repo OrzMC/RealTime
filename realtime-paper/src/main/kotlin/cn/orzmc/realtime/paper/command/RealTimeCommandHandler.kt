@@ -48,6 +48,7 @@ class RealTimeCommandHandler(
             "now" -> if (args.isEmpty() || args.size == 1) showNow(target, state) else sendUsage(target, state)
             "info" -> if (args.size == 1) showInfo(target, state) else sendUsage(target, state)
             "reload" -> if (args.size == 1) reloadConfiguration(target, state) else sendUsage(target, state)
+            "help" -> if (args.size <= 2) handleHelp(target, args.drop(1), state) else sendUsage(target, state)
             "device" -> handleDevice(target, args.drop(1), state)
             else -> sendUsage(target, state)
         }
@@ -61,27 +62,30 @@ class RealTimeCommandHandler(
         if (args.isEmpty()) return emptyList()
 
         val state = currentState()
-        if (args.size == 1) {
-            val candidates = mutableListOf<String>()
-            if (target.hasPermission(COMMAND_PERMISSION)) {
-                if (state.configuration.generalEnabled && state.configuration.commandEnabled) {
-                    candidates += "now"
-                }
-                candidates += "info"
-                if (deviceAdministration != null) candidates += "device"
-            }
-            if (target.hasPermission(ADMIN_PERMISSION)) {
-                candidates += "reload"
-            }
-            return candidates.filter { it.startsWith(args[0].lowercase(Locale.ROOT)) }
-        }
-
-        if (!args[0].equals("device", ignoreCase = true) || deviceAdministration == null) {
-            return emptyList()
-        }
-
-        val isAdmin = target.hasPermission(TOGGLE_PERMISSION)
+        val administration = deviceAdministration
         val canRead = target.hasPermission(VIEW_PERMISSION)
+        val canEdit = target.hasPermission(EDIT_PERMISSION)
+        val canToggle = target.hasPermission(TOGGLE_PERMISSION)
+        val canRetire = target.hasPermission(RETIRE_PERMISSION) && deviceRetirement != null
+
+        fun List<String>.startingWith(raw: String): List<String> = filter { it.startsWith(raw.lowercase(Locale.ROOT), ignoreCase = true) }
+
+        if (args.size == 1) {
+            val candidates =
+                buildList {
+                    if (target.hasPermission(COMMAND_PERMISSION)) {
+                        if (state.configuration.generalEnabled && state.configuration.commandEnabled) add("now")
+                        add("info")
+                        add("help")
+                        if (administration != null) add("device")
+                    }
+                    if (target.hasPermission(ADMIN_PERMISSION)) add("reload")
+                }
+            return candidates.startingWith(args[0])
+        }
+
+        if (!args[0].equals("device", ignoreCase = true) || administration == null) return emptyList()
+
         if (args.size == 2) {
             val candidates =
                 buildList {
@@ -91,89 +95,112 @@ class RealTimeCommandHandler(
                         add("status")
                         if (cleanupAdministration != null) add("cleanup")
                     }
-                    if (target.hasPermission(EDIT_PERMISSION)) {
+                    if (canEdit) {
                         add("create")
                         add("demo")
+                        add("place")
                         add("set")
                     }
-                    if (isAdmin) {
+                    if (canToggle) {
                         add("enable")
                         add("disable")
                     }
-                    if (deviceRetirement != null && target.hasPermission(RETIRE_PERMISSION)) {
-                        add("remove")
-                    }
+                    if (canRetire) add("remove")
                 }
-            return candidates.filter { it.startsWith(args[1].lowercase(Locale.ROOT)) }
+            return candidates.startingWith(args[1])
         }
 
         val subcommand = args[1].lowercase(Locale.ROOT)
-        if (args.size == 3 && subcommand == "cleanup" && cleanupAdministration != null) {
-            val candidates =
-                buildList {
-                    if (canRead) add("list")
-                    if (target.hasPermission(RETIRE_PERMISSION)) {
-                        add("retry")
-                        add("dismiss")
+        val devices = administration.list()
+
+        fun deviceCandidates(enabledOnly: Boolean): List<String> {
+            val pool = devices.filter { !enabledOnly || !it.enabled }
+            return pool.map { it.name } + pool.map { it.id.toString() }
+        }
+
+        when (subcommand) {
+            "cleanup" -> {
+                if (args.size == 3 && cleanupAdministration != null) {
+                    val candidates =
+                        buildList {
+                            if (canRead) add("list")
+                            if (target.hasPermission(RETIRE_PERMISSION)) {
+                                add("retry")
+                                add("dismiss")
+                            }
+                        }
+                    return candidates.startingWith(args[2])
+                }
+                if (args.size == 4 &&
+                    (args[2].equals("retry", true) || args[2].equals("dismiss", true)) &&
+                    target.hasPermission(RETIRE_PERMISSION)
+                ) {
+                    return cleanupAdministration
+                        ?.list()
+                        .orEmpty()
+                        .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
+                        .map { it.id.toString() }
+                        .startingWith(args[3])
+                }
+                return emptyList()
+            }
+
+            "create", "demo" -> {
+                // create: /rtime device create <name> <...>  → the encoding/resolution sits in args[3]
+                // demo:   /rtime device demo <...>          → in args[2]
+                val offset = if (subcommand == "demo") 2 else 4
+                if (args.size < offset) return emptyList()
+                if (args.size == offset) {
+                    // Either the encoding (player-relative form) or the resolution (explicit form).
+                    return (OutputEncoding.entries.map { it.configValue } + OutputResolution.entries.map { it.configValue })
+                        .startingWith(args.last())
+                }
+                val encodingFirst = OutputEncoding.fromConfig(args[offset - 1]) != null
+                if (encodingFirst) {
+                    if (args.size == offset + 1) {
+                        return (OutputResolution.entries.map { it.configValue } + CREATE_MODIFIERS)
+                            .startingWith(args.last())
                     }
+                    return if (args.size == offset + 2) CREATE_MODIFIERS.startingWith(args.last()) else emptyList()
                 }
-            return candidates.filter { it.startsWith(args[2].lowercase(Locale.ROOT)) }
-        }
-
-        if (args.size == 4 &&
-            subcommand == "cleanup" &&
-            (args[2].equals("retry", true) || args[2].equals("dismiss", true)) &&
-            target.hasPermission(RETIRE_PERMISSION)
-        ) {
-            val prefix = args[3].lowercase(Locale.ROOT)
-            return cleanupAdministration
-                ?.list()
-                .orEmpty()
-                .filter { job -> job.outputs.any { it.status == DeviceCleanupStatus.NEEDS_ATTENTION } }
-                .map { it.id.toString() }
-                .filter { it.startsWith(prefix) }
-        }
-
-        if (subcommand == "demo") {
-            val prefix = args.last().lowercase(Locale.ROOT)
-            val candidates =
-                when (args.size) {
-                    3 -> OutputEncoding.entries.map { it.configValue }
-                    8 -> LayoutAxis.entries.map { it.configValue }
+                // Explicit form: <world> <x> <y> <z> <axis> [stride] [encoding] [nodisplay]
+                return when (args.size) {
+                    offset + 4 -> LayoutAxis.entries.map { it.configValue }.startingWith(args.last())
+                    offset + 5, offset + 6 ->
+                        (OutputEncoding.entries.map { it.configValue } + listOf("nodisplay")).startingWith(args.last())
                     else -> emptyList()
                 }
-            return candidates.filter { it.startsWith(prefix) }
-        }
+            }
 
-        if (subcommand == "create") {
-            val prefix = args.last().lowercase(Locale.ROOT)
-            val candidates =
-                when (args.size) {
-                    4 -> OutputResolution.entries.map { it.configValue }
-                    9 -> LayoutAxis.entries.map { it.configValue }
-                    in 10..11 -> CREATE_TAIL
-                    else -> emptyList()
+            "place", "set" -> {
+                if (args.size == 3) return deviceCandidates(enabledOnly = true).startingWith(args[2])
+                if (args.size == 4) {
+                    val device = devices.firstOrNull { device -> device.matches(args[2]) } ?: return emptyList()
+                    return (0 until device.outputCount).map { it.toString() }.startingWith(args[3])
                 }
-            return candidates.filter { it.startsWith(prefix) }
-        }
+                return emptyList()
+            }
 
-        val canReadIds = canRead && subcommand == "info"
-        val canMutateIds =
-            (isAdmin && subcommand in setOf("enable", "disable")) ||
-                (target.hasPermission(RETIRE_PERMISSION) && subcommand == "remove") ||
-                (target.hasPermission(EDIT_PERMISSION) && subcommand == "set")
-        if (args.size == 3 && (canReadIds || canMutateIds)) {
-            val prefix = args[2].lowercase(Locale.ROOT)
-            val candidates =
-                deviceAdministration.list().filter { device ->
-                    // Slots only move while the device is off, so suggest only those.
-                    subcommand != "set" || !device.enabled
-                }
-            return candidates.map { it.id.toString() }.filter { it.startsWith(prefix) }
-        }
+            "info" -> {
+                if (args.size == 3 && canRead) return deviceCandidates(enabledOnly = false).startingWith(args[2])
+                return emptyList()
+            }
 
+            "enable", "disable" -> {
+                if (args.size == 3 && canToggle) return deviceCandidates(enabledOnly = false).startingWith(args[2])
+                return emptyList()
+            }
+
+            "remove" -> {
+                if (args.size == 3 && canRetire) return deviceCandidates(enabledOnly = false).startingWith(args[2])
+                return emptyList()
+            }
+        }
         return emptyList()
     }
+
+    private fun RedstoneDevice.matches(raw: String): Boolean =
+        id.toString().equals(raw, ignoreCase = true) || name.equals(raw, ignoreCase = true)
 
     private fun handleDevice(
         target: CommandTarget,
@@ -195,13 +222,8 @@ class RealTimeCommandHandler(
             "info" -> {
                 if (args.size != 2) return sendUsage(target, state)
                 if (!target.hasPermission(VIEW_PERMISSION)) return sendNoPermission(target, state)
-                val id = parseDeviceId(target, state, args[1]) ?: return
-                val device = administration.find(id)
-                if (device == null) {
-                    target.sendMessage(state.messages.render("command.device.not-found", mapOf("id" to id.toString())))
-                } else {
-                    showDeviceInfo(target, state, device)
-                }
+                val device = resolveDevice(target, state, administration, args[1]) ?: return
+                showDeviceInfo(target, state, device)
             }
             "cleanup" -> handleDeviceCleanup(target, args.drop(1), state)
             "remove" -> handleDeviceRemove(target, args.drop(1), state)
@@ -217,11 +239,12 @@ class RealTimeCommandHandler(
             }
             "create" -> handleDeviceCreate(target, args.drop(1), state, administration)
             "demo" -> handleDeviceDemo(target, args.drop(1), state, administration)
-            "set" -> handleDeviceSet(target, args.drop(1), state, administration)
+            "place", "set" -> handleDevicePlace(target, args.drop(1), state, administration)
             "enable", "disable" -> {
                 if (args.size != 2) return sendUsage(target, state)
                 if (!target.hasPermission(TOGGLE_PERMISSION)) return sendNoPermission(target, state)
-                val id = parseDeviceId(target, state, args[1]) ?: return
+                val device = resolveDevice(target, state, administration, args[1]) ?: return
+                val id = device.id
                 val enabled = action == "enable"
                 runCatching { administration.setEnabled(id, enabled) }
                     .fold(
@@ -377,7 +400,12 @@ class RealTimeCommandHandler(
         }
         if (args.size != 1) return sendUsage(target, state)
         if (!target.hasPermission(RETIRE_PERMISSION)) return sendNoPermission(target, state)
-        val id = parseDeviceId(target, state, args[0]) ?: return
+        val administration =
+            deviceAdministration ?: run {
+                target.sendMessage(state.messages.render("command.device.unavailable"))
+                return
+            }
+        val id = resolveDevice(target, state, administration, args[0])?.id ?: return
 
         runCatching { retirement.retire(id) }
             .fold(
@@ -481,37 +509,181 @@ class RealTimeCommandHandler(
         }
     }
 
+    /**
+     * `/rtime device create <name> <bcd|analog> [second|minute] [nodisplay|manual]` — player relative
+     * `/rtime device create <name> <minute|second> <world> <x> <y> <z> <axis> [stride] [bcd|analog] [nodisplay]` — explicit
+     *
+     * Both forms build a device the same way: slots laid out from one origin, display blocks placed so the
+     * clock is readable immediately, and the device started enabled. `nodisplay` keeps the world untouched
+     * apart from the slots, and `manual` (player form only) creates a disabled device with no display so each
+     * slot can be positioned with `device place`.
+     */
     private fun handleDeviceCreate(
         target: CommandTarget,
         args: List<String>,
         state: RuntimeState,
         administration: DeviceAdministration,
+        nameOverride: String? = null,
+        defaultResolution: OutputResolution = OutputResolution.MINUTE,
     ) {
         if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
-        // args: <name> <minute|second> <world> <x> <y> <z> <x+|x-|z+|z-> [stride] [bcd|analog]
-        if (args.size !in 7..9) return sendUsage(target, state)
+        if (args.isEmpty()) return sendUsage(target, state)
+        // An explicit build always carries <world> <x> <y> <z> <axis>, so it has at least seven tokens.
+        // Anything shorter that starts with an encoding is the player-relative form; shorter than that with a
+        // resolution is a half-typed explicit command and gets the usage text.
+        val explicit = args.size >= 7
+        return if (!explicit && OutputEncoding.fromConfig(args[1]) != null) {
+            createAtPlacement(target, args, state, administration, nameOverride, defaultResolution)
+        } else {
+            createAtCoordinates(target, args, state, administration, nameOverride, defaultResolution)
+        }
+    }
 
-        val name = args[0]
-        val resolution = OutputResolution.fromConfig(args[1].lowercase(Locale.ROOT))
-        if (resolution == null) {
-            target.sendMessage(
-                state.messages.render(
-                    "command.device.create.invalid-resolution",
-                    mapOf("value" to args[1]),
+    /** Player-relative form: `create <name> <bcd|analog> [second|minute] [nodisplay|manual]`. */
+    private fun createAtPlacement(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+        administration: DeviceAdministration,
+        nameOverride: String?,
+        defaultResolution: OutputResolution,
+    ) {
+        val name = nameOverride ?: args[0]
+        val encoding = OutputEncoding.fromConfig(args[1]) ?: return sendUsage(target, state)
+        val modifiers = args.drop(2)
+        val resolution =
+            modifiers.firstNotNullOfOrNull { OutputResolution.fromConfig(it.lowercase(Locale.ROOT)) } ?: defaultResolution
+        val unknown =
+            modifiers.firstOrNull { modifier ->
+                OutputResolution.fromConfig(modifier.lowercase(Locale.ROOT)) == null &&
+                    !modifier.equals("nodisplay", true) &&
+                    !modifier.equals("manual", true)
+            }
+        if (unknown != null) {
+            target.sendMessage(state.messages.render("command.device.create.invalid-modifier", mapOf("value" to unknown)))
+            return
+        }
+        val noDisplay = modifiers.any { it.equals("nodisplay", true) }
+        val manual = modifiers.any { it.equals("manual", true) }
+        val placement = target.placement ?: return sendPlacementRequired(target, state)
+
+        val layout = DeviceLayout.default(encoding)
+        val outputs =
+            runCatching {
+                layout.outputs(encoding, resolution, placement.axis, placement.x, placement.y, placement.z)
+            }.getOrElse { return sendUsage(target, state) }
+        val demoBlocks =
+            if (noDisplay || manual) emptyList() else DeviceDemo.display(encoding, placement.axis, outputs)
+        if (!acquireEditSlot(target, state)) return
+
+        runCatching {
+            administration.create(
+                DeviceCreateRequest(
+                    name = name,
+                    worldName = placement.worldName,
+                    resolution = resolution,
+                    outputs = outputs,
+                    encoding = encoding,
+                    demoBlocks = demoBlocks,
+                    enabled = !manual,
                 ),
+            )
+        }.fold(
+            onSuccess = { device ->
+                logger?.info(
+                    "RealTime device '${device.name}' (${device.id}) created by ${target.actorName} at " +
+                        "${placement.worldName} ${placement.x},${placement.y},${placement.z} " +
+                        "(${device.encoding.configValue}, ${device.resolution.label}, ${device.outputs.size} slots, " +
+                        "${device.demoBlocks.size} display blocks)",
+                )
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.create.built",
+                        mapOf(
+                            "name" to device.name,
+                            "id" to device.id.toString(),
+                            "encoding" to device.encoding.configValue,
+                            "resolution" to device.resolution.label,
+                            "world" to device.worldName,
+                            "count" to device.outputs.size.toString(),
+                            "display" to device.demoBlocks.size.toString(),
+                            "state" to
+                                state.messages.render(
+                                    if (device.enabled) "command.device.state.enabled" else "command.device.state.disabled",
+                                ),
+                        ),
+                    ),
+                )
+                if (manual) {
+                    target.sendMessage(
+                        state.messages.render(
+                            "command.device.create.manual-hint",
+                            mapOf("name" to device.name, "max" to (device.outputs.size - 1).toString()),
+                        ),
+                    )
+                }
+                warnIfRedstoneDisabled(target, state)
+            },
+            onFailure = { exception -> sendEditFailure(target, state, exception) },
+        )
+    }
+
+    /** Explicit form: `create <name> <minute|second> <world> <x> <y> <z> <axis> [stride] [bcd|analog] [nodisplay]`. */
+    private fun createAtCoordinates(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+        administration: DeviceAdministration,
+        nameOverride: String?,
+        defaultResolution: OutputResolution,
+        encodingOverride: OutputEncoding? = null,
+    ) {
+        // args: <name> <minute|second> <world> <x> <y> <z> <x+|x-|z+|z-> [stride] [bcd|analog] [nodisplay]
+        if (args.size !in 7..10) return sendUsage(target, state)
+
+        val name = nameOverride ?: args[0]
+        // Resolution and encoding may both lead the coordinates, in any order (`<minute|second>` and
+        // `<bcd|analog>` are disjoint token sets), so consume them before the world name.
+        var index = 1
+        var resolution: OutputResolution? = null
+        var encodingLead: OutputEncoding? = null
+        while (index < args.size) {
+            val token = args[index].lowercase(Locale.ROOT)
+            val candidateResolution = OutputResolution.fromConfig(token)
+            val candidateEncoding = OutputEncoding.fromConfig(token)
+            when {
+                candidateResolution != null && resolution == null -> {
+                    resolution = candidateResolution
+                    index++
+                }
+                candidateEncoding != null && encodingLead == null -> {
+                    encodingLead = candidateEncoding
+                    index++
+                }
+                else -> break
+            }
+        }
+        if (index == 1) {
+            // Neither a resolution nor an encoding: say which token was wrong instead of dumping the usage.
+            target.sendMessage(
+                state.messages.render("command.device.create.invalid-resolution", mapOf("value" to args[1])),
             )
             return
         }
-        val worldName = args[2]
-        val x = args[3].toIntOrNull()
-        val y = args[4].toIntOrNull()
-        val z = args[5].toIntOrNull()
-        val axis = LayoutAxis.fromConfig(args[6])
-        val optional = args.drop(7)
-        val stride = optional.firstNotNullOfOrNull { it.toIntOrNull() }
-        val encodingValue = optional.firstOrNull { it.toIntOrNull() == null }
+        val worldName = args.getOrNull(index) ?: return sendUsage(target, state)
+        val x = args.getOrNull(index + 1)?.toIntOrNull() ?: return sendUsage(target, state)
+        val y = args.getOrNull(index + 2)?.toIntOrNull() ?: return sendUsage(target, state)
+        val z = args.getOrNull(index + 3)?.toIntOrNull() ?: return sendUsage(target, state)
+        val axis = LayoutAxis.fromConfig(args.getOrNull(index + 4) ?: "") ?: return sendUsage(target, state)
+        val effectiveResolution = resolution ?: defaultResolution
+        val optional = args.drop(index + 5)
+        val stride = optional.firstOrNull { it.toIntOrNull() != null }?.toInt()
+        val noDisplay = optional.any { it.equals("nodisplay", true) }
+        val encodingValue = optional.firstOrNull { it.toIntOrNull() == null && !it.equals("nodisplay", true) }
         val encoding =
             when {
+                encodingOverride != null -> encodingOverride
+                encodingLead != null -> encodingLead
                 encodingValue == null -> OutputEncoding.BCD
                 else ->
                     OutputEncoding.fromConfig(encodingValue) ?: run {
@@ -524,44 +696,39 @@ class RealTimeCommandHandler(
                         return
                     }
             }
-        if (x == null || y == null || z == null || axis == null || (stride != null && stride !in 1..MAX_STRIDE)) {
-            return sendUsage(target, state)
-        }
-        if (optional.count { it.toIntOrNull() != null } > 1 || optional.size > 2) return sendUsage(target, state)
         if (!acquireEditSlot(target, state)) return
 
-        val layout =
-            if (stride == null) {
-                DeviceLayout.default(encoding)
-            } else {
-                DeviceLayout.default(encoding).copy(stride = stride)
-            }
+        val layout = DeviceLayout.default(encoding)
+        val customLayout = if (stride == null) layout else layout.copy(stride = stride)
         val outputs =
-            runCatching { layout.outputs(encoding, resolution, axis, x, y, z) }.getOrElse {
-                return sendUsage(target, state)
-            }
+            runCatching {
+                customLayout.outputs(encoding, effectiveResolution, axis, x, y, z)
+            }.getOrElse { return sendUsage(target, state) }
+        val demoBlocks = if (noDisplay) emptyList() else DeviceDemo.display(encoding, axis, outputs)
 
         runCatching {
             administration.create(
                 DeviceCreateRequest(
                     name = name,
                     worldName = worldName,
-                    resolution = resolution,
+                    resolution = effectiveResolution,
                     outputs = outputs,
                     encoding = encoding,
+                    demoBlocks = demoBlocks,
+                    enabled = true,
                 ),
             )
         }.fold(
             onSuccess = { device ->
                 logger?.info(
                     "RealTime device '${device.name}' (${device.id}) created by ${target.actorName}: " +
-                        "${device.worldName} ${device.resolution.configValue} ${device.encoding.configValue} " +
-                        "${device.outputs.size} outputs " +
+                        "${device.worldName} ${device.encoding.configValue} ${device.resolution.label} " +
+                        "${device.outputs.size} slots + ${device.demoBlocks.size} display blocks " +
                         "starting at ${device.outputs.first().x},${device.outputs.first().y},${device.outputs.first().z}",
                 )
                 target.sendMessage(
                     state.messages.render(
-                        "command.device.create.success",
+                        "command.device.create.built",
                         mapOf(
                             "name" to device.name,
                             "id" to device.id.toString(),
@@ -569,6 +736,11 @@ class RealTimeCommandHandler(
                             "resolution" to device.resolution.label,
                             "world" to device.worldName,
                             "count" to device.outputs.size.toString(),
+                            "display" to device.demoBlocks.size.toString(),
+                            "state" to
+                                state.messages.render(
+                                    if (device.enabled) "command.device.state.enabled" else "command.device.state.disabled",
+                                ),
                         ),
                     ),
                 )
@@ -579,12 +751,11 @@ class RealTimeCommandHandler(
     }
 
     /**
-     * `/rtime device demo <bcd|analog> <world> <x> <y> <z> <axis>`
+     * `/rtime device demo <bcd|analog> [second|minute]` or the explicit form with
+     * `<world> <x> <y> <z> <axis>`.
      *
-     * Builds one complete teaching example: the device slots plus the display
-     * blocks that make them readable (lamps above BCD slots; a
-     * lectern/comparator/dust/lamp row per analog digit). The device starts
-     * enabled, and `device remove` clears the display blocks as well.
+     * Demo is the same build as `create`, only named `demo-<encoding>` and defaulting to second resolution so a
+     * freshly built clock visibly ticks.
      */
     private fun handleDeviceDemo(
         target: CommandTarget,
@@ -593,8 +764,7 @@ class RealTimeCommandHandler(
         administration: DeviceAdministration,
     ) {
         if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
-        // args: <bcd|analog> <world> <x> <y> <z> <axis>
-        if (args.size != 6) return sendUsage(target, state)
+        if (args.isEmpty()) return sendUsage(target, state)
         val encoding =
             OutputEncoding.fromConfig(args[0]) ?: run {
                 target.sendMessage(
@@ -602,85 +772,78 @@ class RealTimeCommandHandler(
                 )
                 return
             }
-        val worldName = args[1]
-        val x = args[2].toIntOrNull()
-        val y = args[3].toIntOrNull()
-        val z = args[4].toIntOrNull()
-        val axis = LayoutAxis.fromConfig(args[5])
-        if (x == null || y == null || z == null || axis == null) return sendUsage(target, state)
-        if (!acquireEditSlot(target, state)) return
-
-        val resolution = DeviceDemo.DEMO_RESOLUTION
-        val layout = DeviceLayout.default(encoding)
-        val outputs =
-            runCatching { layout.outputs(encoding, resolution, axis, x, y, z) }.getOrElse {
-                return sendUsage(target, state)
-            }
-        val demoBlocks = DeviceDemo.display(encoding, axis, outputs)
         val name = "demo-" + encoding.configValue
-
-        runCatching {
-            administration.create(
-                DeviceCreateRequest(
-                    name = name,
-                    worldName = worldName,
-                    resolution = resolution,
-                    outputs = outputs,
-                    encoding = encoding,
-                    demoBlocks = demoBlocks,
-                    enabled = true,
-                ),
+        val rest = args.drop(1)
+        val playerRelative =
+            rest.isEmpty() ||
+                OutputResolution.fromConfig(rest[0].lowercase(Locale.ROOT)) != null ||
+                rest[0].equals("nodisplay", true)
+        if (playerRelative) {
+            createAtPlacement(
+                target = target,
+                args = listOf(name, encoding.configValue) + rest,
+                state = state,
+                administration = administration,
+                nameOverride = name,
+                defaultResolution = OutputResolution.SECOND,
             )
-        }.fold(
-            onSuccess = { device ->
-                logger?.info(
-                    "RealTime demo '${device.name}' (${device.id}) created by ${target.actorName}: " +
-                        "${device.worldName} ${device.encoding.configValue} ${device.outputs.size} slots + " +
-                        "${device.demoBlocks.size} display blocks starting at $x,$y,$z",
-                )
-                target.sendMessage(state.messages.render("command.device.demo.hint"))
-                target.sendMessage(
-                    state.messages.render(
-                        "command.device.demo.success",
-                        mapOf(
-                            "name" to device.name,
-                            "id" to device.id.toString(),
-                            "encoding" to device.encoding.configValue,
-                            "world" to device.worldName,
-                            "count" to device.outputs.size.toString(),
-                            "display" to device.demoBlocks.size.toString(),
-                            "x" to x.toString(),
-                            "y" to y.toString(),
-                            "z" to z.toString(),
-                        ),
-                    ),
-                )
-                warnIfRedstoneDisabled(target, state)
-            },
-            onFailure = { exception -> sendEditFailure(target, state, exception) },
-        )
+        } else {
+            // Explicit form: <world> <x> <y> <z> <axis>; demo always uses second resolution.
+            createAtCoordinates(
+                target = target,
+                args = listOf(name, OutputResolution.SECOND.configValue) + rest,
+                state = state,
+                administration = administration,
+                nameOverride = name,
+                defaultResolution = OutputResolution.SECOND,
+                encodingOverride = encoding,
+            )
+        }
     }
 
-    private fun handleDeviceSet(
+    /**
+     * `/rtime device place <device> <slot> [x y z]`
+     *
+     * Moves one slot to an exact position: without coordinates it uses the block the player is aiming at (or
+     * standing on), which is how a builder handles the rows where another build already occupies the default
+     * layout. `device set` remains an alias.
+     */
+    private fun handleDevicePlace(
         target: CommandTarget,
         args: List<String>,
         state: RuntimeState,
         administration: DeviceAdministration,
     ) {
         if (!target.hasPermission(EDIT_PERMISSION)) return sendNoPermission(target, state)
-        // device set <uuid> <bit-index> <x> <y> <z>
-        if (args.size != 5) return sendUsage(target, state)
-        val id = parseDeviceId(target, state, args[0]) ?: return
+        if (args.size != 2 && args.size != 5) return sendUsage(target, state)
+        val device = resolveDevice(target, state, administration, args[0]) ?: return
         val bitIndex = args[1].toIntOrNull() ?: return sendUsage(target, state)
-        val x = args[2].toIntOrNull() ?: return sendUsage(target, state)
-        val y = args[3].toIntOrNull() ?: return sendUsage(target, state)
-        val z = args[4].toIntOrNull() ?: return sendUsage(target, state)
+        val coordinates =
+            if (args.size == 5) {
+                val x = args[2].toIntOrNull() ?: return sendUsage(target, state)
+                val y = args[3].toIntOrNull() ?: return sendUsage(target, state)
+                val z = args[4].toIntOrNull() ?: return sendUsage(target, state)
+                Triple(x, y, z)
+            } else {
+                val placement = target.placement ?: return sendPlacementRequired(target, state)
+                if (!placement.worldName.equals(device.worldName, ignoreCase = true)) {
+                    target.sendMessage(
+                        state.messages.render(
+                            "command.device.place.world-mismatch",
+                            mapOf("world" to device.worldName, "current" to placement.worldName),
+                        ),
+                    )
+                    return
+                }
+                Triple(placement.x, placement.y, placement.z)
+            }
         if (!acquireEditSlot(target, state)) return
 
-        runCatching { administration.setOutput(id, bitIndex, x, y, z) }.fold(
-            onSuccess = { device ->
+        val (x, y, z) = coordinates
+        runCatching { administration.setOutput(device.id, bitIndex, x, y, z) }.fold(
+            onSuccess = { updated ->
                 logger?.info(
-                    "RealTime device '${device.name}' (${device.id}) output $bitIndex moved to " +
+                    "RealTime device '${updated.name}' (${updated.id}) slot $bitIndex placed at " +
                         "$x,$y,$z by ${target.actorName}",
                 )
                 target.sendMessage(
@@ -854,6 +1017,52 @@ class RealTimeCommandHandler(
         enabled: Boolean,
     ): String = state.messages.render(if (enabled) "command.device.state.enabled" else "command.device.state.disabled")
 
+    /**
+     * Accepts a device name (case-insensitive) or its UUID.
+     *
+     * Names are the readable handle in help text and tab completion; ids stay
+     * supported because they appear in logs and older documentation.
+     */
+    private fun resolveDevice(
+        target: CommandTarget,
+        state: RuntimeState,
+        administration: DeviceAdministration,
+        raw: String,
+    ): RedstoneDevice? {
+        val id = runCatching { UUID.fromString(raw) }.getOrNull()
+        if (id != null) {
+            val device = administration.find(id)
+            if (device == null) {
+                target.sendMessage(state.messages.render("command.device.not-found", mapOf("id" to id.toString())))
+            }
+            return device
+        }
+        val matches = administration.list().filter { it.name.equals(raw, ignoreCase = true) }
+        return when (matches.size) {
+            0 -> {
+                target.sendMessage(state.messages.render("command.device.not-found", mapOf("id" to raw)))
+                null
+            }
+            1 -> matches.single()
+            else -> {
+                target.sendMessage(
+                    state.messages.render(
+                        "command.device.ambiguous",
+                        mapOf("name" to raw, "count" to matches.size.toString()),
+                    ),
+                )
+                null
+            }
+        }
+    }
+
+    private fun sendPlacementRequired(
+        target: CommandTarget,
+        state: RuntimeState,
+    ) {
+        target.sendMessage(state.messages.render("command.device.placement-required"))
+    }
+
     private fun parseDeviceId(
         target: CommandTarget,
         state: RuntimeState,
@@ -905,6 +1114,32 @@ class RealTimeCommandHandler(
                 ),
             ),
         )
+    }
+
+    /**
+     * `/rtime help [主题]`
+     *
+     * The command surface grew (two creation forms, per-slot placement, cleanup), so the help is a compact list
+     * plus three topics that spell out the parts people get wrong.
+     */
+    private fun handleHelp(
+        target: CommandTarget,
+        args: List<String>,
+        state: RuntimeState,
+    ) {
+        val topic = args.firstOrNull()?.lowercase(Locale.ROOT)
+        val lines =
+            when (topic) {
+                null -> HELP_OVERVIEW
+                "create", "demo" -> listOf("command.help.header", "command.help.create", "command.help.topic.create")
+                "place", "set" -> listOf("command.help.header", "command.help.place", "command.help.topic.place")
+                "cleanup" -> listOf("command.help.header", "command.help.cleanup", "command.help.topic.cleanup")
+                else -> {
+                    sendUsage(target, state)
+                    return
+                }
+            }
+        lines.forEach { target.sendMessage(state.messages.render(it)) }
     }
 
     private fun showInfo(
@@ -1020,5 +1255,21 @@ class RealTimeCommandHandler(
         const val EDIT_PERMISSION = "realtime.device.edit"
         const val RETIRE_PERMISSION = "realtime.device.retire"
         const val ADMIN_PERMISSION = "realtime.admin"
+
+        /** Modifiers accepted by the player-relative `device create` form. */
+        private val CREATE_MODIFIERS = listOf("nodisplay", "manual")
+
+        /** Ordered message keys printed by `/rtime help`. */
+        private val HELP_OVERVIEW =
+            listOf(
+                "command.help.header",
+                "command.help.time",
+                "command.help.create",
+                "command.help.example",
+                "command.help.place",
+                "command.help.manage",
+                "command.help.cleanup",
+                "command.help.demo",
+            )
     }
 }

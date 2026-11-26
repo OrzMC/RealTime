@@ -11,11 +11,24 @@ All notable changes to RealTime are documented here. Release automation requires
 - 新增 [`docs/operations/platform-listings.md`](docs/operations/platform-listings.md)：Hangar / Modrinth 项目页的权威文案与
   元数据（简介、长描述、分类、许可证、链接），并记录两个平台的可编辑性差异（Hangar 只能网页改、Modrinth 可 PATCH）。
 
+### 新增
+
+- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+  显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
+- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
+- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
+- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+  想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
@@ -70,11 +83,24 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [0.3.0]
 
+### 新增
+
+- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+  显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
+- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
+- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
+- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+  想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
@@ -118,11 +144,24 @@ All notable changes to RealTime are documented here. Release automation requires
   再多 1 格空隙，方便目视区分。`minute` 设备占 34 格、`second` 占 52 格；**已存设备坐标不变**，显式 `[stride]` 仍可覆盖
   组内间距。
 
+### 新增
+
+- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+  显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
+- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
+- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
+- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+  想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
@@ -132,11 +171,24 @@ All notable changes to RealTime are documented here. Release automation requires
 - analog 设备 `disable` 现在把槽位整体清空（而不是只移走书留下空讲台），与 BCD "归 air" 一致，也让"改槽位不留残留"成立。
 - 退役 analog 设备时，`disable` 留下的空白讲台现在也会被清理（先清空库存再拆方块，书不掉落），不再需要人工手拆 6 个讲台。
 
+### 新增
+
+- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+  显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
+- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
+- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
+- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+  想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复

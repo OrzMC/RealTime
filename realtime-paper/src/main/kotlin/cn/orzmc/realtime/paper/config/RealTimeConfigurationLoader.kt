@@ -184,6 +184,42 @@ class RealTimeConfigurationLoader {
                 "command.device.warn.redstone-disabled" to
                     "{prefix}&e注意：红石输出模块未启用（plugins/RealTime/modules/redstone.yml → enabled: true），" +
                     "设备不会真的输出或放置方块。改完执行 /rtime reload。",
+                "command.help.header" to "{prefix}&bRealTime 帮助 &7（/rtime help <主题>：create / place / cleanup）",
+                "command.help.time" to "{prefix}&f/rtime &7或 &f/rtime now &7- 现实时间",
+                "command.help.create" to
+                    "{prefix}&f/rtime device create <名字> <bcd|analog> [second|minute] [nodisplay|manual] &7- " +
+                    "在准星所指（或脚下）方块处建钟，自动排好源并放好展示方块",
+                "command.help.example" to
+                    "{prefix}&7例：站好位置、面向要延伸的方向 → &f/rtime device create clock bcd &7；" +
+                    "再逐位微调 → &f/rtime device place clock 3",
+                "command.help.place" to
+                    "{prefix}&f/rtime device place <设备> <槽位> [x y z] &7- 逐位精确放置/移动某个源（不给坐标就对准目标方块执行）",
+                "command.help.manage" to
+                    "{prefix}&f/rtime device list|info|enable|disable|remove <设备> &7- 设备名或 ID 都行（Tab 可补全）",
+                "command.help.cleanup" to "{prefix}&f/rtime device cleanup list|retry|dismiss [任务ID] &7- 退役后的清理队列",
+                "command.help.demo" to "{prefix}&f/rtime device demo <bcd|analog> &7- 建一台演示用的钟（等同 create，默认按秒刷新）",
+                "command.help.topic.create" to
+                    "{prefix}&7create 细节：不给坐标就用玩家位置与朝向；&fmanual &7只建一台未启用的空钟（用 place 逐位放）、" +
+                    "&fnodisplay &7不放展示方块；显式坐标形式仍然可用",
+                "command.help.topic.place" to
+                    "{prefix}&7place 细节：设备必须先 &fdisable&7；槽位号从 0 开始（Tab 补全）；" +
+                    "源位置可按需任意调整，用来避开已被占用的格子",
+                "command.help.topic.cleanup" to
+                    "{prefix}&7cleanup 细节：&flist &7看队列；&fretry <任务ID> &7重试\"需人工处理\"的项；" +
+                    "&fdismiss <任务ID> &7确认方块保持原样并丢弃任务",
+                "command.device.create.built" to
+                    "{prefix}&a已创建 &f{name} &7[{id}] &8{encoding} {resolution} &8{world} &7{count} 个源 + " +
+                    "&f{display} &7个展示方块 &8状态：{state}",
+                "command.device.create.manual-hint" to
+                    "{prefix}&7这是一台未启用的空钟。用 &f/rtime device place {name} <0..{max}> &7逐个定位" +
+                    "（对准目标方块执行即可），全部就位后 &f/rtime device enable {name}&7。",
+                "command.device.create.invalid-modifier" to
+                    "{prefix}&c未知参数：&f{value} &7（可用：second / minute / nodisplay / manual）",
+                "command.device.placement-required" to
+                    "{prefix}&c这条命令需要玩家视角：请以玩家身份站在目标位置，或在 6 格内看着一个方块。",
+                "command.device.ambiguous" to "{prefix}&c找到 {count} 台同名设备，请改用 ID：&f{name}",
+                "command.device.place.world-mismatch" to
+                    "{prefix}&c这台设备属于世界 &f{world}&c，你当前在 &f{current}&c。",
                 "command.device.unavailable" to "{prefix}&c设备管理服务当前不可用。",
                 "command.device.cleanup.header" to "{prefix}&b待清理设备队列（{count}）",
                 "command.device.cleanup.empty" to "{prefix}&7当前没有待清理设备。",

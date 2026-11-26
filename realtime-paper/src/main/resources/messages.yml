@@ -9,6 +9,19 @@ command:
     global-enabled: '{prefix}&7全局启用：&f{enabled}'
     command-enabled: '{prefix}&7命令模块启用：&f{enabled}'
     redstone-enabled: '{prefix}&7红石输出模块：&f{enabled}'
+  help:
+    header: '{prefix}&bRealTime 帮助 &7（/rtime help <主题>：create / place / cleanup）'
+    time: '{prefix}&f/rtime &7或 &f/rtime now &7- 现实时间'
+    create: '{prefix}&f/rtime device create <名字> <bcd|analog> [second|minute] [nodisplay|manual] &7- 在准星所指（或脚下）方块处建钟，自动排好源并放好展示方块'
+    example: '{prefix}&7例：站好位置、面向要延伸的方向 → &f/rtime device create clock bcd &7；再逐位微调 → &f/rtime device place clock 3'
+    place: '{prefix}&f/rtime device place <设备> <槽位> [x y z] &7- 逐位精确放置/移动某个源（不给坐标就对准目标方块执行）'
+    manage: '{prefix}&f/rtime device list|info|enable|disable|remove <设备> &7- 设备名或 ID 都行（Tab 可补全）'
+    cleanup: '{prefix}&f/rtime device cleanup list|retry|dismiss [任务ID] &7- 退役后的清理队列'
+    demo: '{prefix}&f/rtime device demo <bcd|analog> &7- 建一台演示用的钟（等同 create，默认按秒刷新）'
+    topic:
+      create: '{prefix}&7create 细节：不给坐标就用玩家位置与朝向；&fmanual &7只建一台未启用的空钟（用 place 逐位放）、&fnodisplay &7不放展示方块；显式坐标形式仍然可用'
+      place: '{prefix}&7place 细节：设备必须先 &fdisable&7；槽位号从 0 开始（Tab 补全）；源位置可按需任意调整，用来避开已被占用的格子'
+      cleanup: '{prefix}&7cleanup 细节：&flist &7看队列；&fretry <任务ID> &7重试"需人工处理"的项；&fdismiss <任务ID> &7确认方块保持原样并丢弃任务'
   reload:
     success: '{prefix}&a配置重新加载成功。'
     failure: '{prefix}&c配置重新加载失败，旧配置继续生效：&f{reason}'
@@ -61,8 +74,15 @@ command:
       limit: '{prefix}&c设备数量已达上限（{limit}），请先移除不再使用的设备。'
       area: '{prefix}&c坐标不在允许区域内：&f{world} {x}, {z}'
       conflict: '{prefix}&c该坐标已被其他设备或清理任务占用：&f{x}, {y}, {z}'
+      built: '{prefix}&a已创建 &f{name} &7[{id}] &8{encoding} {resolution} &8{world} &7{count} 个源 + &f{display} &7个展示方块 &8状态：{state}'
+      manual-hint: '{prefix}&7这是一台未启用的空钟。用 &f/rtime device place {name} <0..{max}> &7逐个定位（对准目标方块执行即可），全部就位后 &f/rtime device enable {name}&7。'
+      invalid-modifier: '{prefix}&c未知参数：&f{value} &7（可用：second / minute / nodisplay / manual）'
     warn:
       redstone-disabled: '{prefix}&e注意：红石输出模块未启用（plugins/RealTime/modules/redstone.yml → enabled: true），设备不会真的输出或放置方块。改完执行 /rtime reload。'
+    placement-required: '{prefix}&c这条命令需要玩家视角：请以玩家身份站在目标位置，或在 6 格内看着一个方块。'
+    ambiguous: '{prefix}&c找到 {count} 台同名设备，请改用 ID：&f{name}'
+    place:
+      world-mismatch: '{prefix}&c这台设备属于世界 &f{world}&c，你当前在 &f{current}&c。'
     demo:
       success: '{prefix}&a教学示例已生成：&f{name} &7[{id}] &8{encoding} &8{world} &7{count} 个槽位 + &f{display} &7个展示方块 &8起点 {x}, {y}, {z}（已启用；用 device remove 可整体清除）'
       hint: '{prefix}&e提示：插件只填空位。建示例前请确认该区域是空地，否则被地形占住的位置会报非法方块，退役时会变成需人工处理（可用 device cleanup retry / dismiss 收尾）。'

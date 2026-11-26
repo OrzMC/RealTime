@@ -1,7 +1,9 @@
 package cn.orzmc.realtime.paper
 
+import cn.orzmc.realtime.core.device.LayoutAxis
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.CommandTarget
+import cn.orzmc.realtime.paper.command.PlayerPlacement
 import cn.orzmc.realtime.paper.command.RealTimeCommandHandler
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfigurationLoader
@@ -254,10 +256,41 @@ class RealTimePlugin :
         saveResource(path, false)
     }
 
+    private companion object {
+        /** Reach used for the coordinate-free forms, in blocks. */
+        const val PLACEMENT_REACH = 6
+    }
+
     private class BukkitCommandTarget(
         private val sender: CommandSender,
     ) : CommandTarget {
         override val actorName: String = if (sender is Player) sender.name else "console"
+
+        /**
+         * Aims of the executing player: the targeted block when one is within
+         * reach, otherwise the block the player stands on.
+         */
+        override val placement: PlayerPlacement? =
+            (sender as? Player)?.let { player ->
+                val world = player.world
+                val aimed = player.getTargetBlockExact(PLACEMENT_REACH)?.location
+                val standing = player.location
+                val base = aimed ?: standing.clone().subtract(0.0, 1.0, 0.0)
+                PlayerPlacement(
+                    worldName = world.name,
+                    x = base.blockX,
+                    y = base.blockY,
+                    z = base.blockZ,
+                    axis =
+                        when (player.facing) {
+                            org.bukkit.block.BlockFace.NORTH -> LayoutAxis.Z_MINUS
+                            org.bukkit.block.BlockFace.SOUTH -> LayoutAxis.Z_PLUS
+                            org.bukkit.block.BlockFace.EAST -> LayoutAxis.X_PLUS
+                            org.bukkit.block.BlockFace.WEST -> LayoutAxis.X_MINUS
+                            else -> LayoutAxis.X_PLUS
+                        },
+                )
+            }
 
         override val actorId: UUID? = (sender as? Player)?.uniqueId
 
