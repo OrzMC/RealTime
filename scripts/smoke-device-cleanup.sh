@@ -275,9 +275,9 @@ wait_for_chunk "0 64 0" || {
   exit 1
 }
 
-# The spawn slot is clearable immediately; the five far ones and the player build
-# have to wait for their chunk.
-wait_queue_state "Restart recovery did not clear only the loaded slot" 5 1
+# The spawn slot is clearable immediately; the five far ones (including the
+# player's stone block) have to wait for their chunk.
+wait_queue_state "Restart recovery did not clear only the loaded slot" 5 0
 
 # Loading the far chunk fires ChunkLoadEvent and retries the deferred slots.
 rcon forceload add 1600 0 >/dev/null
