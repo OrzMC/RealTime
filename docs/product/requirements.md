@@ -27,7 +27,8 @@ RealTime is an independent Minecraft server plugin that provides real-world time
 Implemented commands:
 
 - `/rtime` or `/rtime now`: display current configured local date/time.
-- `/rtime info`: display plugin version, configured timezone, and module status.
+- `/rtime status`: display plugin version, configured timezone, module status and output counters.
+- `/rtime`: the current time plus one line per clock; `/rtime <name>`: one clock in detail.
 - `/rtime reload`: validate and reload configuration safely.
 
 Device administration happens entirely in game — no hand-editing of the data file. The command surface, permission split
@@ -35,7 +36,7 @@ Device administration happens entirely in game — no hand-editing of the data f
 cleanup queue are documented once in the [usage guide](../usage.md); this document only fixes the requirements:
 
 - Devices must be creatable, inspectable, movable, enable/disable-able and retirable without editing YAML.
-- Slot edits require a disabled device; encoding/resolution are immutable (retire and create instead).
+- Slot edits require a disabled clock; the resolution is immutable (retire and create instead).
 - Every write is gated by area whitelist, device cap, per-player cooldown, and audit logging.
 - Retirement is deferred and durable; blocks the plugin does not own are never overwritten and can be retried or
   dismissed by an operator.

@@ -2,21 +2,22 @@
 
 ## Layers
 
-1. **Core unit tests** (`realtime-core`): clock, timezone/DST conversion, locale formatting, snapshots, BCD/analog
+1. **Core unit tests** (`realtime-core`): clock, timezone/DST conversion, locale formatting, snapshots, clock-digit
    encoders, `AnalogScale`, `DeviceLayout`, `DeviceDemo` geometry, and device-model validation. Pure JVM, no server.
-2. **Configuration tests**: defaults, parsing, migrations, invalid values, per-encoding slot counts.
-3. **Paper unit tests** (`realtime-paper`): command handling and permissions, device/cleanup services, YAML repository
-   schema round-trips and migrations (v1–v5), diagnostics, and the region-aware managers driven through fake Bukkit
-   proxies (no server needed).
+2. **Configuration tests**: defaults, parsing, migrations, invalid values, per-resolution slot counts, command parsing and completion (no server required).
+3. **Paper unit tests** (`realtime-paper`): command parsing/completion/dispatch and permissions, device/cleanup services,
+   YAML repository schema round-trips and migrations (including legacy BCD entries being skipped), diagnostics, and the
+   region-aware managers driven through fake Bukkit proxies (no server needed).
 4. **Release-script tests** (`scripts/test-release-scripts.sh`, `validate-release.sh`): tag/changelog rules, artifact
    inspection, checksums.
 5. **Runtime smoke jobs** (CI, `scripts/smoke-*.sh`, real Paper and Folia servers):
-   - `smoke-server.sh` — boot, `/rtime`, `info`, `list`, `status`, `on`/`off`, `reload`
+   - `smoke-server.sh` — boot, `/rtime` overview, name addressing, `status`, `on`/`off`, `reload`
    - `smoke-device-cleanup.sh` — restart recovery, unloaded-chunk deferral, chunk-load retry, `NEEDS_ATTENTION`
-     preservation, operator retry, retirement, and power-source writes
+     preservation (a player block is never overwritten), operator retry, retirement by name, lectern cleanup
    - placeholder smoke — PlaceholderAPI expansion output
-6. **Real-server acceptance** (`docs/operations/`): the 0.1.0 report, the 2026-11-25 analog/layout report, and the
-   per-PR evidence recorded in `tasks/completed/`.
+6. **Real-server acceptance** (`docs/operations/`): the current report is
+   [acceptance-report-0.6.0.md](../operations/acceptance-report-0.6.0.md); the 0.1.0 and 2026-11-25 documents are kept as
+   history (they describe BCD-era builds), plus the per-PR evidence in `tasks/completed/`.
 
 ## Rules
 

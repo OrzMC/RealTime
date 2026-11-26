@@ -1,5 +1,8 @@
 # RealTime 0.1.0 acceptance report
 
+> **历史文档（已过时）**：本文记录的是 v0.1.0 时代的实现与验收，包含已移除的 BCD 编码、`device <子命令>` 等旧行为。
+> 当前版本请看 [usage guide](../usage.md) 与 [0.6.0 验收报告](acceptance-report-0.6.0.md)。
+
 > **Historical document (0.1.0).** This is the evidence collected for the `v0.1.0` release; the numbers below describe
 > that build. Later changes (analog encoding, default layout with one-block gaps and digit groups, `device demo`,
 > schema v5, `device set` requiring a disabled device) are documented in

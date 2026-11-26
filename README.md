@@ -89,7 +89,7 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 - **Diagnostics** behind `/rtime status`; tick-level change detection with diff-only, chunk-batched writes.
 
 Commands, permissions, wiring diagrams, the cleanup queue and FAQ: **[usage guide](docs/usage.md)**.
-Implementation notes (store schema, encoding maths, scheduler safety): [redstone devices](docs/development/redstone-devices.md).
+Implementation notes (store schema, page/level maths, scheduler safety): [redstone devices](docs/development/redstone-devices.md).
 
 ## Docs
 
@@ -104,8 +104,10 @@ Implementation notes (store schema, encoding maths, scheduler safety): [redstone
 - [Development workflow](docs/development/workflow.md) (branch names, gates, PR shape, definition of done)
 - [Release process](docs/release/process.md)
 - [Hangar and Modrinth publishing](docs/release/distribution.md)
+- [0.6.0 real-server acceptance](docs/operations/acceptance-report-0.6.0.md) (current)
+- [Hangar / Modrinth listing source of truth](docs/operations/platform-listings.md)
 - [0.1.0 production acceptance handoff](docs/operations/production-acceptance-0.1.0.md) (historical)
-- [Analog and layout real-server acceptance](docs/operations/analog-acceptance-2026-11-25.md)
+- [Analog and layout real-server acceptance](docs/operations/analog-acceptance-2026-11-25.md) (historical)
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 

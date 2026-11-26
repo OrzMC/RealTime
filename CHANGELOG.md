@@ -8,6 +8,11 @@ All notable changes to RealTime are documented here. Release automation requires
 
 - 发布工作流可重跑：`Create GitHub Release` 遇到已存在的 Release 时改为刷新资产与说明（`--clobber` / `gh release edit`），
   Hangar 上传失败会重试一次。`v0.6.0` 就是卡在 Maven Central 403 上、只能手工补传的。
+- **发布时自动同步平台项目页**：新增 `scripts/modrinth-page.sh`（`PATCH /v2/project`，写 `description` + `body`），
+  与已有的 `scripts/hangar-page.sh` 一起接进 `release.yml`，项目页不再需要手工粘；
+  `scripts/distribution-check.sh` 断言两步都在。注意 Modrinth 的一句话简介字段是 `description`（`summary` 会被静默忽略）。
+- 文档与 0.6.0 对齐：清掉 `docs/` 里残留的 `/rtime info`、`/rtime list`、BCD/analog 双编码描述与 `per-encoding` 说法，
+  旧验收报告加上"历史文档"横幅，README 索引补上 0.6.0 验收报告与平台文案源文件。
 
 ## [0.6.0]
 

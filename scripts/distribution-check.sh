@@ -67,6 +67,8 @@ require_pattern "$WORKFLOW" "game_versions: *\[\"$API_VERSION\"\]" "Modrinth pay
 require_pattern "$WORKFLOW" 'dependencies: *\[ *\]' "Modrinth payload sends an explicit dependencies array (the API rejects the request without it)"
 require_pattern "$WORKFLOW" 'publishPluginPublicationToHangar' "workflow invokes the Hangar publication task"
 require_pattern "$WORKFLOW" 'skip.*Hangar|skipping Hangar' "missing Hangar credentials skip instead of failing"
+require_pattern "$WORKFLOW" 'scripts/hangar-page\.sh' "release keeps the Hangar main page in sync with the repo copy"
+require_pattern "$WORKFLOW" 'scripts/modrinth-page\.sh' "release keeps the Modrinth description and body in sync with the repo copy"
 require_pattern "$WORKFLOW" 'skipping Modrinth' "missing Modrinth credentials skip instead of failing"
 
 echo

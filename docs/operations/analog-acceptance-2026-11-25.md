@@ -1,5 +1,8 @@
 # Analog Encoding and Layout — Real-Server Acceptance (2026-11-25)
 
+> **历史文档（已过时）**：本文记录的是 v0.2.0–v0.3.0 时代的实现与验收，包含已移除的 BCD 编码、`device <子命令>` 等旧行为。
+> 当前版本请看 [usage guide](../usage.md) 与 [0.6.0 验收报告](acceptance-report-0.6.0.md)。
+
 - **Status**: PASSED, after one defect was found and fixed
 - **Artifact under test**: `RealTime-0.2.0-SNAPSHOT.jar`, sha256
   `e3310e82bd1c27926ed1886d17447692770300b9aae7d99399e513a9ede3a40f` (main `f2143b1`),

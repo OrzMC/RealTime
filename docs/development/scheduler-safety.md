@@ -35,7 +35,7 @@ Callers must treat a null task handle as not scheduled and must not assume eithe
 ## Verification
 
 - Unit tests use fake scheduler interfaces to verify global/region/entity routing, entity retirement, handle cleanup, and cancellation.
-- The runtime smoke workflow starts disposable Paper 26.3 and Folia 26.3 servers, waits for the global scheduler callback, and executes `/rtime`, `/rtime info`, and `/rtime reload`.
+- The runtime smoke workflow starts disposable Paper 26.3 and Folia 26.3 servers, waits for the global scheduler callback, and executes `/rtime` and `/rtime reload`, and asserts the clock overview.
 - The runtime smoke does not claim to prove world/block/entity mutation safety. Each future device operation must add region/entity-specific integration tests.
 
 ## API references
