@@ -30,8 +30,8 @@ BCD 稳、无需方块实体；analog 把 24 条线压成 6 条，代价是要�
 `data/devices.yml`。**红石模块默认开启**（`enabled: true`）。没有设备时它不产生任何写入和开销；不想让插件碰世界就改成 `false`，
 此时 `/rtime now`、`/rtime info` 与占位符仍然可用。
 
-> ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`/rtime create` / `/rtime create` 会成功返回，
-> 槽位不写入、demo 的灯/讲台/比较器也不会放置。这是**新装服务器的默认状态**，看起来就像"插件不工作"。
+> ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`/rtime create` 会成功返回，
+> 槽位不写入、灯/讲台/比较器也不会放置，看起来就像"插件不工作"。
 > 三条自查：
 >
 > 1. `/rtime info` 的最后一行 `红石输出模块：` 必须是 `true`
@@ -84,9 +84,9 @@ limits:
 ## 4. 五分钟上手（BCD）
 
 ```text
-/rtime create lobby-clock bcd                    # 站在位置、面向延伸方向；自动排好源并放灯
-/rtime info lobby-clock                          # 确认编码/分辨率/所有坐标（名字或 ID 都行）
-/rtime on <uuid>                                        # 开始驱动
+/rtime create lobby-clock bcd      # 站在位置、面向延伸方向；自动排源 + 放灯 + 立即启用
+/rtime info lobby-clock            # 确认编码/分辨率/所有坐标（名字或 ID 都行）
+/rtime off lobby-clock             # 需要改位置时先关机
 ```
 
 - 槽位必须先是**空气**（或红石方块）。每个槽位就是一个电源：1 = 放 `redstone_block`、0 = 空气。
@@ -99,8 +99,8 @@ limits:
 ## 5. analog（讲台）编码
 
 ```text
-/rtime create wall-clock second world 39985 79 -24 x+ analog   # 6 个讲台，间隔 2 格
-/rtime on <uuid>
+/rtime create wall-clock analog second     # 6 个讲台，间隔 2 格；建完自动启用
+/rtime info wall-clock                     # 看每个讲台坐标
 ```
 
 每个数字一个讲台，插件会自动放置讲台并塞入一本插件生成的 15 页书；**页码 = 数字**，比较器读到的强度 = 页码 + 1（1–10）。
@@ -117,21 +117,21 @@ limits:
 - 关闭设备会**清空槽位**（先移走书再拆讲台，不会掉落物品）；重新启用会重新放置。
 - 插件只操作"书仍属于该设备"的讲台，别人放的书/方块只告警、不覆盖。
 
-## 6. `/rtime create` 与 `/rtime create`
+## 6. `/rtime create` 与 `/rtime demo`
 
 两者是**同一套构建**：源按朝向等距排开（BCD 每 4 位一组），并自动放好展示方块（BCD：每槽正上方一盏灯；
 analog：每位一排讲台/比较器/红石线/灯），建完**立即启用**。区别只有三个：
 
-| | `create` | `demo` |
+| | `create` | `demo`（别名） |
 |---|---|---|
 | 名字 | 你指定 | 固定 `demo-<编码>` |
 | 默认分辨率 | `minute` | `second`（能立刻看到秒在跳） |
 | 展示方块 | 默认放，`nodisplay` 关闭 | 默认放 |
 
 ```
-/rtime create clock bcd            # 站好位置面向一排放
+/rtime create clock bcd            # 站好位置面向一排放（默认 bcd + 按分）
 /rtime create clock analog second  # 讲台版，按秒
-/rtime create analog                 # 给玩家演示用
+/rtime demo analog                 # 演示用：名字 demo-analog，默认按秒
 ```
 
 `manual` 模式（只建空钟、不启用、不放展示方块）：
@@ -149,12 +149,12 @@ BCD/analog 规则去驱动这些源。
 ⚠️ **建之前先清场**：`/rtime create` 只填空位。如果槽位或灯位被地形（树、草、水）占着，那些位置会报"非法方块"，
 退役时会变成 `NEEDS_ATTENTION` 需要人工处理。选一块平地，或先清空那片区域。
 
-示例的整体清除：`/rtime off <设备>` → `/rtime remove <设备>`（槽位 + 展示方块一起清）。
+演示钟的整体清除：`/rtime off demo-bcd` → `/rtime remove demo-bcd`（槽位 + 展示方块一起清）。
 
 ## 7. 关闭、退役与清理队列
 
-- `disable`：把槽位清零（BCD → 空气；analog → 移书 + 拆讲台），设备保留在列表里。
-- `remove`（必须先 disable）：把设备移出列表，并为**每个槽位**（含 demo 展示方块）生成一个**持久化清理任务**，
+- `/rtime off <设备>`：把槽位清零（BCD → 空气；analog → 移书 + 拆讲台），设备保留在列表里。
+- `/rtime remove <设备>`（必须先 `off`）：把设备移出列表，并为**每个槽位**（含 demo 展示方块）生成一个**持久化清理任务**，
   由插件在区块加载/周期扫描时清理。
 
 清理任务里每个位置有三种状态：
@@ -163,7 +163,7 @@ BCD/analog 规则去驱动这些源。
 |---|---|---|
 | `待处理` | 还没处理（区块未加载等） | 等（或到现场让它加载） |
 | `已清理` | 已清成空气 / 本来就空 | 无 |
-| `需人工处理` | 该位置是**不是插件放的**东西（玩家的方块、地形、别人的书） | 看一眼：想清就清掉再 `cleanup retry`；想保留就 `cleanup dismiss` |
+| `需人工处理` | 该位置是**不是插件放的**东西（玩家的方块、地形、别人的书） | 看一眼：想清就清掉再 `/rtime cleanup retry`；想保留就 `/rtime cleanup dismiss` |
 
 ```
 /rtime cleanup list
@@ -186,7 +186,7 @@ BCD/analog 规则去驱动这些源。
 | 输出检查 / 未加载区块跳过 / 过期配置更新 | 实际派发了多少槽位工作 |
 | 输出变更 / 无变化 / 非法方块 / 写入失败 | 写入结果；`非法方块` 增长说明有槽位被别的东西占着 |
 | 讲台放置 / 书页安装 | 仅 analog 设备 |
-| 示例方块放置 / 清除 | 仅 `/rtime create` 设备 |
+| 示例方块放置 / 清除 | 仅带展示方块的设备（`create`/`demo`）|
 
 计数器是进程内累计值；配置数反映当前运行状态。
 
@@ -233,6 +233,10 @@ BCD/analog 规则去驱动这些源。
 
 **Q：`/rtime place` 报"该坐标已被其他设备或清理任务占用"？**
 那格属于另一台设备、另一台设备的清理任务，或者**同一台设备的另一个槽位**。换个位置，或先把占用的设备退役并等清理跑完。
+
+**Q：`/rtime create` 建出来的钟为什么已经在跑了？**
+`create` 与 `demo` 是同一套构建，建完即启用（`manual` 除外）。想先摆位置就 `manual` 建空钟、`/rtime place` 逐个定位、
+再 `/rtime on`。已有设备不受升级影响。
 
 **Q：设备坐标能写到任意地方吗？**
 能，但建议配 `limits.allowed-areas` 限定范围，并只把 `realtime.device.edit` 给可信的人——这条权限本质上是"在指定坐标放方块"。

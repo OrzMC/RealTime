@@ -59,21 +59,22 @@ the plugin installs; the page index is the digit, so Paper's `floor(page / (page
 plugin only ever pages through lecterns that still hold its own book; anything else is reported and left untouched.
 
 Both encodings share the digit order hour → minute → second, are laid out with one empty block between slots (BCD adds
-an extra gap between digits), and are bounded by `/rtime device create`/`device set` validation. Device definitions and
+an extra gap between digits), and are bounded by `/rtime create`/`/rtime place` validation. Device definitions and
 runtime data are stored separately from feature configuration (`data/devices.yml`, schema v5). Block access runs on the
 owning Folia region; unloaded chunks are skipped and refreshed on chunk load, and device updates never force-load
 chunks. Minute devices are rewritten when the minute changes, second devices every second, and only slots whose state
 actually changed are written. A 30 s full re-check catches player edits and invalid blocks, and nothing the plugin does
 not own is ever overwritten.
 
-`/rtime device demo <bcd|analog> <world> <x> <y> <z> <axis>` builds one complete, immediately visible example
-(lamps above every BCD slot; lectern → comparator → dust → lamp per analog digit) whose display blocks belong to the
-device and are removed with it, so a newcomer can learn an encoding without wiring anything by hand. It is intended for
-tutorial areas: a real build uses `device create` plus the operator's own display circuit.
+`/rtime create <name> [bcd|analog] [second|minute]` builds one complete, immediately visible example at the player's
+aim (lamps above every BCD slot; lectern → comparator → dust → lamp per analog digit) whose display blocks belong to the
+device and are removed with it, so a newcomer can learn an encoding without wiring anything by hand. `manual` creates a
+disabled device without display blocks, and `/rtime place <device> <slot>` positions each source individually, which is
+how a build whose default layout is blocked by other blocks is authored.
 
-Retirement is deferred and durable: `device remove` (disabled devices only) queues a cleanup job that clears every slot
-and demo display block on the owning region, reports foreign content as `NEEDS_ATTENTION` instead of overwriting it, and
-can be retried from `device cleanup retry` once an operator fixes the block.
+Retirement is deferred and durable: `/rtime remove` (disabled devices only) queues a cleanup job that clears every slot
+and display block on the owning region, reports foreign content as `NEEDS_ATTENTION` instead of overwriting it, and can
+be retried from `/rtime cleanup retry` once an operator fixes the block.
 
 ## Configuration proposal
 

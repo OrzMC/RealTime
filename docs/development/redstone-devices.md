@@ -8,7 +8,7 @@ Configuration, data structures, encoding details and runtime behaviour. **Operat
 `modules/redstone.yml` controls the optional output module:
 
 ```yaml
-enabled: false
+enabled: true
 limits:
   max-devices: 50
   edit-cooldown-seconds: 3
@@ -16,7 +16,12 @@ limits:
   # - { world: world, min-x: 39000, max-x: 41000, min-z: -200, max-z: 200 }
 ```
 
-The module is disabled by default. `limits` only affects the in-game authoring commands (`device create` / `device set`): an empty `allowed-areas` list means "no area restriction" (the commands still require `realtime.device.edit`, default op), `max-devices` caps how many devices may exist, and `edit-cooldown-seconds` throttles each player's authoring actions.
+The module is **enabled by default**: with no device configured it costs nothing, and a disabled module would accept
+`/rtime create` while writing nothing. Disabling it makes the plugin read-only (`/rtime`, `/rtime info`, placeholders).
+`limits` only affects the in-game authoring commands (`/rtime create` / `/rtime place`): an empty `allowed-areas` list
+means "no area restriction" — a legal configuration, reported once at `info` level on start — the commands still
+require `realtime.device.edit` (default op), `max-devices` caps how many devices may exist, and
+`edit-cooldown-seconds` throttles each player's authoring actions.
 
 Each device output slot is a **power-source slot**: a logical 1 places a `minecraft:redstone_block` in the slot, a logical 0 leaves the slot empty (`minecraft:air`). Signals are therefore full strength (15) and vanilla redstone reacts to every change, so the surrounding circuit actually switches.
 
@@ -73,7 +78,7 @@ Retirement follows the same rule as BCD slots: the cleanup job removes the lecte
 
 ## Device store schema v5
 
-The current `data/devices.yml` format uses schema version 5. Schema v4 added `encoding` to device records and cleanup jobs; schema v5 adds the `demo:` list of a `device demo` build and the matching `display:` list on cleanup jobs. Records written by earlier schemas are read as `bcd` with no demo blocks, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v4 files are migrated automatically on load; device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
+The current `data/devices.yml` format uses schema version 5. Schema v4 added `encoding` to device records and cleanup jobs; schema v5 adds the `demo:` display-block list of a `create`/`demo` build and the matching `display:` list on cleanup jobs. Records written by earlier schemas are read as `bcd` with no demo blocks, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v4 files are migrated automatically on load; device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
 
 Each device record declares `resolution: minute` or `resolution: second`, `encoding: bcd` or `encoding: analog`, and — for a teaching build — a `demo:` list of the display blocks it owns (`{x, y, z, data}`, where `data` is a block-data string such as `minecraft:comparator[facing=north]`). A `bcd` `minute` device has 16 outputs and a `bcd` `second` device 24 (HHmmss); an `analog` device has one output per digit, so 4 and 6 respectively. Cleanup jobs record the same resolution and encoding as the retired device, so every variant is cleaned completely.
 
@@ -102,10 +107,10 @@ cleanup-jobs:
 ```
 
 A job created by a demo device also carries a `display:` list, and both lists count towards the `pending` / `attention`
-numbers printed by `device cleanup list`; `device cleanup retry <job-uuid>` requeues every `NEEDS_ATTENTION` entry of
+numbers printed by `/rtime cleanup`; `/rtime cleanup retry <job-uuid>` requeues every `NEEDS_ATTENTION` entry of
 the job (slots **and** display blocks), because a job only disappears once all of them are cleared.
 
-The complete job contains every output of the retired device (16/24 for a BCD `minute`/`second` device, 4/6 for an analog one). Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service. PR12 adds second resolution. PR16 adds the optional analog (lectern) encoding and schema v4; PR17 changes the default layout to one-block gaps with four-bit digit groups; PR18 adds `device demo` teaching builds and schema v5.
+The complete job contains every output of the retired device (16/24 for a BCD `minute`/`second` device, 4/6 for an analog one). Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service (now `/rtime remove`). PR12 adds second resolution. PR16 adds the optional analog (lectern) encoding and schema v4; PR17 changes the default layout to one-block gaps with four-bit digit groups; PR18 adds the `demo` teaching builds and schema v5.
 
 ## BCD output layout
 
@@ -122,7 +127,7 @@ Digits are always ordered hour → minute → second, and each digit is emitted 
 
 A `minute` device must define exactly 16 unique output slots and a `second` device exactly 24; bit indexes must cover `0` through `outputs - 1` exactly once. Slots must contain `minecraft:air` or `minecraft:redstone_block`; anything else is reported as an invalid output and never overwritten.
 
-Analog devices reuse the same record shape with **one entry per digit**: `bit-index` 0–3 (`minute`) or 0–5 (`second`) is the digit position, and the slot value is the digit itself rather than a bit. `device info` prints the same `槽 <index>` lines for both encodings.
+Analog devices reuse the same record shape with **one entry per digit**: `bit-index` 0–3 (`minute`) or 0–5 (`second`) is the digit position, and the slot value is the digit itself rather than a bit. `/rtime info <device>` prints the same `槽 <index>` lines for both encodings.
 
 For example, 23:59:47 is encoded as digits `2, 3, 5, 9, 4, 7`; each digit occupies four bits, least-significant bit first.
 
@@ -174,7 +179,7 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 - Unloaded chunks are skipped and their outputs are refreshed on `ChunkLoadEvent`.
 - The manager never calls `getChunkAt`, chunk load APIs, or world generation APIs.
 - Output slots should be physically isolated from unrelated redstone so two devices cannot couple; connect the receiving circuit next to the slot.
-- Devices can be created and edited in game (`/rtime device create|set`); the YAML store remains the single source of truth and every slot coordinate stays reviewable.
+- Devices can be created and edited in game (`/rtime create` fills the layout, `/rtime place` moves individual slots); the YAML store remains the single source of truth and every slot coordinate stays reviewable.
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 
@@ -197,4 +202,4 @@ User-facing usage (commands, permissions, wiring, cleanup queue) lives in [the u
 
 ## Output diagnostics
 
-Use `/rtime device status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, dispatched output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual output changes (power / page), unchanged outputs, and caught write failures. Once an analog device has written something, the status output also reports lectern placements and book installs/removals, and a `device demo` build reports the display blocks it placed (and removed again when disabled or retired). Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Because writes are diffed and batched, `输出检查` counts slots that were actually dispatched (changed slots plus the 30 s full re-check), not a per-second poll of every slot. Diagnostics never load chunks and do not change output behavior.
+Use `/rtime status` to inspect aggregate counters without querying world state from the command thread. The snapshot reports configured/enabled devices and output points, dispatched output checks, unloaded-chunk skips, stale scheduled updates, invalid output blocks, actual output changes (power / page), unchanged outputs, and caught write failures. Once an analog device has written something, the status output also reports lectern placements and book installs/removals, and a `create`/`demo` build reports the display blocks it placed (and removed again when disabled or retired). Counters are process-lifetime totals; configured counts reflect the current runtime snapshot. Because writes are diffed and batched, `输出检查` counts slots that were actually dispatched (changed slots plus the 30 s full re-check), not a per-second poll of every slot. Diagnostics never load chunks and do not change output behavior.

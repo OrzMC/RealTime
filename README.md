@@ -8,10 +8,10 @@
 
 > **Status: `v0.4.0` released** (2026-11-25) — see the [release](https://github.com/OrzMC/RealTime/releases/tag/v0.4.0) and
 > [CHANGELOG](CHANGELOG.md). `main` is now on `0.5.0-SNAPSHOT`.
-> The plugin provides timezone-aware time, Paper/Folia scheduler-safe redstone clocks in two encodings — **BCD**
+> The plugin provides timezone-aware time and Paper/Folia scheduler-safe redstone clocks in two encodings — **BCD**
 > (16/24 power-source slots for `HHmm`/`HHmmss`) and **analog** (one lectern per digit, so `HHmmss` needs six lines
-> instead of twenty-four) — plus in-game device authoring, one-command teaching builds, versioned persistence
-> (schema v5), diagnostics, crash-safe deferred cleanup, and cleanup-queue operator controls.
+> instead of twenty-four) — plus **one command to build a working clock** (`/rtime create clock`), per-slot placement,
+> versioned persistence (schema v5), diagnostics, crash-safe deferred cleanup, and cleanup-queue operator controls.
 
 ## Goals
 
@@ -68,15 +68,20 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 
 ## Features
 
-- **Real-world time** with an explicit `ZoneId` (default `Asia/Shanghai`), `/rtime now|info|reload`, and optional
+- **Real-world time** with an explicit `ZoneId` (default `Asia/Shanghai`), `/rtime` + `/rtime info`, and optional
   PlaceholderAPI placeholders.
+- **Five commands to learn**: `/rtime`, `/rtime create`, `/rtime info`, `/rtime on|off`, `/rtime remove` — everything
+  else (`place`, `status`, `cleanup`, `reload`) lives behind `/rtime help all`. Tab completion covers devices,
+  encodings, resolutions and slot numbers.
 - **Redstone clocks in two encodings**: `bcd` (one power-source slot per bit — 16 for `HHmm`, 24 for `HHmmss`) and
   `analog` (one lectern per digit, comparator level = digit + 1 — six lines instead of twenty-four).
-- **In-game authoring**: `device create`, `device set`, `device demo` (one-command teaching build), all bounded by
-  `limits.allowed-areas` / `max-devices` / `edit-cooldown-seconds` and split permissions.
+- **In-game authoring**: `/rtime create <name> [bcd|analog]` builds at the block you aim at, lays out the slots in the
+  direction you face, places the display blocks (lamps, or lectern+comparator rows) and starts enabled;
+  `/rtime place <device> <slot>` repositions a single slot when something else occupies the default layout.
+  Authoring is bounded by `limits.allowed-areas` / `max-devices` / `edit-cooldown-seconds` and split permissions.
 - **Durable lifecycle**: disable empties every slot, remove queues a crash-safe cleanup job, and a `NEEDS_ATTENTION`
   entry means "that block is not ours" — never overwritten, retry it or dismiss the job.
-- **Diagnostics** behind `device status`; tick-level change detection with diff-only, chunk-batched writes.
+- **Diagnostics** behind `/rtime status`; tick-level change detection with diff-only, chunk-batched writes.
 
 Commands, permissions, wiring diagrams, the cleanup queue and FAQ: **[usage guide](docs/usage.md)**.
 Implementation notes (store schema, encoding maths, scheduler safety): [redstone devices](docs/development/redstone-devices.md).

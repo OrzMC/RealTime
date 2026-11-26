@@ -35,13 +35,14 @@ Behaviour that exists today:
 
 - **Time service**: `RealTimeService` / `ClockRealTimeService` with an injected `Clock`, explicit `ZoneId` and
   `Locale`, immutable `RealTimeSnapshot`, and locale-aware formatting.
-- **Commands**: `/rtime now|info|reload` plus the `device` subtree with split permissions (see
-  [redstone devices](../development/redstone-devices.md#creating-changing-and-removing-a-device)).
+- **Commands**: five flat everyday verbs — `/rtime`, `/rtime create`, `/rtime info`, `/rtime on|off`, `/rtime remove` —
+  plus `place`/`status`/`cleanup`/`reload` behind `/rtime help all`, with split permissions. The old
+  `/rtime device <subcommand>` form stays as a compatibility alias (see [usage guide](../usage.md#3-命令与权限)).
 - **Redstone devices**: two encodings (`bcd`, `analog`), minute/second resolution, per-device `demo` builds, tick-level
   detection with diff-only writes batched per chunk, a 30 s full re-check, and a durable deferred-cleanup queue.
 - **Persistence**: `data/devices.yml` schema **v5** (devices + cleanup jobs + demo display blocks), migrated
   automatically from v1–v4.
-- **Diagnostics**: aggregate counters behind `/rtime device status`; no world access from the command thread.
+- **Diagnostics**: aggregate counters behind `/rtime status`; no world access from the command thread.
 - **PlaceholderAPI**: optional internal `realtime` expansion, compile-only dependency.
 - **Release automation**: protected tag workflow with changelog validation, reproducible artifacts, and optional
   Hangar/Modrinth publishing that stays disabled until the project IDs and tokens are configured.
@@ -74,7 +75,7 @@ The core maps local time onto digits in hour → minute → second order and exp
 
 Layout is computed by `DeviceLayout` (`offset = index * stride + (index / groupSize) * groupGap`); the default keeps
 one empty block between slots and one extra between digits. `DeviceDemo` derives the display blocks of a
-`/rtime device demo` build from the same slot list.
+`/rtime create`/`/rtime demo` build from the same slot list, so a created device is readable immediately.
 
 The Paper adapter persists validated device records in `data/devices.yml` (schema v5) and runs every block access on
 the owning region: global work calculates the frame, region work checks `World.isChunkLoaded` before touching a block,

@@ -11,7 +11,7 @@
 4. **Release-script tests** (`scripts/test-release-scripts.sh`, `validate-release.sh`): tag/changelog rules, artifact
    inspection, checksums.
 5. **Runtime smoke jobs** (CI, `scripts/smoke-*.sh`, real Paper and Folia servers):
-   - `smoke-server.sh` — boot, `/rtime`, info, device list/info/status, enable/disable, reload
+   - `smoke-server.sh` — boot, `/rtime`, `info`, `list`, `status`, `on`/`off`, `reload`
    - `smoke-device-cleanup.sh` — restart recovery, unloaded-chunk deferral, chunk-load retry, `NEEDS_ATTENTION`
      preservation, operator retry, retirement, and power-source writes
    - placeholder smoke — PlaceholderAPI expansion output
@@ -25,6 +25,6 @@
   features exercised.
 - Vanilla RCON block probes are advisory: Folia does not echo plugin commands run through `execute`, and a probe can
   answer with an empty body or an "unloaded" error. Assertions that must fail a pipeline use the plugin's own durable
-  state (`data/devices.yml`, `device cleanup list`), not block probes.
+  state (`data/devices.yml`, `/rtime cleanup`), not block probes.
 - Run `./scripts/verify.sh` before pushing; it also fails on CRLF contamination in tracked text files
   (see [setup](../development/setup.md)).

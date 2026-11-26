@@ -28,30 +28,30 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 新增
 
-- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
-  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+- **一条命令建钟**：`/rtime create <名字> [bcd|analog] [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`/rtime demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
   显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
-- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
-  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
-- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **逐位精确放置**：`/rtime place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`set` 保留为别名。
+- **设备名寻址**：`info` / `on` / `off` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
-- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+- **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
-- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+- `/rtime create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
   想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
 
-- **红石模块未启用时给出明确提示**：新装服务器 `modules/redstone.yml` 默认 `enabled: false`，此时
-  `device create` / `device demo` 会成功返回但世界里什么都不出现（槽位不写、demo 展示方块不放置），
+- **红石模块未启用时给出明确提示**：`modules/redstone.yml` 被手动关掉时，`/rtime create` 会成功返回但世界里什么都不出现
+  （槽位不写、展示方块不放置），
   看起来像插件坏了。现在 `/rtime info` 会显示 `红石输出模块：true/false`，
-  建设备/示例/改槽位/启用设备时若模块关闭会额外提示一行并说明怎么开。
+  建钟/改槽位/开机时若模块关闭会额外提示一行并说明怎么开。
 
 ### 工程
 
@@ -77,10 +77,10 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 新增
 
-- `/rtime device cleanup dismiss <job-uuid>`（`realtime.device.retire`）：丢弃一个只剩 `需人工处理` 的清理任务，
+- `/rtime cleanup dismiss <job-uuid>`（`realtime.device.retire`）：丢弃一个只剩 `需人工处理` 的清理任务，
   相关方块保持原样。用于"这些方块本来就不该清"的场景（典型：`device demo` 建在草地上，支撑位是原始地形），
   以前只能手改 `data/devices.yml`。仍有 `待处理` 项时会拒绝。
-- `device demo` 现在会单独提示"建示例前请确认该区域是空地"（独立消息键 `command.device.demo.hint`，老服的
+- `/rtime demo` 现在会单独提示"建示例前请确认该区域是空地"（独立消息键 `command.device.demo.hint`，老服的
   `messages.yml` 缺这个键时会自动使用内置文案），减少地形占位导致的非法方块。
 - 新增面向使用者的 [usage guide](docs/usage.md)：安装、命令与权限、两种编码的接线、教学示例、清理队列、
   诊断、占位符与 FAQ；README、需求文档与实现说明改为引用它，去掉重复的命令表。
@@ -115,21 +115,21 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 新增
 
-- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
-  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+- **一条命令建钟**：`/rtime create <名字> [bcd|analog] [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`/rtime demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
   显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
-- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
-  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
-- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **逐位精确放置**：`/rtime place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`set` 保留为别名。
+- **设备名寻址**：`info` / `on` / `off` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
-- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+- **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
-- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+- `/rtime create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
   想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
@@ -191,21 +191,21 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 新增
 
-- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
-  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+- **一条命令建钟**：`/rtime create <名字> [bcd|analog] [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`/rtime demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
   显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
-- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
-  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
-- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **逐位精确放置**：`/rtime place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`set` 保留为别名。
+- **设备名寻址**：`info` / `on` / `off` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
-- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+- **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
-- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+- `/rtime create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
   想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
@@ -233,30 +233,30 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 新增
 
-- **一条命令建钟**：`/rtime device create <名字> <bcd|analog> [second|minute]` 直接以玩家位置与朝向布局，
-  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`device demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
+- **一条命令建钟**：`/rtime create <名字> [bcd|analog] [second|minute]` 直接以玩家位置与朝向布局，
+  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`/rtime demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
   显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
-- **逐位精确放置**：`/rtime device place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
-  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`device set` 保留为别名。
-- **设备名寻址**：`info` / `enable` / `disable` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
+- **逐位精确放置**：`/rtime place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
+  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`set` 保留为别名。
+- **设备名寻址**：`info` / `on` / `off` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
-- **`/rtime help [create|place|cleanup]`**：命令总览 + 示例；`plugin.yml` 的 usage 同步为多行。
+- **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
 ### 变更
 
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
-- `device create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
+- `/rtime create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
   想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
 
-- **红石模块未启用时给出明确提示**：新装服务器 `modules/redstone.yml` 默认 `enabled: false`，此时
-  `device create` / `device demo` 会成功返回但世界里什么都不出现（槽位不写、demo 展示方块不放置），
+- **红石模块未启用时给出明确提示**：`modules/redstone.yml` 被手动关掉时，`/rtime create` 会成功返回但世界里什么都不出现
+  （槽位不写、展示方块不放置），
   看起来像插件坏了。现在 `/rtime info` 会显示 `红石输出模块：true/false`，
-  建设备/示例/改槽位/启用设备时若模块关闭会额外提示一行并说明怎么开。
+  建钟/改槽位/开机时若模块关闭会额外提示一行并说明怎么开。
 
 ### 工程
 
