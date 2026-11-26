@@ -13,6 +13,10 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ### 工程
 
+- 新增 [`scripts/platform-audit.sh`](scripts/platform-audit.sh)：发版后核对 Hangar / Modrinth 项目页是否与本仓库文案一致
+  （名称、分类、许可证、简介/长描述、链接、平台与游戏版本、loader，以及每个 Hangar 版本的频道、`26.3` 与 **sha256**）。
+  Hangar 无需凭据；Modrinth 需要 `READ_PROJECT`，读不到时如实报「无法核对」而不是假装通过。
+
 - 迭代流程标准化：[`docs/development/workflow.md`](docs/development/workflow.md)（选任务 → 任务契约 → 分支命名 →
   本地门禁 → PR 四段式 → CI → squash 合并 → 父仓库 bump → 发版 → DoD / 证据状态）与
   [`tasks/TEMPLATE.md`](tasks/TEMPLATE.md) 任务契约模板；`AGENTS.md`、`tasks/README.md`、README 索引同步指向。
@@ -98,6 +102,10 @@ All notable changes to RealTime are documented here. Release automation requires
 - 退役 analog 设备时，`disable` 留下的空白讲台现在也会被清理（先清空库存再拆方块，书不掉落），不再需要人工手拆 6 个讲台。
 
 ### 工程
+
+- 新增 [`scripts/platform-audit.sh`](scripts/platform-audit.sh)：发版后核对 Hangar / Modrinth 项目页是否与本仓库文案一致
+  （名称、分类、许可证、简介/长描述、链接、平台与游戏版本、loader，以及每个 Hangar 版本的频道、`26.3` 与 **sha256**）。
+  Hangar 无需凭据；Modrinth 需要 `READ_PROJECT`，读不到时如实报「无法核对」而不是假装通过。
 
 - `./scripts/verify.sh` 增加 CRLF 门禁，并新增 `.gitattributes`（`* text=auto eol=lf`，仅 Windows 启动器保留 CRLF），治掉
   Windows 上"整文件显示已修改"的假 diff。

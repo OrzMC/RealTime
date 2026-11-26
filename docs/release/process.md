@@ -64,6 +64,19 @@ Checklist used for the first release (keep for future releases):
 
 If publishing is not enabled, a tag run only validates/builds the artifact and uploads the JAR, checksum, and release notes as a workflow artifact. It does not create a GitHub Release or publish to Hangar/Modrinth.
 
+## After publishing
+
+Once the protected job finishes, audit the platform pages against
+[`../operations/platform-listings.md`](../operations/platform-listings.md):
+
+```bash
+MODRINTH_TOKEN="$(cat ~/modrinth.token)" scripts/platform-audit.sh
+```
+
+It compares name, category, licence, description lengths, links, platforms/game versions and loaders, and checks every
+Hangar version's channel, `26.3` declaration and sha256 against the released artifact. Hangar needs no credentials; the
+Modrinth half needs a token with `READ_PROJECT` and reports "cannot read" instead of passing silently when it cannot.
+
 ## Release history
 
 | Version | Date | Tag source | Notes |
