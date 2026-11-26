@@ -70,6 +70,7 @@ class RealTimePlugin :
         schedulerAdapter?.runGlobal {
             logger.info("RealTime global scheduler adapter ready.")
         }
+        logModuleState(checkNotNull(runtimeState))
         redstoneDeviceManager =
             RedstoneDeviceManager(
                 server = server,
@@ -210,6 +211,7 @@ class RealTimePlugin :
             runCatching {
                 val candidate = createRuntimeState()
                 runtimeState = candidate
+                logModuleState(candidate)
                 redstoneDeviceManager?.requestRefresh()
                 candidate
             }.onFailure { exception ->
@@ -219,6 +221,31 @@ class RealTimePlugin :
                 )
             }
         }
+
+    /**
+     * States the two settings that decide whether anything is written to the
+     * world, once per start/reload, so an operator never has to deduce it from
+     * "the command succeeded but nothing appeared".
+     */
+    private fun logModuleState(state: RuntimeState) {
+        val redstone = state.redstoneConfiguration
+        if (redstone.enabled) {
+            logger.info("RealTime redstone module enabled: device commands write blocks.")
+        } else {
+            logger.warning(
+                "RealTime redstone module DISABLED: no blocks will be written " +
+                    "(modules/redstone.yml -> enabled: true, then /rtime reload).",
+            )
+        }
+        if (redstone.limits.allowedAreas.isEmpty()) {
+            logger.info(
+                "RealTime device limits: limits.allowed-areas is empty, so devices may be created anywhere. " +
+                    "Add areas to restrict placement to a region.",
+            )
+        } else {
+            logger.info("RealTime device limits: ${redstone.limits.allowedAreas.size} allowed area(s) configured.")
+        }
+    }
 
     private fun ensureBundledResource(path: String) {
         val target = File(dataFolder, path)

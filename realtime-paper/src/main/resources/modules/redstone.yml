@@ -1,1 +1,4 @@
-enabled: false
+# RealTime writes blocks only through device commands; with no device configured
+# this costs nothing. Keeping it on by default means `device create` behaves the
+# way the operator expects instead of succeeding silently and writing no blocks.
+enabled: true
