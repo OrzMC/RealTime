@@ -2,87 +2,76 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
-## [Unreleased]
-
-### 文档
-
-- 平台发布文档补上 Modrinth 的审核阶段（`draft → Under Review → approved`）：审核期间可继续上传版本、被拒时不要复用版本号、
-  用一条匿名请求判断是否已公开。
-- 新增 [`docs/operations/platform-listings.md`](docs/operations/platform-listings.md)：Hangar / Modrinth 项目页的权威文案与
-  元数据（简介、长描述、分类、许可证、链接），并记录两个平台的可编辑性差异（Hangar 只能网页改、Modrinth 可 PATCH）。
-
-### 变更（命令面收敛）
-
-命令从「三层 + 18 条路径」收敛为**一条命令一台钟**，`/rtime help` 只列 5 条日常用法：
-
-| 日常 | 命令 |
-|---|---|
-| 时间 | `/rtime` |
-| 建钟 | `/rtime create <名字> [bcd\|analog] [second\|minute]` |
-| 看状态/列表 | `/rtime info [设备]` |
-| 开关 | `/rtime on\|off <设备>` |
-| 拆除 | `/rtime remove <设备>` |
-
-进阶项（`/rtime help all`）：`place`（逐位摆源）、`status`（诊断）、`cleanup`（清理队列）、`reload`。
-`list` 保留为独立命令；`device <子命令>` 作为兼容别名继续可用，但不再出现在帮助与补全里。
+## [0.5.0]
 
 ### 新增
 
-- **一条命令建钟**：`/rtime create <名字> [bcd|analog] [second|minute]` 直接以玩家位置与朝向布局，
-  并自动放置展示方块（灯 / 讲台+比较器+红石线），建完即启用。`/rtime demo` 成为同义词（名字 `demo-<编码>`、默认按秒）。
-  显式坐标形式保留，并同样会放展示方块（`nodisplay` 关闭）。
-- **逐位精确放置**：`/rtime place <设备> <槽位> [x y z]`，不给坐标就用准星所指（或脚下）的方块；
-  `manual` 模式建出未启用的空钟，配合 `place` 逐个定位，用于等距布局被其它方块占位的场景。`set` 保留为别名。
+- **一条命令建钟**：`/rtime create <名字> [bcd|analog] [second|minute]` 以玩家准星（或脚下）的方块为原点、
+  朝向为轴线，自动排好所有源并放置展示方块（BCD：每槽正上方一盏灯；analog：每位一排讲台/比较器/红石线/灯），
+  建完即启用。`/rtime demo <bcd|analog>` 是同义词（名字 `demo-<编码>`、默认按秒）。显式坐标形式保留
+  （`/rtime create clock bcd second world 100 70 0 x+`），末尾可用 `nodisplay` 关掉展示方块。
+- **逐位自由摆放**：`/rtime create <名字> bcd manual` 建一台**未启用、无展示方块**的钟，所有槽位处于「未放置」：
+  不写世界、不参与坐标冲突。用 `/rtime place <设备> <槽位>` 按**任意顺序、任意坐标**定位（不给坐标时用准星位置），
+  全部就位后 `/rtime on`。用于"红石机械里已经有别的方块占位、等距布局放不下"的场景。BCD 与 analog 完全一致
+  （analog 摆出来的是讲台 + 插件生成的书，页码 = 数字）。
 - **设备名寻址**：`info` / `on` / `off` / `remove` / `place` 都可以写设备名，同名冲突时提示改用 ID。
-- **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
-- **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
-
-### 新增
-
-- **`manual` 建钟 = 逐位自由摆放**：所有槽位以「未放置」创建（不写世界、不参与坐标冲突），
-  `/rtime place <设备> <槽位>` 按任意顺序、任意坐标定位，全部就位后才能 `/rtime on`（否则提示还差几个）。
-  `info` 会把未放置的槽位标成「未放置」。BCD 与 analog 完全一致（analog 摆出来的是讲台 + 插件书）。
-  持久化 schema **v6**（每个输出多一个 `unplaced` 标记，v1–v5 自动迁移，旧槽位视为已放置）。
+- **Tab 补全**：子命令、设备名与 ID、编码（`bcd`/`analog`）、分辨率（`minute`/`second`）、`manual`/`nodisplay`、
+  槽位号、布局轴。
+- **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`/rtime cleanup`
+  不带参数即可查看队列。
 
 ### 变更
 
-- `place` 移动槽位后若设备带展示方块，会提示「灯/比较器不会跟着移动」，建议手工接线或用 `manual`。
-- **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
-  默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
-- `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
-- `/rtime create` 现在**默认启用**并放置展示方块（此前创建为禁用、不放任何装饰方块）。已有设备不受影响；
-  想保持"自己接线"的用法加 `nodisplay`，想先建后摆用 `manual`。
-- 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
+- **命令面收敛为 5 条日常命令**：`/rtime`、`/rtime create`、`/rtime info [设备]`、`/rtime on|off <设备>`、
+  `/rtime remove <设备>`；`place` / `status` / `cleanup` / `reload` 收进 `/rtime help all`。`/rtime info` 无参数时
+  同时列出所有设备（`list` 保留为独立命令）。**旧的 `/rtime device <子命令>` 仍然可用**，只是不再出现在帮助与补全里。
+- **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。没有设备时零开销；关闭后插件只读
+  （`/rtime`、`/rtime info`、占位符仍可用）。
+- `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再提示为警告。
+- `/rtime create` **默认启用并放置展示方块**（此前创建为禁用、不放任何装饰方块）。想保持"自己接线"用 `nodisplay`，
+  想先建后摆用 `manual`。
+- 启动与每次 `/rtime reload` 各输出一行状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
+- 持久化 schema **v6**：每个输出新增 `unplaced` 标记（`manual` 建钟用）。v1–v5 自动迁移，旧槽位视为已放置。
 
 ### 修复
 
-- `place` 移动槽位后，如果设备带展示方块，会额外提示「灯/比较器不会跟着移动」，并给出手工接线或 `manual` 的建议
-  （此前移动 analog 槽位会留下一个没人能解释的比较器/灯）。
-
-- **红石模块未启用时给出明确提示**：`modules/redstone.yml` 被手动关掉时，`/rtime create` 会成功返回但世界里什么都不出现
-  （槽位不写、展示方块不放置），
-  看起来像插件坏了。现在 `/rtime info` 会显示 `红石输出模块：true/false`，
-  建钟/改槽位/开机时若模块关闭会额外提示一行并说明怎么开。
+- **红石模块被关掉时给出明确提示**：以前 `/rtime create` 会成功返回但世界里什么都不出现，
+  看起来像插件坏了。现在 `/rtime info` 显示 `红石输出模块：true/false`，建钟/改槽位/开机时若模块关闭会额外提示一行
+  并说明怎么开。
+- `place` 移动槽位后，若设备带展示方块，会提示「灯/比较器不会跟着移动」（展示方块属于默认布局），
+  并建议手工接线或改用 `manual`。此前移动 analog 槽位会留下一个没人能解释的比较器/灯。
 
 ### 工程
-
-- Hangar 项目主页（长描述）改由 [`scripts/hangar-page.sh`](scripts/hangar-page.sh) 从
-  `docs/operations/platform-listings.md` 推送（`PATCH /api/v1/pages/editmain/{project}`，需 `edit_page`）；
-  发布工作流在 Hangar 发布后自动同步，失败不影响发版。分类与许可证没有 API，仍是网页操作。
-- 新增 [`scripts/platform-audit.sh`](scripts/platform-audit.sh)：发版后核对 Hangar / Modrinth 项目页是否与本仓库文案一致
-  （名称、分类、许可证、简介/长描述、链接、平台与游戏版本、loader，以及每个 Hangar 版本的频道、`26.3` 与 **sha256**）。
-  Hangar 无需凭据；Modrinth 需要 `READ_PROJECT`，读不到时如实报「无法核对」而不是假装通过。
 
 - 迭代流程标准化：[`docs/development/workflow.md`](docs/development/workflow.md)（选任务 → 任务契约 → 分支命名 →
   本地门禁 → PR 四段式 → CI → squash 合并 → 父仓库 bump → 发版 → DoD / 证据状态）与
   [`tasks/TEMPLATE.md`](tasks/TEMPLATE.md) 任务契约模板；`AGENTS.md`、`tasks/README.md`、README 索引同步指向。
-- Hangar / Modrinth 发布准备：`scripts/distribution-check.sh`（离线校验 `plugin.yml`、工作流接线、Modrinth payload；
-  `--remote` 追加公共 API 校验、`--check-tokens` 校验刚创建的令牌是否被平台接受（Hangar 走 `apiKey` 查询参数、只看状态码不读返回的 JWT；Modrinth 走**项目**
-路由而不是 `/v2/user`，后者要 `USER_READ` 权限、会让一把有效令牌报 401），已并入 `verify.sh`）、[`docs/release/distribution.md`](docs/release/distribution.md)
-  （项目创建、令牌最小权限、演练、排错、安全约束）。
-- Release 工作流支持 `workflow_dispatch`（`ref` / `version` / `dry_run`）：可完整跑版本解析、构建、jar 检查与
-  分布预检而不创建 Release、不上传；演练的 `publish` job 走独立的 `release-dry-run` 环境（无审批、无密钥），
-  因此 `release` 环境仍然只允许 `v*` tag；Modrinth payload 的 loaders 补上 `folia`。
+- Hangar / Modrinth 发布就绪：`scripts/distribution-check.sh`（离线校验 `plugin.yml`、工作流接线、Modrinth payload；
+  `--remote` 追加公共 API 校验、`--check-tokens` 校验令牌，已并入 `verify.sh`）、
+  [`docs/release/distribution.md`](docs/release/distribution.md)（项目创建、最小权限令牌、演练、排错、安全约束）。
+- Release 工作流支持 `workflow_dispatch`（`ref` / `version` / `dry_run`）：完整跑版本解析、构建、jar 检查与分布预检
+  而不创建 Release、不上传；演练走独立的 `release-dry-run` 环境，`release` 环境仍只允许 `v*` tag；
+  Modrinth payload 的 loaders 补上 `folia`。
+- `scripts/platform-audit.sh`：发版后核对 Hangar / Modrinth 项目页与本仓库文案（含每个 Hangar 版本的频道、`26.3`、sha256）。
+- `scripts/hangar-page.sh`：把 `docs/operations/platform-listings.md` 的长描述推送到 Hangar 主页；发版工作流在 Hangar
+  发布后自动同步（失败不影响发版）。
+- smoke 脚本（`smoke-server.sh` / `smoke-device-cleanup.sh`）改用扁平命令，CI 覆盖的就是文档教的命令。
+
+### 安装与升级须知（0.5.0）
+
+**升级只需替换 jar 并重启**；`data/devices.yml` 会自动从 schema v5 迁移到 **v6**（旧设备、旧槽位坐标、清理队列
+全部保留，已有槽位视为"已放置"，行为不变）。
+
+三处**行为变化**需要你知道：
+
+1. **`/rtime create` 现在默认启用并放置展示方块**（0.4.0 及以前是"创建为禁用、不放任何装饰方块"）。已有设备不受影响；
+   想保持自己接线用 `nodisplay`，想先建后摆用 `manual`。
+2. **红石模块默认开启**：只影响**全新安装**（已有的 `modules/redstone.yml` 不会被覆盖）。如果不希望插件碰世界，
+   把它改成 `enabled: false` 再 `/rtime reload`。
+3. **命令改成 5 条日常命令**（`create` / `info` / `on` / `off` / `remove`，进阶收进 `help all`）。
+   旧的 `/rtime device <子命令>` **仍然可用**，现有脚本不用改；只是帮助和补全里不再出现。
+
+Hangar 已有 `0.4.0`；本版发布后会自动上传 `0.5.0`（Release 频道）。Modrinth 项目仍在审核中，通过后同样自动上传。
 
 ## [0.4.0]
 
