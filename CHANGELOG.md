@@ -11,6 +11,13 @@ All notable changes to RealTime are documented here. Release automation requires
 - 新增 [`docs/operations/platform-listings.md`](docs/operations/platform-listings.md)：Hangar / Modrinth 项目页的权威文案与
   元数据（简介、长描述、分类、许可证、链接），并记录两个平台的可编辑性差异（Hangar 只能网页改、Modrinth 可 PATCH）。
 
+### 变更
+
+- **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
+  默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
+- `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
+
 ### 修复
 
 - **红石模块未启用时给出明确提示**：新装服务器 `modules/redstone.yml` 默认 `enabled: false`，此时
@@ -63,6 +70,13 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [0.3.0]
 
+### 变更
+
+- **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
+  默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
+- `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
+
 ### 修复
 
 - `device cleanup list` 现在把 demo 展示方块也计入 `待处理`/`需人工处理`，`device cleanup retry` 也会把
@@ -104,12 +118,26 @@ All notable changes to RealTime are documented here. Release automation requires
   再多 1 格空隙，方便目视区分。`minute` 设备占 34 格、`second` 占 52 格；**已存设备坐标不变**，显式 `[stride]` 仍可覆盖
   组内间距。
 
+### 变更
+
+- **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
+  默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
+- `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
+
 ### 修复
 
 - `device set` 现在要求设备处于**禁用**状态（补全也只推荐已禁用设备）：之前允许对启用中设备改槽位，而设备只写"当前槽位表"，
   旧槽位会留下一个永久通电的红石块（或一个讲台）。
 - analog 设备 `disable` 现在把槽位整体清空（而不是只移走书留下空讲台），与 BCD "归 air" 一致，也让"改槽位不留残留"成立。
 - 退役 analog 设备时，`disable` 留下的空白讲台现在也会被清理（先清空库存再拆方块，书不掉落），不再需要人工手拆 6 个讲台。
+
+### 变更
+
+- **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
+  默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
+- `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
+- 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
 

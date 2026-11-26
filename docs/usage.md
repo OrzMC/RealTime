@@ -27,7 +27,8 @@ BCD 稳、无需方块实体；analog 把 24 条线压成 6 条，代价是要�
 | 安装 | 把 `RealTime-<版本>.jar` 放进 `plugins/` 后启动 |
 
 首次启动会生成 `plugins/RealTime/`：`config.yml`、`messages.yml`、`modules/command.yml`、`modules/redstone.yml`、
-`data/devices.yml`。**红石模块默认关闭**，确认无误后把 `modules/redstone.yml` 的 `enabled` 改成 `true` 再 `/rtime reload`。
+`data/devices.yml`。**红石模块默认开启**（`enabled: true`）。没有设备时它不产生任何写入和开销；不想让插件碰世界就改成 `false`，
+此时 `/rtime now`、`/rtime info` 与占位符仍然可用。
 
 > ⚠️ 模块关闭时**命令全部照常工作，但世界里什么都不会出现**：`device create` / `device demo` 会成功返回，
 > 槽位不写入、demo 的灯/讲台/比较器也不会放置。这是**新装服务器的默认状态**，看起来就像"插件不工作"。
@@ -43,9 +44,11 @@ enabled: true
 limits:
   max-devices: 50            # 设备数量上限
   edit-cooldown-seconds: 3   # 每人执行建设备命令的冷却
-  allowed-areas: []          # 空 = 不限区域；建议在生产服写死一片区域
+  allowed-areas: []          # 空 = 允许全图放置；填了就只允许这些矩形区域
   # - { world: world, min-x: 39000, max-x: 41000, min-z: -200, max-z: 200 }
 ```
+
+`allowed-areas` 为空是**合法配置**（全图放置），启动日志里会以 `info` 说明一次；填了区域则只允许在范围内建/改设备。
 
 ## 3. 命令与权限
 
