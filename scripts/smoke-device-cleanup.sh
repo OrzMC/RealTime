@@ -141,7 +141,7 @@ wait_cleanup_queue_empty() {
   local label="$1"
   local queue attempt
   for attempt in $(seq 1 60); do
-    queue="$(rtime device cleanup list)"
+    queue="$(rtime cleanup)"
     if grep -Fq '当前没有待清理设备' <<< "$queue"; then
       return 0
     fi
@@ -265,7 +265,7 @@ rcon forceload add 0 0 >/dev/null
 
 PENDING_READY=0
 for _ in $(seq 1 30); do
-  QUEUE="$(rtime device cleanup list)"
+  QUEUE="$(rtime cleanup)"
   if grep -Eq '待处理：.*15' <<< "$QUEUE" && grep -Eq '需人工处理：.*0' <<< "$QUEUE"; then
     PENDING_READY=1
     break
@@ -297,7 +297,7 @@ fi
 rcon forceload add 1600 0 >/dev/null
 ATTENTION_READY=0
 for _ in $(seq 1 30); do
-  QUEUE="$(rtime device cleanup list)"
+  QUEUE="$(rtime cleanup)"
   if grep -Eq '待处理：.*0' <<< "$QUEUE" && grep -Eq '需人工处理：.*1' <<< "$QUEUE"; then
     ATTENTION_READY=1
     break
@@ -325,7 +325,7 @@ if [[ -z "$ATTENTION_DETAIL" ]]; then
 fi
 
 rcon setblock 1615 64 0 minecraft:air >/dev/null
-rtime device cleanup retry "$JOB_ID" >/dev/null
+rtime cleanup retry "$JOB_ID" >/dev/null
 wait_cleanup_queue_empty "Operator retry did not finish the corrected cleanup job"
 # The durable cleanup queue is the authoritative record: a job only disappears
 # once every slot was cleared. The vanilla block probe is a redundant cross-check
@@ -394,7 +394,7 @@ for _ in $(seq 1 25); do
 done
 if [[ "$SLOT_PROBES_USABLE" == "1" ]]; then
   if [[ "$LIVE_POWERED" != "1" ]]; then
-    rtime device status >&2
+    rtime status >&2
     cat "$WORK_DIR/plugins/RealTime/data/devices.yml" >&2
     tail -40 "$WORK_DIR/server.log" >&2
     echo "No output slot held a redstone block while the device was enabled on $PROJECT." >&2
@@ -406,20 +406,20 @@ else
   echo "Block probes unreliable on $PROJECT; asserting the enabled device through plugin counters."
   COUNTERS_OK=0
   for _ in $(seq 1 40); do
-    if rtime device status | grep -Eq '输出变更：.*[1-9]' && rtime device status | grep -Eq '非法方块：.*0'; then
+    if rtime status | grep -Eq '输出变更：.*[1-9]' && rtime status | grep -Eq '非法方块：.*0'; then
       COUNTERS_OK=1
       break
     fi
     sleep 1
   done
   if [[ "$COUNTERS_OK" != "1" ]]; then
-    rtime device status
+    rtime status
     echo "Enabled device never wrote a valid output slot on $PROJECT." >&2
     exit 1
   fi
 fi
 
-rtime device disable "$LIVE_DEVICE_ID" >/dev/null
+rtime off "$LIVE_DEVICE_ID" >/dev/null
 grep -A4 -F "id: $LIVE_DEVICE_ID" "$WORK_DIR/plugins/RealTime/data/devices.yml" | grep -Fq 'enabled: false' || {
   cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
   echo "Disabling the live device was not persisted on $PROJECT." >&2
@@ -440,7 +440,7 @@ if [[ "$SLOT_PROBES_USABLE" == "1" ]]; then
     exit 1
   fi
 fi
-rtime device remove "$LIVE_DEVICE_ID" >/dev/null
+rtime remove "$LIVE_DEVICE_ID" >/dev/null
 
 # Exercise the actual admin retirement command against a disabled active device.
 # The device uses second resolution, so its 24 outputs span two chunks.
@@ -466,7 +466,7 @@ for bit in $(seq 0 23); do
   rcon setblock "$x" 64 0 minecraft:redstone_block >/dev/null
 done
 
-REMOVE_RESULT="$(rtime device remove "$RETIRE_DEVICE_ID")"
+REMOVE_RESULT="$(rtime remove "$RETIRE_DEVICE_ID")"
 if ! grep -Fq '已退休' <<< "$REMOVE_RESULT"; then
   echo "Safe device remove command did not report retirement on $PROJECT: $REMOVE_RESULT" >&2
   exit 1
@@ -474,7 +474,7 @@ fi
 
 wait_cleanup_queue_empty "Retirement command did not complete all 24 outputs"
 
-DEVICE_LIST="$(rtime device list)"
+DEVICE_LIST="$(rtime list)"
 if ! grep -Fq '当前没有配置任何设备' <<< "$DEVICE_LIST"; then
   echo "Retired device is still present in the active device list on $PROJECT: $DEVICE_LIST" >&2
   exit 1

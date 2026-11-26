@@ -313,8 +313,9 @@ class RealTimeCommandHandler(
         }
 
         when (args.firstOrNull()?.lowercase(Locale.ROOT)) {
-            "list" -> {
-                if (args.size != 1) return sendUsage(target, state)
+            // `/rtime cleanup` on its own shows the queue: one token fewer to remember.
+            null, "list" -> {
+                if (args.size > 1) return sendUsage(target, state)
                 if (!target.hasPermission(VIEW_PERMISSION)) return sendNoPermission(target, state)
                 val jobs = administration.list()
                 if (jobs.isEmpty()) {

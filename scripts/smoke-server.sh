@@ -122,7 +122,7 @@ python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWO
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime info
 
 DEVICE_LIST_OUTPUT="$(
-  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime list
 )"
 grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" && grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_OUTPUT" || {
   echo "Device list command did not return the configured device: $DEVICE_LIST_OUTPUT" >&2
@@ -130,7 +130,7 @@ grep -Fq "设备列表" <<< "$DEVICE_LIST_OUTPUT" && grep -Fq "$DEVICE_ID" <<< "
 }
 
 DEVICE_STATUS_OUTPUT="$(
-  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device status
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime status
 )"
 grep -Fq "设备输出诊断" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "配置设备：" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "输出点：" <<< "$DEVICE_STATUS_OUTPUT" || {
   echo "Device status command did not return aggregate diagnostics: $DEVICE_STATUS_OUTPUT" >&2
@@ -139,7 +139,7 @@ grep -Fq "设备输出诊断" <<< "$DEVICE_STATUS_OUTPUT" && grep -Fq "配置设
 
 DEVICE_INFO_OUTPUT="$(
   python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
-    rtime device info "$DEVICE_ID"
+    rtime info "$DEVICE_ID"
 )"
 grep -Fq "设备信息" <<< "$DEVICE_INFO_OUTPUT" &&
   grep -Fq "编码：" <<< "$DEVICE_INFO_OUTPUT" &&
@@ -149,7 +149,7 @@ grep -Fq "设备信息" <<< "$DEVICE_INFO_OUTPUT" &&
 }
 
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
-  rtime device enable "$DEVICE_ID"
+  rtime on "$DEVICE_ID"
 grep -Eq 'enabled: true' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
   cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
   echo "Device enable did not persist." >&2
@@ -157,7 +157,7 @@ grep -Eq 'enabled: true' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
 }
 
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" \
-  rtime device disable "$DEVICE_ID"
+  rtime off "$DEVICE_ID"
 grep -Eq 'enabled: false' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
   cat "$WORK_DIR/plugins/RealTime/data/devices.yml"
   echo "Device disable did not persist." >&2
@@ -166,7 +166,7 @@ grep -Eq 'enabled: false' "$WORK_DIR/plugins/RealTime/data/devices.yml" || {
 
 python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime reload
 DEVICE_LIST_AFTER_RELOAD="$(
-  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime device list
+  python3 "$ROOT_DIR/scripts/rcon-command.py" 127.0.0.1 "$RCON_PORT" "$RCON_PASSWORD" rtime list
 )"
 grep -Fq "$DEVICE_ID" <<< "$DEVICE_LIST_AFTER_RELOAD" || {
   echo "Disabled device was not retained after reload: $DEVICE_LIST_AFTER_RELOAD" >&2

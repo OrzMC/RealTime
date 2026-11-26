@@ -46,29 +46,32 @@ lines instead of twenty-four redstone lines.
 
 - Real-world time with an explicit `ZoneId` (default `Asia/Shanghai`); `/rtime now`, `/rtime info`, `/rtime reload`.
 - Minute **or second** resolution, tick-level change detection, diff-only chunk-batched writes.
-- In-game authoring: `device create`, `device set`, and `device demo` — a one-command teaching build that lays out the
-  whole clock (lectern / comparator / dust / lamp rows for analog, a lamp per slot for BCD).
+- Five commands to learn: `/rtime`, `/rtime create <name> [bcd|analog]`, `/rtime info [device]`, `/rtime on|off`,
+  `/rtime remove`. Everything else (`place`, `status`, `cleanup`, `reload`) is behind `/rtime help all`.
+- In-game authoring: `/rtime create clock bcd` builds at the block you aim at, lays out the slots in the direction you
+  face, places the display blocks (a lamp per slot for BCD, lectern / comparator / dust / lamp rows for analog) and
+  starts enabled. `/rtime place <device> <slot>` repositions one slot when something else occupies the layout.
 - Digit grouping so neighbouring power sources do not couple into each other's circuits.
 - Durable lifecycle: `disable` empties every slot, `remove` queues a crash-safe cleanup job, `retry` and `dismiss`
   let an operator finish a cleanup without editing YAML.
 - Never overwrites blocks it did not place: anything foreign is reported as `NEEDS_ATTENTION`, never silently stolen.
-- Diagnostics behind `device status`; optional PlaceholderAPI placeholders.
+- Diagnostics behind `/rtime status`; optional PlaceholderAPI placeholders.
 - Folia supported (`folia-supported: true`), no dependencies except optional PlaceholderAPI.
 
 ## Quick start
 
 ```
-/rtime info                     # version, timezone, current time
-/rtime device demo bcd minecraft:overworld 100 70 -20 x+     # teaching build, always second resolution
-/rtime device list
-/rtime device disable <uuid>    # empties the slots
-/rtime device remove <uuid>     # queues cleanup of the blocks it placed
-/rtime device cleanup list|retry|dismiss
+/rtime                                   # current time
+/rtime create clock bcd                  # stand where you want it, face the way it should extend
+/rtime info                              # plugin state + every device
+/rtime off clock                         # empties the slots
+/rtime remove clock                      # queues cleanup of the blocks it placed
+/rtime cleanup list|retry|dismiss        # what is left to clean up
 ```
 
-Build your own with `device create` and place the target blocks with `device set` (the device must be disabled while
-you edit its slots). Full command reference, permissions, wiring diagrams, the cleanup queue and an FAQ live in the
-[usage guide](https://github.com/OrzMC/RealTime/blob/main/docs/usage.md).
+`/rtime help` lists the five everyday commands and `/rtime help all` the rest; `/rtime place clock 3` repositions a
+single slot (the device must be off). Full command reference, permissions, wiring diagrams, the cleanup queue and an
+FAQ live in the [usage guide](https://github.com/OrzMC/RealTime/blob/main/docs/usage.md).
 
 ## Requirements
 

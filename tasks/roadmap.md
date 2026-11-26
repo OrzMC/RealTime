@@ -22,6 +22,8 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR16 | Analog (lectern) encoding, one digit per slot, schema v4 | Complete — PR #36 (`71c0355`) | PR15 |
 | PR17 | Default layout: one-block gaps and four-bit digit groups | Complete — PR #35 (`f2143b1`) | PR16 |
 | PR18 | `device demo` teaching builds (schema v5) and safe slot edits | Complete — PR #41 (`ebeee56`), #40 (`27ecc01`) | PR17 |
+| PR19 | Redstone module on by default, stated module/limit state in logs, miss-proof warnings | Complete — PR #68 (`8bb951c`), #69 (`bf1558a`) | PR18 |
+| PR20 | Command surface v2: flat verbs, one command per clock, per-slot placement, tab completion and help | Complete — #70 (`5e91ab8`), #67 (`024c8c1`), #65 (`26f1cca`) | PR19 |
 
 ## Milestones
 
