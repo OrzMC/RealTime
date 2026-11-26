@@ -26,8 +26,8 @@ class RealTimeConfigurationLoaderTest {
         assertEquals(Locale.forLanguageTag("zh-CN"), configuration.locale)
         assertEquals(true, configuration.commandEnabled)
         assertEquals("uuuu-MM-dd HH:mm:ss XXX", configuration.commandFormat)
-        assertEquals("{prefix}devices {count}", configuration.messages["command.device.list.header"])
-        assertEquals("{prefix}device diagnostics", configuration.messages["command.device.status.header"])
+        assertEquals("{prefix}clocks {count}", configuration.messages["command.overview.header"])
+        assertEquals("{prefix}device diagnostics", configuration.messages["command.status.header"])
     }
 
     @Test
@@ -59,8 +59,8 @@ class RealTimeConfigurationLoaderTest {
 
         val configuration = RealTimeConfigurationLoader().load(temporaryDirectory.toFile())
 
-        assertEquals("{prefix}&b设备列表（{count}）", configuration.messages["command.device.list.header"])
-        assertEquals("{prefix}&b设备输出诊断", configuration.messages["command.device.status.header"])
+        assertEquals("{prefix}&b钟（{count}）", configuration.messages["command.overview.header"])
+        assertEquals("{prefix}&b运行状态", configuration.messages["command.status.header"])
     }
 
     @Test
@@ -173,35 +173,13 @@ class RealTimeConfigurationLoaderTest {
               usage: '{prefix}usage'
               device:
                 unavailable: '{prefix}unavailable'
-                status:
-                  header: '{prefix}device diagnostics'
-                  devices: '{prefix}devices {configured} enabled {enabled} outputs {outputs}'
-                  checks: '{prefix}checks {checks} unloaded {unloaded} stale {stale}'
-                  outcomes: '{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}'
-                list:
-                  header: '{prefix}devices {count}'
-                  empty: '{prefix}empty'
-                  item: '{prefix}{name} {id} {world} {enabled}'
-                info:
-                  header: '{prefix}{name}'
-                  id: '{prefix}{id}'
-                  world: '{prefix}{world}'
-                  enabled: '{prefix}{enabled}'
-                  outputs: '{prefix}outputs {count}'
-                  output: '{prefix}bit {bit} at {x}, {y}, {z}'
-                state:
-                  enabled: 'enabled'
-                  disabled: 'disabled'
-                enable:
-                  success: '{prefix}enabled {name}'
-                disable:
-                  success: '{prefix}disabled {name}'
-                remove:
-                  confirm: '{prefix}remove {id} confirm'
-                  success: '{prefix}removed {name}'
-                invalid-id: '{prefix}invalid {id}'
-                not-found: '{prefix}not found {id}'
-                error: '{prefix}error {reason}'
+              status:
+                header: '{prefix}device diagnostics'
+                devices: '{prefix}devices {configured} enabled {enabled} outputs {outputs}'
+                checks: '{prefix}checks {checks} unloaded {unloaded} stale {stale}'
+                outcomes: '{prefix}changed {changed} unchanged {unchanged} invalid {invalid} failures {failures}'
+              overview:
+                header: '{prefix}clocks {count}'
             """.trimIndent(),
         )
     }

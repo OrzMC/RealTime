@@ -2,7 +2,6 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -107,7 +106,6 @@ class RedstoneDeviceManagerDemoTest {
             enabled,
             device.outputs,
             device.resolution,
-            device.encoding,
             device.demoBlocks,
         )
 
@@ -216,7 +214,6 @@ class RedstoneDeviceManagerDemoTest {
                             enabled = true,
                             outputs = slots,
                             resolution = OutputResolution.MINUTE,
-                            encoding = OutputEncoding.ANALOG,
                             demoBlocks = demoBlocks,
                         ),
                     ),

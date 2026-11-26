@@ -1,6 +1,6 @@
 # Redstone Time Devices — Implementation Notes
 
-Configuration, data structures, encoding details and runtime behaviour. **Operators and builders should read the
+Configuration, data structures, slot details and runtime behaviour. **Operators and builders should read the
 [usage guide](../usage.md)** for commands, permissions, wiring and the cleanup queue.
 
 ## Configuration
@@ -29,143 +29,92 @@ Each device output slot is a **power-source slot**: a logical 1 places a `minecr
 
 `data/devices.yml` stores versioned device records. It is separate from feature configuration and is backed up before repository writes.
 
-## Output encodings
+## Output slots
 
-Every device declares how it materialises a digit: `encoding: bcd` (default) or `encoding: analog`.
+Every clock is a row of **lecterns**, one per digit. There is no encoding choice: a digit's slot holds a lectern with the
+plugin's book at page `digit`, and a comparator reads `digit + 1`.
 
-| Encoding | Slots per digit | `minute` slots | `second` slots | What a slot is |
-|---|---|---|---|---|
-| `bcd` | 4 (LSB → MSB) | 16 | 24 | `redstone_block` = 1, air = 0 |
-| `analog` | 1 | 4 | 6 | a lectern whose page index is the digit |
+| Slot content | Reads as | Meaning |
+|---|---|---|
+| lectern + plugin book, page `0`–`9` | level `1`–`10` | the digit |
+| lectern, no book | level `0` | clock is off (or the slot was just placed) |
+| anything else | — | not ours: reported as `NEEDS_ATTENTION`, never overwritten |
 
-BCD keeps the existing wiring: 24 lines for `HHmmss`. Analog collapses a digit into a single comparator-readable level, so a `HHmmss` device needs **6 lines instead of 24**.
+`HHmm` therefore needs four lecterns and `HHmmss` six, which is the whole reason BCD was dropped: sixteen/twenty-four
+parallel bit lines needed a decoder whose propagation delay made the display unreadable.
 
-### Analog slots (lecterns)
+### Page → level mapping
 
-Each analog slot is a `minecraft:lectern` holding a 15-page written book created by the plugin. Paper 26.3 computes the lectern's comparator output as
+Paper 26.3 `LecternBlockEntity#getRedstoneSignal()`:
 
-```java
+```
 float f = pageCount > 1 ? page / (pageCount - 1) : 1.0F;
 return floor(f * 14.0F) + (hasBook ? 1 : 0);
 ```
 
-which for 15 pages collapses to `page + 1`:
+The plugin installs a 15-page book, so `pageCount - 1 == 14` and the formula collapses to `page + 1`: every digit maps
+onto a distinct level with no rounding. Levels 11–15 are unused, so downstream circuits can tell a clock digit from "out
+of range".
 
-| Digit | Page | Comparator level |
+Writing a digit is one block-entity operation (`setPage`), and `setPage` fires `LecternBlock.signalPageChange`, so the
+comparator updates without the plugin touching neighbouring blocks.
+
+### Off, placement and cleanup
+
+- **Off**: the book is removed (level 0) and the lectern stays. The build is always visible, and a slot positioned by
+  hand keeps its position.
+- **`place`**: `DevicePlacement.placeSlotNow` builds the lectern immediately, facing the player, with the current digit
+  (or blank when the clock is off), and clears the lectern the slot left behind — but only one that still holds this
+  clock's book or nothing at all.
+- **Retirement**: the cleanup job removes the lectern after clearing its book (so no item drops) whether it still holds
+  this clock's book or is already blank. A lectern holding **someone else's** book, or any other block, is left in place
+  and reported as `NEEDS_ATTENTION`.
+
+## Slot order
+
+Digits are always ordered hour → minute → second, one slot each:
+
+| Slot index | Digit | Resolution |
 |---|---|---|
-| 0 | 0 | 1 |
-| 1 | 1 | 2 |
-| … | … | … |
-| 9 | 9 | 10 |
+| 0 | hour tens | both |
+| 1 | hour ones | both |
+| 2 | minute tens | both |
+| 3 | minute ones | both |
+| 4 | second tens | `second` only |
+| 5 | second ones | `second` only |
 
-No rounding is involved: all ten digits map onto distinct levels. A device that is disabled (or globally off) has its slot **emptied**: the book is removed first (so it does not drop) and then the lectern, exactly like a BCD slot goes back to air. Level 0 therefore comes from air, "off" stays distinguishable from digit 0 (which reads level 1), and a slot that was moved while the device was off cannot leave an orphaned lectern behind.
+A `minute` clock must define exactly 4 unique slots and a `second` clock exactly 6; slot indexes must cover
+`0` through `digitCount - 1` exactly once. A slot with a position must contain `minecraft:air` or a lectern belonging to
+this clock; anything else is reported as an invalid output and never overwritten.
 
-Writing a digit is a single block-entity operation (`setPage`), far cheaper than the 4 block writes of a BCD digit:
-
-- The plugin places the lectern itself when the slot is air and enable the device; you build only the comparator and decoding circuit.
-- The book is the ownership marker: title `RealTime <first 8 chars of the device UUID>`, author `RealTime`. A lectern holding any other book is reported as an invalid output and never modified.
-- Writing the book resets the page to 0, so the page is always written after book installation.
-- `setPage` notifies neighbouring blocks, so the comparator behind the lectern resamples immediately; no manual block update is needed.
-- Lecterns are block entities: they only tick while the chunk is entity-ticking (a player nearby). A comparator in an unloaded chunk catches up as soon as the chunk ticks again, so the display is correct on arrival rather than live while nobody is around.
-- Players can open the lectern and turn pages. The 30 s full re-check rewrites the page, so tampering self-heals within at most 30 s. Disabling a device removes the lecterns, and enabling it again places them and their books back.
-
-**Comparator direction:** `facing` points *toward the input*. Place the comparator with `facing` set towards the lectern; the output is on the opposite side. `comparator[facing=west]` therefore reads the lectern to its west and drives dust to its east.
-
-Real-server evidence for this section (page/level table, disable, tamper self-heal, retirement) is recorded in
-[analog acceptance 2026-11-25](../operations/analog-acceptance-2026-11-25.md).
-
-Retirement follows the same rule as BCD slots: the cleanup job removes the lectern (after clearing its book, so no item drops) whether it still holds this device's book or is already blank, because the slot belongs to the device — disabling a device only removes the book. A lectern that holds **someone else's** book, or any other block, is left in place and reported as `NEEDS_ATTENTION`.
-
-## Device store schema v5
-
-The current `data/devices.yml` format uses schema version 5. Schema v4 added `encoding` to device records and cleanup jobs; schema v5 adds the `demo:` display-block list of a `create`/`demo` build; schema v6 adds the per-output `unplaced` flag of `manual` builds and the matching `display:` list on cleanup jobs. Records written by earlier schemas are read as `bcd` with no demo blocks, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v5 files are migrated automatically on load (a v5 output without `unplaced` is placed); device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
-
-Each device record declares `resolution: minute` or `resolution: second`, `encoding: bcd` or `encoding: analog`, and — for a teaching build — a `demo:` list of the display blocks it owns (`{x, y, z, data}`, where `data` is a block-data string such as `minecraft:comparator[facing=north]`). A `bcd` `minute` device has 16 outputs and a `bcd` `second` device 24 (HHmmss); an `analog` device has one output per digit, so 4 and 6 respectively. Cleanup jobs record the same resolution and encoding as the retired device, so every variant is cleaned completely.
-
-A cleanup job records the retired device identity, world name, optional world UUID, resolution, encoding, every output coordinate of that device, and the display blocks of a demo build (`display:`). Each output has one of three states:
-
-- `PENDING`: not yet safely processed (including unloaded chunks or unavailable worlds).
-- `CLEARED`: the slot was already empty, or a `redstone_block` / the plugin's lectern / one of its demo blocks was removed from it.
-- `NEEDS_ATTENTION`: the slot holds something the plugin does not own (it is never overwritten), so an operator must inspect it.
-
-Example shape (abbreviated):
-
-```yaml
-schema-version: 6
-devices: []
-cleanup-jobs:
-  - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
-    device-id: 45b8f930-0a13-4f8c-9b90-8eac4a2b4a10
-    device-name: lobby-clock
-    world: world
-    world-uuid: null
-    resolution: second
-    encoding: bcd
-    display: []
-    outputs:
-      - { bit-index: 0, x: 100, y: 65, z: 100, status: PENDING, detail: null }
-```
-
-A job created by a demo device also carries a `display:` list, and both lists count towards the `pending` / `attention`
-numbers printed by `/rtime cleanup`; `/rtime cleanup retry <job-uuid>` requeues every `NEEDS_ATTENTION` entry of
-the job (slots **and** display blocks), because a job only disappears once all of them are cleared.
-
-The complete job contains every output of the retired device (16/24 for a BCD `minute`/`second` device, 4/6 for an analog one). Do not hand-edit or delete cleanup jobs. Coordinates reserved by a cleanup job cannot be reused by an active device until the job is fully resolved and removed by the cleanup lifecycle. PR10a adds the schema and migration; PR10b adds the crash-safe retirement service and region-owned cleanup processor. PR10c adds operator queue inspection/retry and device-specific Paper/Folia runtime recovery coverage. PR11 exposes the disabled-only admin retirement command through the existing crash-safe service (now `/rtime remove`). PR12 adds second resolution. PR16 adds the optional analog (lectern) encoding and schema v4; PR17 changes the default layout to one-block gaps with four-bit digit groups; PR18 adds the `demo` teaching builds and schema v5.
-
-## BCD output layout
-
-Digits are always ordered hour → minute → second, and each digit is emitted least-significant bit first. `minute` devices expose the first four digits; `second` devices expose all six.
-
-| Bit indexes | Digit | Resolution | Bit order |
-|---|---|---|---|
-| 0–3 | Hour tens | both | LSB → MSB |
-| 4–7 | Hour ones | both | LSB → MSB |
-| 8–11 | Minute tens | both | LSB → MSB |
-| 12–15 | Minute ones | both | LSB → MSB |
-| 16–19 | Second tens | `second` only | LSB → MSB |
-| 20–23 | Second ones | `second` only | LSB → MSB |
-
-A `minute` device must define exactly 16 unique output slots and a `second` device exactly 24; bit indexes must cover `0` through `outputs - 1` exactly once. Slots must contain `minecraft:air` or `minecraft:redstone_block`; anything else is reported as an invalid output and never overwritten.
-
-Analog devices reuse the same record shape with **one entry per digit**: `bit-index` 0–3 (`minute`) or 0–5 (`second`) is the digit position, and the slot value is the digit itself rather than a bit. `/rtime info <device>` prints the same `槽 <index>` lines for both encodings.
-
-For example, 23:59:47 is encoded as digits `2, 3, 5, 9, 4, 7`; each digit occupies four bits, least-significant bit first.
+23:59:47 is therefore digits `2, 3, 5, 9, 4, 7`, one lectern page each.
 
 ## Device file example
 
-The following shows a complete `minute` device (16 outputs, HHmm) in the default layout — one empty block between slots, one extra between the four bits of a digit (`offset = index * 2 + index / 4`). A `second` device is identical except for `resolution: second` and 24 output records covering bit indexes 0 through 23 (`offset = index * 2 + index / 4`, spanning 52 blocks). Change the world name and coordinates to match the build:
+The following shows a complete `second` clock (6 lecterns, HHmmss) in the default layout — `offset = index * 2`, so
+slots are two blocks apart and there is exactly one empty block for the comparator reading each lectern. Change the
+world name and coordinates to match the build:
 
 ```yaml
-schema-version: 6
+schema-version: 7
 devices:
   - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
     name: lobby-clock
     world: world
     enabled: true
-    resolution: minute
-    encoding: bcd
+    resolution: second
     demo: []
     outputs:
       - { bit-index: 0, x: 100, y: 65, z: 100 }
       - { bit-index: 1, x: 102, y: 65, z: 100 }
       - { bit-index: 2, x: 104, y: 65, z: 100 }
       - { bit-index: 3, x: 106, y: 65, z: 100 }
-      - { bit-index: 4, x: 109, y: 65, z: 100 }
-      - { bit-index: 5, x: 111, y: 65, z: 100 }
-      - { bit-index: 6, x: 113, y: 65, z: 100 }
-      - { bit-index: 7, x: 115, y: 65, z: 100 }
-      - { bit-index: 8, x: 118, y: 65, z: 100 }
-      - { bit-index: 9, x: 120, y: 65, z: 100 }
-      - { bit-index: 10, x: 122, y: 65, z: 100 }
-      - { bit-index: 11, x: 124, y: 65, z: 100 }
-      - { bit-index: 12, x: 127, y: 65, z: 100 }
-      - { bit-index: 13, x: 129, y: 65, z: 100 }
-      - { bit-index: 14, x: 131, y: 65, z: 100 }
-      - { bit-index: 15, x: 133, y: 65, z: 100 }
+      - { bit-index: 4, x: 108, y: 65, z: 100 }
+      - { bit-index: 5, x: 110, y: 65, z: 100 }
 cleanup-jobs: []
 ```
 
-Device IDs must be unique. Bit indexes must cover `0` through `output count - 1` exactly once (0–15 for `minute`, 0–23 for `second`). Output coordinates must be unique within a device and across all devices in the same world. World names are used for configuration convenience; changing a world's name requires updating this file.
+Device IDs must be unique. Slot indexes must cover `0` through `digitCount - 1` exactly once (0–3 for `minute`, 0–5 for `second`). Output coordinates must be unique within a device and across all devices in the same world. World names are used for configuration convenience; changing a world's name requires updating this file.
 
 ## Runtime safety
 
@@ -179,30 +128,33 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 - Unloaded chunks are skipped and their outputs are refreshed on `ChunkLoadEvent`.
 - The manager never calls `getChunkAt`, chunk load APIs, or world generation APIs.
 - Output slots should be physically isolated from unrelated redstone so two devices cannot couple; connect the receiving circuit next to the slot.
-- Devices can be created and edited in game (`/rtime create` fills the layout, `/rtime place` moves individual slots); the YAML store remains the single source of truth and every slot coordinate stays reviewable.
+- Clocks can be created and edited in game (`/rtime create` fills the layout, `/rtime place` moves individual slots and
+  builds the lectern on the spot); the YAML store remains the single source of truth and every slot coordinate stays
+  reviewable.
 - A slot can be **unplaced** (`unplaced: true`): `manual` builds start every slot that way. Unplaced slots are never
-  written, never take part in cross-device position checks, and block `enable` with the number still missing, so the
-  operator can position each source at an arbitrary coordinate in any order. `setOutput` clears the flag.
+  written, never take part in cross-clock position checks, and block `enable` with the number still missing, so the
+  operator can position each lectern at an arbitrary coordinate in any order. `setOutput` clears the flag and builds the
+  lectern immediately.
 - `setOutput` only changes the slot coordinate. The `demo:` display blocks stay where the layout put them, because moving
-  a comparator row cannot know whether the destination is free; `manual` creates a device without display blocks for
-  hand-wired builds. This applies to both encodings (BCDs lamp, analog's comparator/dust/lamp row).
+  a comparator row cannot know whether the destination is free; `manual` creates a clock without display blocks for
+  hand-wired builds, and `place` prints that hint whenever the clock has display blocks.
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 
 ## Layout defaults and authoring pipeline
 
-New devices are laid out by `DeviceLayout`: `offset = index * stride + (index / groupSize) * groupGap`. Defaults are
-`stride = 2` (one empty block between neighbours, so adjacent power sources cannot feed each other's circuit),
-`groupSize = 4` with `groupGap = 1` for BCD (the four bits of a digit read as one visual block), and a plain
-`stride = 2` row for analog (room for the reading comparator). A `minute` device spans 34 blocks, a `second` device 52.
-An explicit `[stride]` replaces the intra-group spacing but keeps the digit boundaries; the whole layout is capped at
+New clocks are laid out by `DeviceLayout`: `offset = index * stride`, with `stride = 2` — one empty block for the
+comparator that reads each lectern. A `minute` clock spans 6 blocks, a `second` clock 10. The whole layout is capped at
 512 blocks from the origin.
 
-Commands are validated off the world thread (Folia-safe): resolution/encoding/axis/stride and slot-index sanity, the
-`limits.allowed-areas` box, `limits.max-devices`, no overlap with another device, demo display block or pending cleanup
-job, and a per-player `limits.edit-cooldown-seconds` throttle (console exempt). The command never reads or writes blocks;
-the manager performs all world access through the owning region on the next forced refresh. Every create/set/demo/remove
-is written to the plugin log with the actor, device UUID and coordinates.
+Commands are validated off the world thread (Folia-safe): resolution/axis and slot-index sanity, the
+`limits.allowed-areas` box, `limits.max-devices`, unique clock names that do not shadow a verb, no overlap with another
+clock, display block or pending cleanup job, and a per-player `limits.edit-cooldown-seconds` throttle (console exempt).
+
+The command never reads or writes blocks directly. `create` stores the resolved layout and the manager builds it through
+the owning region on the next forced refresh; `place` additionally asks `DevicePlacement.placeSlotNow` for that one slot,
+so the lectern appears immediately instead of on the next tick of a running clock. Every create/toggle/place/remove is
+logged with the actor, clock UUID and coordinates.
 
 User-facing usage (commands, permissions, wiring, cleanup queue) lives in [the usage guide](../usage.md).
 

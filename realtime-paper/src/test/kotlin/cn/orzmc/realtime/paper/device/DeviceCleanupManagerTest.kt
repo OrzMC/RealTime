@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -34,7 +35,7 @@ import java.util.logging.Logger
 
 class DeviceCleanupManagerTest {
     @Test
-    fun `clears a loaded redstone output and persists its result on the global scheduler`() {
+    fun `clears a loaded slot and persists its result on the global scheduler`() {
         val fixture = fixture(chunkLoaded = true)
         fixture.manager.onChunkLoad(fixture.chunkLoadEvent)
 
@@ -84,7 +85,7 @@ class DeviceCleanupManagerTest {
 
     private fun fixture(
         chunkLoaded: Boolean,
-        initialType: Material = Material.REDSTONE_BLOCK,
+        initialType: Material = Material.AIR,
     ): Fixture {
         val worldId = UUID.randomUUID()
         var currentType = initialType
@@ -149,9 +150,10 @@ class DeviceCleanupManagerTest {
                 worldName = "world",
                 enabled = false,
                 outputs =
-                    (0 until 16).map { bit ->
+                    (0 until 6).map { bit ->
                         DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
                     },
+                resolution = OutputResolution.SECOND,
             )
         val job = DeviceCleanupJob.fromDevice(device, worldId)
         val initialState = state(job)

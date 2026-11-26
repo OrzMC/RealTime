@@ -2,7 +2,6 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import org.bukkit.configuration.InvalidConfigurationException
@@ -19,6 +18,19 @@ class YamlDeviceRepository(
 ) {
     private val file = File(dataFolder, DEVICE_FILE)
     private val backupFile = File(dataFolder, BACKUP_FILE)
+
+    private val skippedLegacy = mutableListOf<String>()
+
+    /**
+     * True while loading a file written by a version that only knew the removed
+     * BCD encoding: there an absent `encoding` means BCD, so the entry is skipped.
+     * From schema 7 on, `encoding` is simply not written any more.
+     */
+    private var skippedLegacyOnly = false
+
+    /** Legacy BCD entries met by the last [loadStore] call; reported by the plugin. */
+    var skippedLegacyEntries: List<String> = emptyList()
+        private set
 
     fun loadStore(): DeviceStoreSnapshot {
         if (!file.isFile) {
@@ -45,6 +57,8 @@ class YamlDeviceRepository(
             )
         }
 
+        skippedLegacy.clear()
+        skippedLegacyOnly = schemaVersion < SUPPORTED_SCHEMA_VERSION
         val devices = parseDevices(yaml)
         val cleanupJobs =
             if (schemaVersion == LEGACY_SCHEMA_VERSION) {
@@ -52,6 +66,7 @@ class YamlDeviceRepository(
             } else {
                 parseCleanupJobs(yaml)
             }
+        skippedLegacyEntries = skippedLegacy.toList()
         val snapshot = DeviceStoreSnapshot(devices, cleanupJobs)
         validateStore(snapshot, "$DEVICE_FILE")
 
@@ -75,7 +90,6 @@ class YamlDeviceRepository(
                     "world" to device.worldName,
                     "enabled" to device.enabled,
                     "resolution" to device.resolution.configValue,
-                    "encoding" to device.encoding.configValue,
                     "demo" to
                         device.demoBlocks.map { block ->
                             linkedMapOf(
@@ -110,7 +124,6 @@ class YamlDeviceRepository(
                     "world" to job.worldName,
                     "world-uuid" to job.worldId?.toString(),
                     "resolution" to job.resolution.configValue,
-                    "encoding" to job.encoding.configValue,
                     "display" to
                         job.display.map { demoOutput ->
                             linkedMapOf(
@@ -169,7 +182,7 @@ class YamlDeviceRepository(
         val rawDevices =
             yaml.get("devices") as? List<*>
                 ?: throw DeviceRepositoryException("$DEVICE_FILE: devices must be a list")
-        return rawDevices.mapIndexed { index, value ->
+        return rawDevices.mapIndexedNotNull { index, value ->
             val raw =
                 value as? Map<*, *>
                     ?: throw DeviceRepositoryException("$DEVICE_FILE: devices[$index] must be a map")
@@ -181,7 +194,7 @@ class YamlDeviceRepository(
         val rawJobs =
             yaml.get("cleanup-jobs") as? List<*>
                 ?: throw DeviceRepositoryException("$DEVICE_FILE: cleanup-jobs must be a list")
-        return rawJobs.mapIndexed { index, value ->
+        return rawJobs.mapIndexedNotNull { index, value ->
             val raw =
                 value as? Map<*, *>
                     ?: throw DeviceRepositoryException("$DEVICE_FILE: cleanup-jobs[$index] must be a map")
@@ -240,8 +253,12 @@ class YamlDeviceRepository(
     private fun parseDevice(
         raw: Map<*, *>,
         index: Int,
-    ): RedstoneDevice {
+    ): RedstoneDevice? {
         val context = "$DEVICE_FILE: devices[$index]"
+        if (isLegacyBcdEntry(raw)) {
+            skippedLegacy += "$context (${raw["name"] ?: "unnamed"})"
+            return null
+        }
         val id = parseUuid(requiredString(raw, "id", context), "$context.id")
         val name = requiredString(raw, "name", context)
         val worldName = requiredString(raw, "world", context)
@@ -252,7 +269,6 @@ class YamlDeviceRepository(
             raw["outputs"] as? List<*>
                 ?: throw DeviceRepositoryException("$context.outputs must be a list")
         val resolution = parseResolution(raw, context)
-        val encoding = parseEncoding(raw, context)
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
                 val output =
@@ -269,7 +285,7 @@ class YamlDeviceRepository(
 
         val demoBlocks = parseDemoBlocks(raw, context)
         return try {
-            RedstoneDevice(id, name, worldName, enabled, outputs, resolution, encoding, demoBlocks)
+            RedstoneDevice(id, name, worldName, enabled, outputs, resolution, demoBlocks)
         } catch (exception: IllegalArgumentException) {
             throw DeviceRepositoryException("$context is invalid: ${exception.message}", exception)
         }
@@ -278,8 +294,12 @@ class YamlDeviceRepository(
     private fun parseCleanupJob(
         raw: Map<*, *>,
         index: Int,
-    ): DeviceCleanupJob {
+    ): DeviceCleanupJob? {
         val context = "$DEVICE_FILE: cleanup-jobs[$index]"
+        if (isLegacyBcdEntry(raw)) {
+            skippedLegacy += "$context (${raw["device-name"] ?: "unnamed"})"
+            return null
+        }
         val worldId =
             when (val value = raw["world-uuid"]) {
                 null -> null
@@ -290,7 +310,6 @@ class YamlDeviceRepository(
             raw["outputs"] as? List<*>
                 ?: throw DeviceRepositoryException("$context.outputs must be a list")
         val resolution = parseResolution(raw, context)
-        val encoding = parseEncoding(raw, context)
         val outputs =
             rawOutputs.mapIndexed { outputIndex, value ->
                 val output =
@@ -334,7 +353,6 @@ class YamlDeviceRepository(
                 worldId = worldId,
                 outputs = outputs,
                 resolution = resolution,
-                encoding = encoding,
                 display = display,
             )
         } catch (exception: IllegalArgumentException) {
@@ -422,7 +440,7 @@ class YamlDeviceRepository(
     ): OutputResolution {
         val value =
             when (val raw = values["resolution"]) {
-                null -> return OutputResolution.MINUTE
+                null -> return OutputResolution.SECOND
                 is String -> raw
                 else -> throw DeviceRepositoryException("$context.resolution must be a string")
             }
@@ -434,23 +452,17 @@ class YamlDeviceRepository(
             )
     }
 
-    private fun parseEncoding(
-        values: Map<*, *>,
-        context: String,
-    ): OutputEncoding {
-        val value =
-            when (val raw = values["encoding"]) {
-                null -> return OutputEncoding.BCD
-                is String -> raw
-                else -> throw DeviceRepositoryException("$context.encoding must be a string")
-            }
-        return OutputEncoding.fromConfig(value)
-            ?: throw DeviceRepositoryException(
-                "$context.encoding is unsupported: $value (supported: " +
-                    OutputEncoding.entries.joinToString { it.configValue } +
-                    ")",
-            )
-    }
+    /**
+     * True for an entry written by a version that still supported the removed
+     * BCD encoding. Those devices (and their pending cleanup jobs) are skipped
+     * instead of being loaded as a lectern device with the wrong geometry.
+     */
+    private fun isLegacyBcdEntry(values: Map<*, *>): Boolean =
+        when (val raw = values["encoding"]) {
+            null -> skippedLegacyOnly
+            is String -> raw.lowercase() == "bcd" || raw.lowercase() == "binary"
+            else -> throw DeviceRepositoryException("encoding must be a string")
+        }
 
     private fun requiredString(
         values: Map<*, *>,
@@ -489,6 +501,6 @@ class YamlDeviceRepository(
         const val DEVICE_FILE = "data/devices.yml"
         const val BACKUP_FILE = "backups/devices.yml.bak"
         const val LEGACY_SCHEMA_VERSION = 1
-        const val SUPPORTED_SCHEMA_VERSION = 6
+        const val SUPPORTED_SCHEMA_VERSION = 7
     }
 }

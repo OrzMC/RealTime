@@ -1,6 +1,7 @@
 package cn.orzmc.realtime.paper.command
 
 import cn.orzmc.realtime.core.device.LayoutAxis
+import org.bukkit.block.BlockFace
 import java.util.UUID
 
 /**
@@ -9,7 +10,8 @@ import java.util.UUID
  * The origin is the block the player is looking at (within reach) or, when
  * nothing is targeted, the block they are standing on — so "stand there and run
  * the command" and "aim at the spot and run the command" both work. [axis] comes
- * from the horizontal facing, so slots grow in the direction the player looks.
+ * from the horizontal facing, so slots grow in the direction the player looks,
+ * and [lecternFacing] turns a lectern towards the player so the page is readable.
  */
 data class PlayerPlacement(
     val worldName: String,
@@ -17,6 +19,7 @@ data class PlayerPlacement(
     val y: Int,
     val z: Int,
     val axis: LayoutAxis,
+    val lecternFacing: BlockFace = BlockFace.NORTH,
 )
 
 interface CommandTarget {

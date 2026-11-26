@@ -7,92 +7,58 @@ import org.junit.jupiter.api.Test
 
 class DeviceLayoutTest {
     @Test
-    fun `compact layout keeps every slot next to the previous one`() {
-        val layout = DeviceLayout()
+    fun `default layout keeps one empty block between two lecterns`() {
+        val layout = DeviceLayout.DEFAULT
 
-        assertEquals(listOf(0, 1, 2, 3), (0..3).map(layout::offset))
-        val outputs = layout.outputs(OutputEncoding.BCD, OutputResolution.MINUTE, LayoutAxis.X_PLUS, 100, 70, -8)
-        assertEquals((0 until 16).map { 100 + it }, outputs.map(DeviceOutput::x))
-        assertTrue(outputs.all { it.y == 70 && it.z == -8 })
-        assertEquals((0 until 16).toList(), outputs.map(DeviceOutput::bitIndex))
-    }
-
-    @Test
-    fun `stride leaves an empty block between two slots`() {
-        val layout = DeviceLayout(stride = 2)
-
+        assertEquals(2, layout.stride)
         assertEquals(listOf(0, 2, 4, 6), (0..3).map(layout::offset))
+        val outputs = layout.outputs(OutputResolution.MINUTE, LayoutAxis.X_PLUS, 100, 70, -8)
+        assertEquals(listOf(100, 102, 104, 106), outputs.map(DeviceOutput::x))
+        assertTrue(outputs.all { it.y == 70 && it.z == -8 })
+        assertEquals((0 until 4).toList(), outputs.map(DeviceOutput::bitIndex))
     }
 
     @Test
-    fun `groups add an extra gap so each digit reads as one block of slots`() {
-        val layout = DeviceLayout(stride = 2, groupSize = 4, groupGap = 1)
-
+    fun `one slot per digit for both resolutions`() {
         assertEquals(
-            listOf(0, 2, 4, 6, 9, 11, 13, 15, 18, 20, 22, 24),
-            (0..11).map(layout::offset),
+            4,
+            DeviceLayout.DEFAULT.outputs(OutputResolution.MINUTE, LayoutAxis.X_PLUS, 0, 64, 0).size,
         )
-        // Bit 3 and bit 4 belong to different digits: two empty blocks between them.
-        assertEquals(2, layout.offset(4) - layout.offset(3) - 1)
-        // Inside a digit exactly one empty block separates the bits.
-        assertEquals(1, layout.offset(1) - layout.offset(0) - 1)
-    }
-
-    @Test
-    fun `analog default layout keeps one block between lecterns`() {
-        val layout = DeviceLayout.default(OutputEncoding.ANALOG)
-
-        assertEquals(2, layout.stride)
-        assertEquals(DeviceLayout.NO_GROUPS, layout.groupSize)
-        val outputs = layout.outputs(OutputEncoding.ANALOG, OutputResolution.SECOND, LayoutAxis.Z_MINUS, 0, 80, 40)
-        assertEquals(listOf(40, 38, 36, 34, 32, 30), outputs.map(DeviceOutput::z))
-        assertEquals((0 until 6).toList(), outputs.map(DeviceOutput::bitIndex))
-    }
-
-    @Test
-    fun `bcd default layout separates slots and groups four bits per digit`() {
-        val layout = DeviceLayout.default(OutputEncoding.BCD)
-
-        assertEquals(2, layout.stride)
-        assertEquals(OutputResolution.BITS_PER_DIGIT, layout.groupSize)
-        assertEquals(1, layout.groupGap)
-        // One empty block between two bits, two between two digits.
-        assertEquals(1, layout.offset(1) - layout.offset(0) - 1)
-        assertEquals(2, layout.offset(4) - layout.offset(3) - 1)
-        // A minute device spans 34 blocks, a second device 52.
-        assertEquals(33, layout.offset(15))
-        assertEquals(51, layout.offset(23))
+        assertEquals(
+            listOf(0, 2, 4, 6, 8, 10),
+            DeviceLayout.DEFAULT.outputs(OutputResolution.SECOND, LayoutAxis.X_PLUS, 0, 64, 0).map(DeviceOutput::x),
+        )
     }
 
     @Test
     fun `axes grow in the requested direction`() {
-        val layout = DeviceLayout(stride = 2)
-        val outputs = layout.outputs(OutputEncoding.ANALOG, OutputResolution.MINUTE, LayoutAxis.X_MINUS, 5, 64, 5)
+        val outputs =
+            DeviceLayout.DEFAULT.outputs(OutputResolution.MINUTE, LayoutAxis.X_MINUS, 5, 64, 5)
 
         assertEquals(listOf(5, 3, 1, -1), outputs.map(DeviceOutput::x))
+        assertEquals(
+            listOf(40, 38, 36, 34),
+            DeviceLayout.DEFAULT.outputs(OutputResolution.MINUTE, LayoutAxis.Z_MINUS, 0, 80, 40).map(DeviceOutput::z),
+        )
     }
 
     @Test
     fun `rejects invalid spacing and oversized spans`() {
         assertThrows(IllegalArgumentException::class.java) { DeviceLayout(stride = 0) }
-        assertThrows(IllegalArgumentException::class.java) { DeviceLayout(groupSize = 0) }
-        assertThrows(IllegalArgumentException::class.java) { DeviceLayout(groupGap = -1) }
         assertThrows(IllegalArgumentException::class.java) {
-            DeviceLayout(stride = DeviceLayout.MAX_SPAN).outputs(
-                OutputEncoding.BCD,
-                OutputResolution.SECOND,
-                LayoutAxis.X_PLUS,
-                0,
-                64,
-                0,
-            )
+            DeviceLayout(stride = DeviceLayout.MAX_SPAN).outputs(OutputResolution.SECOND, LayoutAxis.X_PLUS, 0, 64, 0)
         }
     }
 
     @Test
-    fun `parses axis aliases`() {
+    fun `parses axis and facing keywords`() {
         assertEquals(LayoutAxis.X_PLUS, LayoutAxis.fromConfig("X+"))
         assertEquals(LayoutAxis.Z_MINUS, LayoutAxis.fromConfig("z-"))
         assertEquals(null, LayoutAxis.fromConfig("y+"))
+        assertEquals(LayoutAxis.X_PLUS, LayoutAxis.fromFacing("east"))
+        assertEquals(LayoutAxis.Z_MINUS, LayoutAxis.fromFacing("NORTH"))
+        assertEquals(null, LayoutAxis.fromFacing("up"))
+        assertTrue(LayoutAxis.X_MINUS.alongX)
+        assertTrue(!LayoutAxis.Z_PLUS.alongX)
     }
 }

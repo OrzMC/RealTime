@@ -1,11 +1,10 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.AnalogScale
-import cn.orzmc.realtime.core.device.BcdTimeEncoder
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
+import cn.orzmc.realtime.core.device.TimeDigits
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
@@ -90,7 +89,7 @@ class RedstoneDeviceManagerAnalogTest {
     }
 
     @Test
-    fun `disabling the device empties the slot so the comparator reads zero`() {
+    fun `disabling the device keeps the lecterns and drops the read to zero`() {
         val fixture = fixture(OutputResolution.MINUTE)
         fixture.startAndRefresh()
         fixture.runPendingRegions()
@@ -106,9 +105,9 @@ class RedstoneDeviceManagerAnalogTest {
 
         for (slot in 0 until 4) {
             val lectern = fixture.lectern(slot)
-            // The slot ends up empty, exactly like a BCD slot: level 0 comes from
-            // air, so a moved slot cannot leave an orphaned lectern behind.
-            assertEquals(Material.AIR, fixture.typeAt(slot), "slot $slot must be cleared")
+            // A device that is off keeps its build: the lectern stays where it is
+            // and only the book is removed, which drops the comparator to level 0.
+            assertEquals(Material.LECTERN, fixture.typeAt(slot), "slot $slot must keep its lectern")
             assertNull(lectern.marker, "slot $slot book must be removed")
             assertFalse(fixture.books.owns(lectern), "slot $slot")
         }
@@ -162,7 +161,6 @@ class RedstoneDeviceManagerAnalogTest {
             enabled,
             device.outputs,
             device.resolution,
-            device.encoding,
         )
 
     private fun fixture(
@@ -284,7 +282,7 @@ class RedstoneDeviceManagerAnalogTest {
                 messages = emptyMap(),
             )
         val outputs =
-            (0 until OutputEncoding.ANALOG.outputCount(resolution)).map { slot ->
+            (0 until resolution.digitCount).map { slot ->
                 DeviceOutput(slot, slot, 64, 0)
             }
         var runtimeState =
@@ -302,7 +300,6 @@ class RedstoneDeviceManagerAnalogTest {
                             enabled = true,
                             outputs = outputs,
                             resolution = resolution,
-                            encoding = OutputEncoding.ANALOG,
                         ),
                     ),
             )
@@ -337,9 +334,9 @@ class RedstoneDeviceManagerAnalogTest {
             lectern = { lecterns.getOrPut(it) { FakeLectern() } },
             expectedDigits = {
                 val snapshot = runtimeState.timeService.snapshot()
-                BcdTimeEncoder
-                    .encode(snapshot.zonedDateTime.toLocalTime())
-                    .values(OutputEncoding.ANALOG, resolution)
+                TimeDigits
+                    .of(snapshot.zonedDateTime.toLocalTime())
+                    .values(resolution)
             },
             initialState = runtimeState,
             replaceState = { runtimeState = it },

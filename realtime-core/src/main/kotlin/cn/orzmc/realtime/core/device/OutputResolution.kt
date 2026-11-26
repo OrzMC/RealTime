@@ -1,12 +1,10 @@
 package cn.orzmc.realtime.core.device
 
 /**
- * BCD clock resolution supported by a redstone device.
+ * Clock resolution of a device: which prefix of `HHmmss` it displays.
  *
- * Frames are always emitted in clock order (hour, minute, second) and each
- * digit is emitted least-significant bit first. [MINUTE] therefore uses the
- * first four digits (HHmm, 16 outputs) and [SECOND] uses all six digits
- * (HHmmss, 24 outputs).
+ * [MINUTE] shows `HHmm` (four digits, four lecterns) and [SECOND] shows `HHmmss`
+ * (six digits, six lecterns). One digit drives one lectern page.
  */
 enum class OutputResolution(
     val configValue: String,
@@ -16,16 +14,13 @@ enum class OutputResolution(
     SECOND("second", 6),
     ;
 
-    val outputCount: Int
-        get() = digitCount * BITS_PER_DIGIT
-
     val label: String
         get() = if (this == SECOND) "HHmmss" else "HHmm"
 
     companion object {
-        const val BITS_PER_DIGIT = 4
-        const val MAX_OUTPUT_COUNT = 24
+        /** Most digits a device can hold: `HHmmss`. */
+        const val MAX_DIGITS = 6
 
-        fun fromConfig(value: String): OutputResolution? = entries.firstOrNull { it.configValue == value }
+        fun fromConfig(value: String): OutputResolution? = entries.firstOrNull { it.configValue == value.lowercase() }
     }
 }

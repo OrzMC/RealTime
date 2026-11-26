@@ -4,6 +4,30 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+### 新增
+
+- **命令面重写**（不再保留旧写法）：读两条 `/rtime`（时间 + 所有钟）与 `/rtime <钟名>`（一台钟的详情）；
+  写 `create` / `on` / `off` / `place` / `remove`；运维 `status` / `cleanup` / `help` / `reload`。
+  选项改成关键字（`minute`、`manual`、`nodisplay`、`at <x y z>`、`facing <朝向>`），顺序随意、写错会点名是哪个词；
+  旧动词 `info`/`list`/`device`/`demo`/`set`/`now` 会回一行"已移除，改用 …"。
+- **钟名唯一且不能与动词重名**：`/rtime <钟名>` 因此没有歧义，也不再需要 UUID 寻址（ID 只出现在日志与 `status`）。
+- **Tab 补全按语法重写**：一级为动词 + 钟名，`create` 补选项关键字，`place` 补钟名再补槽位号。
+- **`place` 立刻立讲台**：摆一个槽位就把讲台放到目标位置、正面朝向你、写上当前数字，
+  同时清掉这个槽位原来那格的讲台（仅限本钟的空讲台）；槽位位置不再"看不见"。
+- `/rtime status` 增加"旧版 BCD 钟已忽略"计数。
+
+### 变更（破坏性）
+
+- **移除 BCD 编码**，只保留讲台（一个数字一个讲台）：真机验收发现四位并联的译码器延时不可控，显示效果无法保证。
+  随之删除 `OutputEncoding`、BCD 位帧/编码器、`%realtime_bcd%` / `%realtime_bcd_bits%` 占位符、
+  `bcd`/`binary` 参数，以及按 4 位分组的布局（`groupSize`/`groupGap`）。
+- **默认精度改为 `second`**：`/rtime create <名字>` 建出来就是 6 个讲台、按秒跳。
+- **关机语义**：不再清空槽位，而是取走书（比较器读数归 0）并保留讲台 —— 位置可见、可继续调整；
+  `remove` 才真正拆掉。
+- 持久化 schema **v7**：设备记录不再有 `encoding`；v1–v6 文件里 `encoding: bcd`（或没有该字段）的钟会被
+  **跳过并记录**（`/rtime status` 可见），不会按讲台几何误加载。
+- `demo` 概念合并进 `create`（名字不再自动生成，`manual` 代替原来的"空钟"）。
+
 ### 工程
 
 - 修 Modrinth 上传：payload 必须带 `dependencies`（空数组也要），`v0.5.0` 因此被拒（`400 missing field dependencies`）；

@@ -2,6 +2,7 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
+import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -262,9 +263,10 @@ class DeviceCleanupAdministrationServiceTest {
             worldName = "world",
             enabled = false,
             outputs =
-                (0 until 16).map { bit ->
+                (0 until 6).map { bit ->
                     DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
                 },
+            resolution = OutputResolution.SECOND,
             demoBlocks =
                 if (demo) {
                     listOf(

@@ -46,31 +46,29 @@ Initial planned placeholders: date, time, datetime, weekday, timezone, and Unix 
 
 ### Redstone clock devices (P1)
 
-Each device declares a `resolution` (`minute` = `HHmm`, `second` = `HHmmss`) and an `encoding`.
+Each clock declares a `resolution` (`minute` = `HHmm`, `second` = `HHmmss`; **`second` is the default**). There is a
+single output form: **one lectern per digit** — four slots for `minute`, six for `second`. A slot is a lectern holding a
+15-page book the plugin installs; the page index is the digit, so Paper's
+`floor(page / (pageCount - 1) * 14) + 1` yields `digit + 1` (levels 1–10). Publishing a digit is one block-entity page
+write, and the plugin only ever pages through lecterns that still hold its own book; anything else is reported and left
+untouched.
 
-**`bcd` (default)** — four slots per digit, least-significant bit first; sixteen slots for `minute`, twenty-four for
-`second`. A slot is a power source: a logical 1 places a `minecraft:redstone_block`, a logical 0 leaves the slot empty,
-so connected vanilla redstone actually switches (forced dust power cannot hold or propagate on the 26.x API surface).
+> The earlier BCD encoding (four parallel bit slots per digit) was removed after real-server acceptance: its decoder
+> propagation delay made the displayed value unreadable, so it could not deliver a usable clock.
 
-**`analog`** — one slot per digit: four slots for `minute`, six for `second`. A slot is a lectern holding a 15-page book
-the plugin installs; the page index is the digit, so Paper's `floor(page / (pageCount - 1) * 14) + 1` yields
-`digit + 1` (levels 1–10) and `HHmmss` needs six lines instead of twenty-four. Disabling the device empties the slot
-(book cleared first so it does not drop, then the lectern). Publishing a digit is one block-entity page write, and the
-plugin only ever pages through lecterns that still hold its own book; anything else is reported and left untouched.
+Slots are laid out with one empty block between them (room for the reading comparator), are ordered hour → minute →
+second, and are bounded by `/rtime create`/`/rtime place` validation. Device definitions and runtime data are stored
+separately from feature configuration (`data/devices.yml`, schema v7). Block access runs on the owning Folia region;
+unloaded chunks are skipped and refreshed on chunk load, and device updates never force-load chunks. Second clocks are
+rewritten every second, minute clocks when the minute changes, and only slots whose state actually changed are written.
+A 30 s full re-check catches player edits and invalid blocks, and nothing the plugin does not own is ever overwritten.
 
-Both encodings share the digit order hour → minute → second, are laid out with one empty block between slots (BCD adds
-an extra gap between digits), and are bounded by `/rtime create`/`/rtime place` validation. Device definitions and
-runtime data are stored separately from feature configuration (`data/devices.yml`, schema v5). Block access runs on the
-owning Folia region; unloaded chunks are skipped and refreshed on chunk load, and device updates never force-load
-chunks. Minute devices are rewritten when the minute changes, second devices every second, and only slots whose state
-actually changed are written. A 30 s full re-check catches player edits and invalid blocks, and nothing the plugin does
-not own is ever overwritten.
-
-`/rtime create <name> [bcd|analog] [second|minute]` builds one complete, immediately visible example at the player's
-aim (lamps above every BCD slot; lectern → comparator → dust → lamp per analog digit) whose display blocks belong to the
-device and are removed with it, so a newcomer can learn an encoding without wiring anything by hand. `manual` creates a
-disabled device without display blocks, and `/rtime place <device> <slot>` positions each source individually, which is
-how a build whose default layout is blocked by other blocks is authored.
+Turning a clock off removes the book (level 0) but keeps the lectern, so a build stays visible and hand-positioned slots
+keep their coordinates. `/rtime create <name> [minute] [manual] [nodisplay] [at <x y z>] [facing <north|south|east|west>]`
+builds one complete, immediately visible example at the player's aim (lectern → comparator → dust → lamp per digit)
+whose display blocks belong to the clock and are removed with it. `manual` skips the display blocks and leaves every slot
+unpositioned; `/rtime place <clock> <slot>` then puts each lectern exactly where the build has room and **builds it on the
+spot**, so the operator can see the position and facing before switching the clock on.
 
 Retirement is deferred and durable: `/rtime remove` (disabled devices only) queues a cleanup job that clears every slot
 and display block on the owning region, reports foreign content as `NEEDS_ATTENTION` instead of overwriting it, and can
