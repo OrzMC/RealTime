@@ -12,7 +12,7 @@
 |---|---|
 | 名称 | `RealTime` |
 | 一句话简介 | Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia. |
-| 分类 | Hangar：`management`（当前仍是 `misc`，待改）；Modrinth：`management` + `technology` + `utility`（最多 3 个；服务器插件分类里没有 `utility` 之外的工具类，"红石/技术"由 `technology` 表达） |
+| 分类 | Hangar：`gameplay`（Hangar 没有 "management"，见下方分类枚举）；Modrinth：`management` + `technology` + `utility`（最多 3 个） |
 | 许可证 | MIT |
 | 源码 | <https://github.com/OrzMC/RealTime> |
 | 问题追踪 | <https://github.com/OrzMC/RealTime/issues> |
@@ -104,14 +104,30 @@ you edit its slots). Full command reference, permissions, wiring diagrams, the c
 
 ### Hangar（`OrzMC/RealTime`）
 
-网页：<https://hangar.papermc.io/OrzMC/RealTime/settings>。公开 API 无编辑端点，只能手填：
+网页：<https://hangar.papermc.io/OrzMC/RealTime/settings>。
+
+**分类与许可证没有 API**（v1 的 `/projects` 只有 GET，`PATCH`/`PUT` 返回 405），只能在网页改。分类是固定枚举，
+没有 "management"：
+
+`Admin Tools` · `Chat` · `Developer Tools` · `Economy` · `Gameplay` · `Games` · `Protection` · `Role Playing` · `World Management` · `Miscellaneous`
+
+RealTime 是红石/技术类工具而不是管理后台，**选 `Gameplay`**（`misc` 只是默认值）。
+
+**主页（长描述）可以通过 API 设置**：`PATCH /api/v1/pages/editmain/{project}`，body `{"content": "<markdown>"}`，
+需要项目级 `edit_page` 权限；`GET /api/v1/pages/main/{project}` 可回读核对。仓库里用脚本执行：
+
+```bash
+HANGAR_API_TOKEN=… scripts/hangar-page.sh      # 从本文档的 markdown 块推送并核对
+```
+
+发布工作流在 Hangar 发布之后会自动跑这一步（失败不影响发版），所以主页内容始终与本仓库一致。
 
 | 字段 | 值 |
 |---|---|
-| Category | `management`（当前是 `misc`） |
+| Category | `gameplay`（当前是 `misc`，需网页改） |
 | License | `MIT` |
 | Description | `Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia.` |
-| Main page content | 上面的长描述 |
+| Main page content | 上面的长描述 —— **可用 `scripts/hangar-page.sh` 自动写入**（已写入，2,798 字符） |
 | Links | Source / Issue tracker / Wiki 填上表三个链接 |
 | Tags | `redstone`、`time`、`utility`、`folia`（按平台可选清单挑最接近的） |
 | Platform | `PAPER`，平台版本 `26.3`（已配置） |
@@ -167,8 +183,8 @@ Hangar：
 | 项 | Hangar 实际 | 结论 |
 |---|---|---|
 | 名称 / 许可证 / 简介 / 链接 / 平台 / 关键词 | `RealTime` / `MIT` / 120 字符 / Source+Issues+Wiki / `PAPER` / `redstone,time,clock,utility,folia` | ✅ |
-| 分类 | `misc` | ❌ 应为 `management` |
-| 长描述（`mainPageContent`） | 0 字符 | ❌ 待粘贴本文档的长描述 |
+| 分类 | `misc` | ❌ 应为 `gameplay` |
+| 长描述（`mainPageContent`） | 2,798 字符（`scripts/hangar-page.sh` 写入并已核对） | ✅ |
 | `0.4.0` 资产 | 频道 `Release`、`PAPER 26.3`、2,136,461 B、sha256 `8531becc…`（与 GitHub Release 一致） | ✅ |
 | `0.4.0` 版本描述 | `MVP Version` | ⚠️ 建议改成 v0.4.0 的 changelog 摘要 |
 
