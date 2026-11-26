@@ -151,11 +151,24 @@ jobs:
             echo "tag v$VERSION does not exist in $GITHUB_REPOSITORY; push the tag instead of dispatching a publish run" >&2
             exit 1
           fi
-          gh release create "v$VERSION" \
-            "dist/RealTime-$VERSION.jar" \
-            "dist/RealTime-$VERSION.jar.sha256" \
-            --title "RealTime v$VERSION" \
-            --notes-file dist/release-notes.md
+          # Re-runnable: a failed Hangar/Modrinth step must not force a tag dance,
+          # so an existing release gets its assets and notes refreshed instead.
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "release v$VERSION already exists; refreshing its assets"
+            gh release upload "v$VERSION" \
+              "dist/RealTime-$VERSION.jar" \
+              "dist/RealTime-$VERSION.jar.sha256" \
+              --clobber
+            gh release edit "v$VERSION" \
+              --title "RealTime v$VERSION" \
+              --notes-file dist/release-notes.md
+          else
+            gh release create "v$VERSION" \
+              "dist/RealTime-$VERSION.jar" \
+              "dist/RealTime-$VERSION.jar.sha256" \
+              --title "RealTime v$VERSION" \
+              --notes-file dist/release-notes.md
+          fi
 
       - name: Publish stable version to Hangar
         if: ${{ needs.build.outputs.dry_run != 'true' && vars.HANGAR_PROJECT_ID != '' && !contains(needs.build.outputs.version, '-') }}
@@ -168,11 +181,23 @@ jobs:
             echo "HANGAR_API_TOKEN is not configured; skipping Hangar upload."
             exit 0
           fi
-          ./gradlew --no-daemon \
-            -PprojectVersion="$VERSION" \
-            -PhangarProjectId="$HANGAR_PROJECT_ID" \
-            -PhangarPaperVersions="26.3" \
-            :realtime-paper:publishPluginPublicationToHangar
+          # Maven Central answers 403 often enough to matter (v0.6.0 hit it while
+          # resolving the Hangar plugin's own dependencies), so retry once.
+          for attempt in 1 2; do
+            if ./gradlew --no-daemon \
+              -PprojectVersion="$VERSION" \
+              -PhangarProjectId="$HANGAR_PROJECT_ID" \
+              -PhangarPaperVersions="26.3" \
+              :realtime-paper:publishPluginPublicationToHangar; then
+              exit 0
+            fi
+            if [[ "$attempt" == "2" ]]; then
+              echo "Hangar publication failed twice; see the log above." >&2
+              exit 1
+            fi
+            echo "Hangar publication failed (attempt $attempt); retrying in 30s..." >&2
+            sleep 30
+          done
 
       # The Hangar main page is the long description in
       # docs/operations/platform-listings.md; Hangar exposes it as a page that can
