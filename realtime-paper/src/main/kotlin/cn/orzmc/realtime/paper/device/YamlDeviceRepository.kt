@@ -87,12 +87,15 @@ class YamlDeviceRepository(
                         },
                     "outputs" to
                         device.outputs.map { output ->
-                            linkedMapOf(
-                                "bit-index" to output.bitIndex,
-                                "x" to output.x,
-                                "y" to output.y,
-                                "z" to output.z,
-                            )
+                            val entry =
+                                linkedMapOf<String, Any>(
+                                    "bit-index" to output.bitIndex,
+                                    "x" to output.x,
+                                    "y" to output.y,
+                                    "z" to output.z,
+                                )
+                            if (output.unplaced) entry["unplaced"] = true
+                            entry
                         },
                 )
             },
@@ -209,8 +212,9 @@ class YamlDeviceRepository(
 
         val activePositions =
             snapshot.devices.flatMap { device ->
-                device.outputs.map { output -> Position(device.worldName, output.x, output.y, output.z) } +
-                    device.demoBlocks.map { block -> Position(device.worldName, block.x, block.y, block.z) }
+                device.outputs.filterNot(DeviceOutput::unplaced).map { output ->
+                    Position(device.worldName, output.x, output.y, output.z)
+                } + device.demoBlocks.map { block -> Position(device.worldName, block.x, block.y, block.z) }
             }
         if (activePositions.toSet().size != activePositions.size) {
             throw DeviceRepositoryException("$context: output block positions must be unique across devices")
@@ -259,6 +263,7 @@ class YamlDeviceRepository(
                     x = requiredInt(output, "x", "$context.outputs[$outputIndex]"),
                     y = requiredInt(output, "y", "$context.outputs[$outputIndex]"),
                     z = requiredInt(output, "z", "$context.outputs[$outputIndex]"),
+                    unplaced = (output["unplaced"] as? Boolean) ?: false,
                 )
             }
 
@@ -484,6 +489,6 @@ class YamlDeviceRepository(
         const val DEVICE_FILE = "data/devices.yml"
         const val BACKUP_FILE = "backups/devices.yml.bak"
         const val LEGACY_SCHEMA_VERSION = 1
-        const val SUPPORTED_SCHEMA_VERSION = 5
+        const val SUPPORTED_SCHEMA_VERSION = 6
     }
 }

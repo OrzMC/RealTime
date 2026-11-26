@@ -78,7 +78,7 @@ Retirement follows the same rule as BCD slots: the cleanup job removes the lecte
 
 ## Device store schema v5
 
-The current `data/devices.yml` format uses schema version 5. Schema v4 added `encoding` to device records and cleanup jobs; schema v5 adds the `demo:` display-block list of a `create`/`demo` build and the matching `display:` list on cleanup jobs. Records written by earlier schemas are read as `bcd` with no demo blocks, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v4 files are migrated automatically on load; device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
+The current `data/devices.yml` format uses schema version 5. Schema v4 added `encoding` to device records and cleanup jobs; schema v5 adds the `demo:` display-block list of a `create`/`demo` build; schema v6 adds the per-output `unplaced` flag of `manual` builds and the matching `display:` list on cleanup jobs. Records written by earlier schemas are read as `bcd` with no demo blocks, so an existing BCD clock keeps working after the upgrade. It stores active devices and deferred cleanup jobs in the **same file**, so a retirement operation can persist both sides of the state transition with one atomic replacement. Existing schema v1–v5 files are migrated automatically on load (a v5 output without `unplaced` is placed); device records are preserved, records without a `resolution` become `minute` devices, records without an `encoding` become `bcd` devices, and `cleanup-jobs` starts empty for v1. The previous file is retained at `backups/devices.yml.bak`.
 
 Each device record declares `resolution: minute` or `resolution: second`, `encoding: bcd` or `encoding: analog`, and — for a teaching build — a `demo:` list of the display blocks it owns (`{x, y, z, data}`, where `data` is a block-data string such as `minecraft:comparator[facing=north]`). A `bcd` `minute` device has 16 outputs and a `bcd` `second` device 24 (HHmmss); an `analog` device has one output per digit, so 4 and 6 respectively. Cleanup jobs record the same resolution and encoding as the retired device, so every variant is cleaned completely.
 
@@ -91,7 +91,7 @@ A cleanup job records the retired device identity, world name, optional world UU
 Example shape (abbreviated):
 
 ```yaml
-schema-version: 5
+schema-version: 6
 devices: []
 cleanup-jobs:
   - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
@@ -136,7 +136,7 @@ For example, 23:59:47 is encoded as digits `2, 3, 5, 9, 4, 7`; each digit occupi
 The following shows a complete `minute` device (16 outputs, HHmm) in the default layout — one empty block between slots, one extra between the four bits of a digit (`offset = index * 2 + index / 4`). A `second` device is identical except for `resolution: second` and 24 output records covering bit indexes 0 through 23 (`offset = index * 2 + index / 4`, spanning 52 blocks). Change the world name and coordinates to match the build:
 
 ```yaml
-schema-version: 5
+schema-version: 6
 devices:
   - id: 6b3c20e4-77e6-4d28-92d5-6a0d1fd20a10
     name: lobby-clock
@@ -180,6 +180,12 @@ Device IDs must be unique. Bit indexes must cover `0` through `output count - 1`
 - The manager never calls `getChunkAt`, chunk load APIs, or world generation APIs.
 - Output slots should be physically isolated from unrelated redstone so two devices cannot couple; connect the receiving circuit next to the slot.
 - Devices can be created and edited in game (`/rtime create` fills the layout, `/rtime place` moves individual slots); the YAML store remains the single source of truth and every slot coordinate stays reviewable.
+- A slot can be **unplaced** (`unplaced: true`): `manual` builds start every slot that way. Unplaced slots are never
+  written, never take part in cross-device position checks, and block `enable` with the number still missing, so the
+  operator can position each source at an arbitrary coordinate in any order. `setOutput` clears the flag.
+- `setOutput` only changes the slot coordinate. The `demo:` display blocks stay where the layout put them, because moving
+  a comparator row cannot know whether the destination is free; `manual` creates a device without display blocks for
+  hand-wired builds. This applies to both encodings (BCDs lamp, analog's comparator/dust/lamp row).
 
 After editing the files, use `/rtime reload` as an operator. A failed validation keeps the previous runtime configuration and device list active.
 

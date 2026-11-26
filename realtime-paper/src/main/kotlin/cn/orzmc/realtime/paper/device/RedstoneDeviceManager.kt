@@ -315,10 +315,12 @@ class RedstoneDeviceManager(
         val changedIndexes =
             when {
                 previous == null || previous.device !== device || previous.values.size != desired.size ->
-                    device.outputs.indices.toList()
+                    device.outputs.indices.filter { index -> !device.outputs[index].unplaced }
                 else -> desired.indices.filter { index -> desired[index] != previous.values[index] }
             }
-        if (changedIndexes.isEmpty()) return
+        // Slots waiting for a position (manual builds) have nothing to write yet.
+        val placeableIndexes = changedIndexes.filter { index -> !device.outputs[index].unplaced }
+        if (placeableIndexes.isEmpty()) return
 
         val world =
             server.getWorld(device.worldName)
@@ -332,7 +334,7 @@ class RedstoneDeviceManager(
                     return
                 }
 
-        changedIndexes
+        placeableIndexes
             .groupBy { index ->
                 val output = device.outputs[index]
                 (output.x shr 4) to (output.z shr 4)

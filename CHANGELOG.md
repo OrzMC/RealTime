@@ -37,8 +37,16 @@ All notable changes to RealTime are documented here. Release automation requires
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
 - **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
+### 新增
+
+- **`manual` 建钟 = 逐位自由摆放**：所有槽位以「未放置」创建（不写世界、不参与坐标冲突），
+  `/rtime place <设备> <槽位>` 按任意顺序、任意坐标定位，全部就位后才能 `/rtime on`（否则提示还差几个）。
+  `info` 会把未放置的槽位标成「未放置」。BCD 与 analog 完全一致（analog 摆出来的是讲台 + 插件书）。
+  持久化 schema **v6**（每个输出多一个 `unplaced` 标记，v1–v5 自动迁移，旧槽位视为已放置）。
+
 ### 变更
 
+- `place` 移动槽位后若设备带展示方块，会提示「灯/比较器不会跟着移动」，建议手工接线或用 `manual`。
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
@@ -47,6 +55,9 @@ All notable changes to RealTime are documented here. Release automation requires
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
+
+- `place` 移动槽位后，如果设备带展示方块，会额外提示「灯/比较器不会跟着移动」，并给出手工接线或 `manual` 的建议
+  （此前移动 analog 槽位会留下一个没人能解释的比较器/灯）。
 
 - **红石模块未启用时给出明确提示**：`modules/redstone.yml` 被手动关掉时，`/rtime create` 会成功返回但世界里什么都不出现
   （槽位不写、展示方块不放置），
@@ -124,8 +135,16 @@ All notable changes to RealTime are documented here. Release automation requires
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
 - **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
+### 新增
+
+- **`manual` 建钟 = 逐位自由摆放**：所有槽位以「未放置」创建（不写世界、不参与坐标冲突），
+  `/rtime place <设备> <槽位>` 按任意顺序、任意坐标定位，全部就位后才能 `/rtime on`（否则提示还差几个）。
+  `info` 会把未放置的槽位标成「未放置」。BCD 与 analog 完全一致（analog 摆出来的是讲台 + 插件书）。
+  持久化 schema **v6**（每个输出多一个 `unplaced` 标记，v1–v5 自动迁移，旧槽位视为已放置）。
+
 ### 变更
 
+- `place` 移动槽位后若设备带展示方块，会提示「灯/比较器不会跟着移动」，建议手工接线或用 `manual`。
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
@@ -134,6 +153,9 @@ All notable changes to RealTime are documented here. Release automation requires
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
+
+- `place` 移动槽位后，如果设备带展示方块，会额外提示「灯/比较器不会跟着移动」，并给出手工接线或 `manual` 的建议
+  （此前移动 analog 槽位会留下一个没人能解释的比较器/灯）。
 
 - `device cleanup list` 现在把 demo 展示方块也计入 `待处理`/`需人工处理`，`device cleanup retry` 也会把
   `NEEDS_ATTENTION` 的展示方块重新排队 —— 之前只看槽位，导致 demo 设备退役后队列显示"需人工处理：1"，但实际还有
@@ -200,8 +222,16 @@ All notable changes to RealTime are documented here. Release automation requires
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
 - **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
+### 新增
+
+- **`manual` 建钟 = 逐位自由摆放**：所有槽位以「未放置」创建（不写世界、不参与坐标冲突），
+  `/rtime place <设备> <槽位>` 按任意顺序、任意坐标定位，全部就位后才能 `/rtime on`（否则提示还差几个）。
+  `info` 会把未放置的槽位标成「未放置」。BCD 与 analog 完全一致（analog 摆出来的是讲台 + 插件书）。
+  持久化 schema **v6**（每个输出多一个 `unplaced` 标记，v1–v5 自动迁移，旧槽位视为已放置）。
+
 ### 变更
 
+- `place` 移动槽位后若设备带展示方块，会提示「灯/比较器不会跟着移动」，建议手工接线或用 `manual`。
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
@@ -210,6 +240,9 @@ All notable changes to RealTime are documented here. Release automation requires
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
+
+- `place` 移动槽位后，如果设备带展示方块，会额外提示「灯/比较器不会跟着移动」，并给出手工接线或 `manual` 的建议
+  （此前移动 analog 槽位会留下一个没人能解释的比较器/灯）。
 
 - `device set` 现在要求设备处于**禁用**状态（补全也只推荐已禁用设备）：之前允许对启用中设备改槽位，而设备只写"当前槽位表"，
   旧槽位会留下一个永久通电的红石块（或一个讲台）。
@@ -242,8 +275,16 @@ All notable changes to RealTime are documented here. Release automation requires
 - **Tab 补全补齐**：子命令、设备名与 ID、编码、分辨率、`nodisplay`/`manual`、槽位号、轴。
 - **`/rtime help [create|place|cleanup|all]`**：默认只列 5 条日常命令，`all` 展开进阶项；`plugin.yml` 的 usage 同步为多行。
 
+### 新增
+
+- **`manual` 建钟 = 逐位自由摆放**：所有槽位以「未放置」创建（不写世界、不参与坐标冲突），
+  `/rtime place <设备> <槽位>` 按任意顺序、任意坐标定位，全部就位后才能 `/rtime on`（否则提示还差几个）。
+  `info` 会把未放置的槽位标成「未放置」。BCD 与 analog 完全一致（analog 摆出来的是讲台 + 插件书）。
+  持久化 schema **v6**（每个输出多一个 `unplaced` 标记，v1–v5 自动迁移，旧槽位视为已放置）。
+
 ### 变更
 
+- `place` 移动槽位后若设备带展示方块，会提示「灯/比较器不会跟着移动」，建议手工接线或用 `manual`。
 - **红石输出模块默认开启**（`modules/redstone.yml` → `enabled: true`）。全新安装不再出现"命令成功但世界里没有方块"的
   默认状态；没有设备时该模块零开销。已有服务器的 `modules/redstone.yml` 不会被覆盖，行为不变。
 - `limits.allowed-areas` 为空视为**合法配置**（允许全图放置），启动日志以 `info` 说明一次，不再当作警告。
@@ -252,6 +293,9 @@ All notable changes to RealTime are documented here. Release automation requires
 - 启动与 `/rtime reload` 时各输出一行模块状态：红石模块是否开启、`allowed-areas` 是"全图"还是具体区域。
 
 ### 修复
+
+- `place` 移动槽位后，如果设备带展示方块，会额外提示「灯/比较器不会跟着移动」，并给出手工接线或 `manual` 的建议
+  （此前移动 analog 槽位会留下一个没人能解释的比较器/灯）。
 
 - **红石模块未启用时给出明确提示**：`modules/redstone.yml` 被手动关掉时，`/rtime create` 会成功返回但世界里什么都不出现
   （槽位不写、展示方块不放置），

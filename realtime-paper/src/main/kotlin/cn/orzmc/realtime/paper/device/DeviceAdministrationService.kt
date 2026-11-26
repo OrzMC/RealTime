@@ -45,6 +45,12 @@ data class DeviceCreateRequest(
     val enabled: Boolean = false,
 )
 
+/** Thrown when `enable` is asked for a device that still has slots without a position. */
+class DeviceIncompleteException(
+    id: UUID,
+    val unplaced: Int,
+) : IllegalStateException("$unplaced slot(s) of device $id have no position yet")
+
 class DeviceNotFoundException(
     id: UUID,
 ) : IllegalArgumentException("Device not found: $id")
@@ -97,6 +103,9 @@ class DeviceAdministrationService(
                 currentState.devices.firstOrNull { it.id == id }
                     ?: throw DeviceNotFoundException(id)
             if (currentDevice.enabled == enabled) return@synchronized currentDevice
+            if (enabled && currentDevice.unplacedOutputs.isNotEmpty()) {
+                throw DeviceIncompleteException(currentDevice.id, currentDevice.unplacedOutputs.size)
+            }
 
             val updatedDevice =
                 RedstoneDevice(
@@ -127,14 +136,14 @@ class DeviceAdministrationService(
             if (currentState.devices.size >= limits.maxDevices) {
                 throw DeviceLimitReachedException(limits.maxDevices)
             }
-            request.outputs.forEach { output ->
+            request.outputs.filterNot(DeviceOutput::unplaced).forEach { output ->
                 requireAllowed(currentState, request.worldName, output)
             }
             request.demoBlocks.forEach { block ->
                 requireAllowed(currentState, request.worldName, DeviceOutput(0, block.x, block.y, block.z))
             }
             val taken = occupiedPositions(currentState)
-            request.outputs.forEach { output ->
+            request.outputs.filterNot(DeviceOutput::unplaced).forEach { output ->
                 if (Position(request.worldName, output.x, output.y, output.z) in taken) {
                     throw DeviceOutputConflictException(output.x, output.y, output.z)
                 }
@@ -228,9 +237,12 @@ class DeviceAdministrationService(
                     device.outputs
                         .asSequence()
                         .filter { output ->
-                            excludingOutput == null ||
-                                device.id != excludingOutput.first ||
-                                output.bitIndex != excludingOutput.second
+                            !output.unplaced &&
+                                (
+                                    excludingOutput == null ||
+                                        device.id != excludingOutput.first ||
+                                        output.bitIndex != excludingOutput.second
+                                )
                         }.map { output -> Position(device.worldName, output.x, output.y, output.z) }
                 }
         val demo =
