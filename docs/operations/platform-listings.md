@@ -13,6 +13,7 @@
 | 名称 | `RealTime` |
 | 一句话简介 | Real-world wall-clock time as redstone: one lectern per digit, comparator level = digit + 1, on Paper and Folia. |
 | 分类 | Hangar：`gameplay`（Hangar 没有 "management"，见下方分类枚举）；Modrinth：`management` + `technology` + `utility`（最多 3 个） |
+| 关键词（Hangar）| `redstone, time, clock, utility, folia` |
 | 许可证 | MIT |
 | 源码 | <https://github.com/OrzMC/RealTime> |
 | 问题追踪 | <https://github.com/OrzMC/RealTime/issues> |
@@ -30,19 +31,19 @@
 > Hangar 的项目信息（名称/简介/分类/关键词/链接）没有 API：`PATCH/PUT /api/v1/projects/{slug}` 都是 405，
 > `/projects/{slug}/settings` 也不存在（404），只能网页改。
 
-### 待网页更新（Hangar）
+### 网页字段的核对记录
 
-2026-11-26 核对结果：Hangar 的简介、分类、关键词仍是 0.5.0 之前的值（API 改不了，见上）。请按下面填入：
+2026-11-26 全部核对完成（`scripts/platform-audit.sh` 全部 `ok`）：
 
-| 字段 | 当前值（过时） | 应改为 |
+| 平台 | 字段 | 结果 |
 |---|---|---|
-| Description（一句话简介）| `Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia` | `Real-world wall-clock time as redstone: one lectern per digit, comparator level = digit + 1, on Paper and Folia` |
-| Category | `Miscellaneous`（`misc`）| **`Gameplay`**（Hangar 没有 "Management"，见下方枚举）|
-| Keywords | 空 | `redstone, time, clock, utility, folia` |
-| Links | Source / Issues / Wiki 已正确 | 无需改动 |
+| Hangar | Description / Category / Keywords | 已在网页更新：讲台版一句话、`Gameplay`、`redstone, time, clock, utility, folia` |
+| Hangar | 主页（长描述）| `scripts/hangar-page.sh` 推送，与本文逐字一致 |
+| Modrinth | `description` / `body` | `scripts/modrinth-page.sh` 推送，读回验证一致（112 / 3569 字符）|
+| Modrinth | 版本列表 | 只剩 `0.4.0` / `0.5.0` / `0.6.0`，重复上传的版本已删除 |
 
-> 其余平台字段（Modrinth 的 description/body/categories/links、Hangar 的主页）都已与本文一致，
-> 并且发布时由脚本自动同步，不再需要手工粘。
+`scripts/platform-audit.sh` 现在会核对 Hangar 分类与**关键词**、主页长度、每个版本的频道/游戏版本/sha256，
+以及 Modrinth 的简介、长描述、分类、许可证、链接、游戏版本与 loader；发版后跑一次即可确认两端没有漂移。
 
 ## 长描述（两个平台共用，Markdown）
 
