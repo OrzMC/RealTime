@@ -119,6 +119,40 @@ you edit its slots). Full command reference, permissions, wiring diagrams, the c
 > Hangar 只有 `PAPER` / `WATERFALL` / `VELOCITY` 三个平台标签，**Folia 不是独立平台**：体现在 `plugin.yml` 的
 > `folia-supported: true` 与本页描述里那句 "Built for Paper and Folia"，不要在平台标签上找 Folia。
 
+## 核对方法（每次发版后跑一次）
+
+```bash
+MODRINTH_TOKEN="$(cat ~/modrinth.token)" scripts/platform-audit.sh
+```
+
+它逐项比对"应该是的值"和平台上的实际值：
+
+| 检查项 | Hangar | Modrinth |
+|---|---|---|
+| 名称 / id | ✅ 公开 API | 需要 `READ_PROJECT` |
+| 分类 | `management` | 至少一个分类 |
+| 许可证 | `MIT` | `mit` |
+| 简介 / 长描述非空 | ✅ | ✅ |
+| 链接 | ≥1 组 | `source_url` |
+| 平台 / 游戏版本 | 声明 `26.3` | 含 `26.3` |
+| loader | （Hangar 只有 PAPER） | 含 `paper` + `folia` |
+| 每版本资产 | 频道、`26.3`、**sha256** | — |
+
+Hangar 部分不需要任何凭据（公开 API 就能读）；Modrinth 的项目在 draft / 审核中时，令牌没有 `READ_PROJECT` 就读不到，
+脚本会如实报 `cannot read the project` 而不是假装通过 —— 这时要么临时勾上 `READ_PROJECT` 再跑，要么以项目页截图为准。
+
+**2026-11-25 审计结果**（Hangar `OrzMC/RealTime` + Modrinth `pRGtDpaD`）：
+
+| 项 | Hangar 实际 | 结论 |
+|---|---|---|
+| 名称 / 许可证 / 简介 / 链接 / 平台 / 关键词 | `RealTime` / `MIT` / 120 字符 / Source+Issues+Wiki / `PAPER` / `redstone,time,clock,utility,folia` | ✅ |
+| 分类 | `misc` | ❌ 应为 `management` |
+| 长描述（`mainPageContent`） | 0 字符 | ❌ 待粘贴本文档的长描述 |
+| `0.4.0` 资产 | 频道 `Release`、`PAPER 26.3`、2,136,461 B、sha256 `8531becc…`（与 GitHub Release 一致） | ✅ |
+| `0.4.0` 版本描述 | `MVP Version` | ⚠️ 建议改成 v0.4.0 的 changelog 摘要 |
+
+Modrinth 项目此时处于 Under Review，令牌无 `READ_PROJECT` → 无法自动核对，待项目公开或临时授权后补。
+
 ## 版本页文案
 
 `0.4.0` 在 Hangar 上的 version description 目前是 `MVP Version`，可改成对应 `CHANGELOG` 段落的摘要；
