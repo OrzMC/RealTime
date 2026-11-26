@@ -18,6 +18,9 @@ EXPECTED_LICENSE="MIT"
 # "management", and RealTime is a redstone/technical utility rather than an admin
 # tool, so gameplay is the intended one.
 EXPECTED_CATEGORY="${EXPECTED_HANGAR_CATEGORY:-gameplay}"
+# Hangar keywords are web-only (the project PATCH endpoint is 405), so the audit
+# reads them back instead of trusting the doc.
+EXPECTED_KEYWORDS="${EXPECTED_HANGAR_KEYWORDS:-redstone,time,clock,utility,folia}"
 UA="OrzMC/RealTime platform-audit"
 API_HANGAR="https://hangar.papermc.io/api/v1"
 
@@ -36,6 +39,7 @@ else
   # `mainPageContent` on /projects/{slug} stays empty even after the page is set,
   # and the page itself is served as text/plain by /pages/main/{slug}.
   page_len="$(curl -fsS --max-time 25 -A "$UA" "$API_HANGAR/pages/main/$HANGAR_SLUG" 2>/dev/null | wc -c || echo 0)"
+  keywords="$(python3 -c 'import json,sys; print(",".join((json.loads(sys.argv[1]).get("settings") or {}).get("keywords") or []))' "$hangar")"
   read -r name category license desc_len links platforms < <(
     python3 - "$hangar" <<'PY'
 import json, sys
@@ -64,6 +68,13 @@ PY
   [[ "$page_len" -gt 200 ]] && pass "main page set ($page_len chars)" ||
     fail "main page missing ($page_len chars) — run scripts/hangar-page.sh (or paste the markdown from platform-listings.md)"
   [[ "$links" -ge 1 ]] && pass "links: $links entry set(s)" || fail "no links configured"
+  if [[ -n "$EXPECTED_KEYWORDS" ]]; then
+    if [[ "$keywords" == "$EXPECTED_KEYWORDS" ]]; then
+      pass "keywords: $keywords"
+    else
+      fail "keywords are '$keywords', expected '$EXPECTED_KEYWORDS' (Hangar has no keyword API: fix it in the web UI)"
+    fi
+  fi
   case ",$platforms," in
     *",PAPER,"*) pass "platforms: $platforms" ;;
     *) fail "platforms is '$platforms', expected PAPER" ;;

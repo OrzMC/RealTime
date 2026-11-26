@@ -11,6 +11,8 @@ All notable changes to RealTime are documented here. Release automation requires
 - **发布时自动同步平台项目页**：新增 `scripts/modrinth-page.sh`（`PATCH /v2/project`，写 `description` + `body`），
   与已有的 `scripts/hangar-page.sh` 一起接进 `release.yml`，项目页不再需要手工粘；
   `scripts/distribution-check.sh` 断言两步都在。注意 Modrinth 的一句话简介字段是 `description`（`summary` 会被静默忽略）。
+- `scripts/platform-audit.sh` 增加 Hangar **关键词**核对（分类、主页长度、每版本频道/游戏版本/sha256 原本就有），
+  平台项目信息现在两端都可审计。
 - 文档与 0.6.0 对齐：清掉 `docs/` 里残留的 `/rtime info`、`/rtime list`、BCD/analog 双编码描述与 `per-encoding` 说法，
   旧验收报告加上"历史文档"横幅，README 索引补上 0.6.0 验收报告与平台文案源文件。
 
