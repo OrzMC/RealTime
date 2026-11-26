@@ -3,7 +3,7 @@
 面向服主与建筑/红石作者的完整用法说明。技术实现（数据结构、调度、编码公式）见
 [redstone devices](development/redstone-devices.md)，产品需求见 [requirements](product/requirements.md)。
 
-> 版本口径：本文对应 `0.5.0-SNAPSHOT`，适用于 `v0.4.0` 及之后的版本。命令、权限与行为都在 CI 与真机验收中覆盖过。
+> 版本口径：本文对应 `0.6.0-SNAPSHOT`，适用于 `v0.5.0` 及之后的版本。命令、权限与行为都在 CI 与真机验收中覆盖过。
 
 ## 1. 这个插件能做什么
 
