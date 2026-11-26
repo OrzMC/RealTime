@@ -96,9 +96,14 @@
   "featured": false,
   "status": "listed",
   "file_parts": ["plugin"],
-  "primary_file": "plugin"
+  "primary_file": "plugin",
+  "dependencies": []
 }
 ```
+
+> `dependencies` **是必填**（哪怕为空数组）。2026-11-26 的 `v0.5.0` 发布就栽在这里：
+> `400 invalid_input — missing field 'dependencies'`，GitHub Release 与 Hangar 都已成功、只有 Modrinth 失败。
+> `scripts/distribution-check.sh` 现在会断言 payload 里有这个字段。
 
 即：**一个 jar 同时标注 Paper 与 Folia**；稳定 tag → `release`，`-rc`/`-beta` 之类 → `beta`。
 changelog 直接使用 `CHANGELOG.md` 对应版本的段落（与 GitHub Release 完全一致）。

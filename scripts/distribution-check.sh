@@ -64,6 +64,7 @@ require_pattern "$WORKFLOW" 'MODRINTH_TOKEN' "workflow reads the Modrinth token 
 require_pattern "$WORKFLOW" 'loaders: *\[.*paper.*folia.*\]|loaders: *\[.*folia.*paper.*\]' \
   "Modrinth payload lists both paper and folia loaders"
 require_pattern "$WORKFLOW" "game_versions: *\[\"$API_VERSION\"\]" "Modrinth payload pins game version $API_VERSION"
+require_pattern "$WORKFLOW" 'dependencies: *\[ *\]' "Modrinth payload sends an explicit dependencies array (the API rejects the request without it)"
 require_pattern "$WORKFLOW" 'publishPluginPublicationToHangar' "workflow invokes the Hangar publication task"
 require_pattern "$WORKFLOW" 'skip.*Hangar|skipping Hangar' "missing Hangar credentials skip instead of failing"
 require_pattern "$WORKFLOW" 'skipping Modrinth' "missing Modrinth credentials skip instead of failing"
@@ -101,6 +102,7 @@ jq -cn \
     status: "listed",
     file_parts: ["plugin"],
     primary_file: "plugin",
+    dependencies: [],
     changelog_bytes: ($changelog | length)
   }'
 
