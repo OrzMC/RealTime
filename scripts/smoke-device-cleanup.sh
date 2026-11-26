@@ -194,14 +194,14 @@ done
 # Queue seed: one slot in spawn (loaded), five in a far chunk (left unloaded).
 rcon setblock 0 63 0 minecraft:stone >/dev/null
 rcon setblock 0 64 0 minecraft:lectern >/dev/null
-for bit in $(seq 1 5); do
+for bit in $(seq 1 4); do
   x=$((1600 + bit))
   rcon setblock "$x" 63 0 minecraft:stone >/dev/null
   rcon setblock "$x" 64 0 minecraft:lectern >/dev/null
 done
-# A player build in the way: cleanup must report it, never delete it.
-rcon setblock 1606 63 0 minecraft:stone >/dev/null
-rcon setblock 1606 64 0 minecraft:stone >/dev/null
+# A player build in the way (job slot 5): cleanup must report it, never delete it.
+rcon setblock 1605 63 0 minecraft:stone >/dev/null
+rcon setblock 1605 64 0 minecraft:stone >/dev/null
 # Slots of the clock retired through the command later on.
 for bit in $(seq 0 5); do
   x=$((3200 + bit))
@@ -296,8 +296,8 @@ if [[ -z "$ATTENTION_DETAIL" ]]; then
 fi
 
 # Fix the player build and let the operator retry: the job must finish.
-rcon setblock 1606 64 0 minecraft:air >/dev/null
-rcon setblock 1606 63 0 minecraft:air >/dev/null
+rcon setblock 1605 64 0 minecraft:air >/dev/null
+rcon setblock 1605 63 0 minecraft:air >/dev/null
 rtime cleanup retry "$JOB_ID" >/dev/null
 wait_cleanup_queue_empty "Operator retry did not finish the corrected job"
 wait_block_air "0 64 0" || echo "Continuing: the queue is empty, so every slot was cleared."
