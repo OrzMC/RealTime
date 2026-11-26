@@ -11,7 +11,7 @@
 | 项 | 值 |
 |---|---|
 | 名称 | `RealTime` |
-| 一句话简介 | Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia. |
+| 一句话简介 | Real-world wall-clock time as redstone: one lectern per digit, comparator level = digit + 1, on Paper and Folia. |
 | 分类 | Hangar：`gameplay`（Hangar 没有 "management"，见下方分类枚举）；Modrinth：`management` + `technology` + `utility`（最多 3 个） |
 | 许可证 | MIT |
 | 源码 | <https://github.com/OrzMC/RealTime> |
@@ -32,28 +32,28 @@ your circuits know what time it is — no mob-clock, no daylight sensor drift, n
 Built for **Paper and Folia** (Folia-safe: every block write goes through the region scheduler), written in Kotlin,
 MIT licensed.
 
-## Two encodings
+## One lectern per digit
 
-| Encoding | What it drives | Slots for `HHmm` / `HHmmss` |
-|---|---|---|
-| `bcd` | One real power source per BCD bit (`redstone_block` / air) | 16 / 24 |
-| `analog` | One lectern per digit, comparator level = digit + 1 | 4 / 6 |
+| What it drives | Slots for `HHmm` / `HHmmss` |
+|---|---|
+| One lectern per digit, comparator level = digit + 1 | 4 / 6 |
 
-The analog mode exists because a comparator reads a lectern's page in a single int write: `HHmmss` needs six lectern
-lines instead of twenty-four redstone lines.
+A comparator reads a lectern's page in a single int write, so `HHmmss` needs six lectern lines — no bit decoding, no
+decoder delay, and a display that actually matches the clock. (An earlier BCD mode with 16/24 parallel bit lines was
+dropped for exactly that reason.)
 
 ## Features
 
-- Real-world time with an explicit `ZoneId` (default `Asia/Shanghai`); `/rtime now`, `/rtime info`, `/rtime reload`.
-- Minute **or second** resolution, tick-level change detection, diff-only chunk-batched writes.
-- Five commands to learn: `/rtime`, `/rtime create <name> [bcd|analog]`, `/rtime info [device]`, `/rtime on|off`,
-  `/rtime remove`. Everything else (`place`, `status`, `cleanup`, `reload`) is behind `/rtime help all`.
-- In-game authoring: `/rtime create clock bcd` builds at the block you aim at, lays out the slots in the direction you
-  face, places the display blocks (a lamp per slot for BCD, lectern / comparator / dust / lamp rows for analog) and
-  starts enabled. `/rtime place <device> <slot>` repositions one slot when something else occupies the layout.
-- Digit grouping so neighbouring power sources do not couple into each other's circuits.
-- Durable lifecycle: `disable` empties every slot, `remove` queues a crash-safe cleanup job, `retry` and `dismiss`
-  let an operator finish a cleanup without editing YAML.
+- Real-world time with an explicit `ZoneId` (default `Asia/Shanghai`); `/rtime` and `/rtime reload`.
+- Minute **or second** resolution (seconds by default), tick-level change detection, diff-only chunk-batched writes.
+- Two commands to read: `/rtime` (time + every clock) and `/rtime <name>` (one clock in detail). Five to write:
+  `create`, `on`, `off`, `place`, `remove` — with `status`, `cleanup` and `help` for everyone else.
+- In-game authoring: `/rtime create clock` builds at the block you aim at, grows the slots in the direction you face,
+  places the comparator / dust / lamp row per digit and starts enabled. `manual` skips the display and leaves every slot
+  unpositioned; `/rtime place clock 3` then **puts the lectern there immediately**, facing you, so the layout is
+  reviewable instead of a silent coordinate change.
+- Durable lifecycle: turning a clock off keeps its lecterns and drops the book (comparator reads 0), `remove` queues a
+  crash-safe cleanup job, `retry` and `dismiss` let an operator finish a cleanup without editing YAML.
 - Never overwrites blocks it did not place: anything foreign is reported as `NEEDS_ATTENTION`, never silently stolen.
 - Diagnostics behind `/rtime status`; optional PlaceholderAPI placeholders.
 - Folia supported (`folia-supported: true`), no dependencies except optional PlaceholderAPI.
@@ -61,16 +61,19 @@ lines instead of twenty-four redstone lines.
 ## Quick start
 
 ```
-/rtime                                   # current time
-/rtime create clock bcd                  # stand where you want it, face the way it should extend
-/rtime info                              # plugin state + every device
-/rtime off clock                         # empties the slots
-/rtime remove clock                      # queues cleanup of the blocks it placed
-/rtime cleanup list|retry|dismiss        # what is left to clean up
+/rtime                                   # current time + every clock
+/rtime create clock                      # stand where you want it, face the way it should extend
+/rtime clock                             # that clock: slots, state, next steps
+/rtime off clock                         # book removed, comparator reads 0, lecterns stay
+/rtime create machine manual             # no lecterns yet; position every slot by hand
+/rtime place machine 0                   # put the lectern of digit 0 where you look
+/rtime on machine                        # only once every slot has a position
+/rtime remove clock                      # queues cleanup of the blocks it placed (clock must be off)
+/rtime cleanup                           # what is left to clean up
 ```
 
-`/rtime help` lists the five everyday commands and `/rtime help all` the rest; `/rtime place clock 3` repositions a
-single slot (the device must be off). Full command reference, permissions, wiring diagrams, the cleanup queue and an
+`/rtime help` prints the whole surface in one page; `/rtime place clock 3` repositions a single slot (the clock must be
+off). Full command reference, permissions, wiring diagrams, the cleanup queue and an
 FAQ live in the [usage guide](https://github.com/OrzMC/RealTime/blob/main/docs/usage.md).
 
 ## Requirements
@@ -129,7 +132,7 @@ HANGAR_API_TOKEN=… scripts/hangar-page.sh      # 从本文档的 markdown 块�
 |---|---|
 | Category | `gameplay`（当前是 `misc`，需网页改） |
 | License | `MIT` |
-| Description | `Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia.` |
+| Description | `Real-world wall-clock time as redstone: one lectern per digit, comparator level = digit + 1, on Paper and Folia.` |
 | Main page content | 上面的长描述 —— **可用 `scripts/hangar-page.sh` 自动写入**（已写入，2,798 字符） |
 | Links | Source / Issue tracker / Wiki 填上表三个链接 |
 | Tags | `redstone`、`time`、`utility`、`folia`（按平台可选清单挑最接近的） |

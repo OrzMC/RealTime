@@ -2,11 +2,11 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import org.bukkit.configuration.file.YamlConfiguration
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -26,7 +26,7 @@ class YamlDeviceRepositoryTest {
         assertTrue(repository.loadStore().devices.isEmpty())
         val yaml = YamlConfiguration()
         yaml.load(temporaryDirectory.resolve("data/devices.yml").toFile())
-        assertEquals(6, yaml.getInt("schema-version"))
+        assertEquals(7, yaml.getInt("schema-version"))
         assertTrue(yaml.getList("cleanup-jobs").orEmpty().isEmpty())
     }
 
@@ -47,57 +47,60 @@ class YamlDeviceRepositoryTest {
     }
 
     @Test
-    fun `persists and reloads second resolution devices`() {
+    fun `persists one slot per digit for both resolutions`() {
         val repository = YamlDeviceRepository(temporaryDirectory.toFile())
-        val device = device(resolution = OutputResolution.SECOND)
+        val minute = device(resolution = OutputResolution.MINUTE)
+        val second = device(name = "second", resolution = OutputResolution.SECOND, startX = 100)
+
+        repository.save(DeviceStoreSnapshot(listOf(minute, second)))
+
+        val loaded = repository.loadStore().devices.sortedBy { it.name }
+        assertEquals(listOf(4, 6), loaded.map { it.outputs.size })
+        assertEquals(
+            5,
+            loaded
+                .last()
+                .outputs
+                .last()
+                .bitIndex,
+        )
+        assertTrue(loaded.all { it.outputs.none(DeviceOutput::unplaced) })
+    }
+
+    @Test
+    fun `persists a build together with its display blocks`() {
+        val repository = YamlDeviceRepository(temporaryDirectory.toFile())
+        val device = device(demo = true)
 
         repository.save(DeviceStoreSnapshot(listOf(device)))
 
         val loaded = repository.loadStore().devices.single()
-        assertEquals(OutputResolution.SECOND, loaded.resolution)
-        assertEquals(24, loaded.outputs.size)
-        assertEquals(device.outputs, loaded.outputs)
-        assertEquals(0, loaded.outputs.first().bitIndex)
-        assertEquals(23, loaded.outputs.last().bitIndex)
+        assertEquals(device.demoBlocks, loaded.demoBlocks)
+        assertTrue(loaded.hasDisplay)
+        assertFalse(device().hasDisplay)
     }
 
     @Test
-    fun `persists second resolution cleanup jobs`() {
+    fun `keeps the unplaced flag of hand-positioned slots`() {
         val repository = YamlDeviceRepository(temporaryDirectory.toFile())
-        val job = DeviceCleanupJob.fromDevice(device(resolution = OutputResolution.SECOND), null)
+        val device =
+            RedstoneDevice(
+                id = UUID.randomUUID(),
+                name = "manual",
+                worldName = "world",
+                enabled = false,
+                outputs =
+                    (0 until 6).map { index ->
+                        DeviceOutput(index, 0, 64, 0, unplaced = index != 3)
+                    },
+                resolution = OutputResolution.SECOND,
+            )
 
-        repository.save(DeviceStoreSnapshot(devices = emptyList(), cleanupJobs = listOf(job)))
+        repository.save(DeviceStoreSnapshot(listOf(device)))
 
-        val loaded = repository.loadStore().cleanupJobs.single()
-        assertEquals(OutputResolution.SECOND, loaded.resolution)
-        assertEquals(24, loaded.outputs.size)
-    }
-
-    @Test
-    fun `rejects unsupported resolutions`() {
-        val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
-        val device = device()
-        val yaml = YamlConfiguration()
-        yaml.set("schema-version", 3)
-        yaml.set(
-            "devices",
-            listOf(
-                linkedMapOf(
-                    "id" to device.id.toString(),
-                    "name" to device.name,
-                    "world" to device.worldName,
-                    "enabled" to device.enabled,
-                    "resolution" to "hourly",
-                    "outputs" to emptyList<Any>(),
-                ),
-            ),
-        )
-        yaml.set("cleanup-jobs", emptyList<Any>())
-        yaml.save(dataDirectory.resolve("devices.yml").toFile())
-
-        assertThrows(DeviceRepositoryException::class.java) {
-            YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
-        }
+        val loaded = repository.loadStore().devices.single()
+        assertEquals(listOf(3), loaded.outputs.filterNot(DeviceOutput::unplaced).map(DeviceOutput::bitIndex))
+        assertEquals(5, loaded.unplacedOutputs.size)
     }
 
     @Test
@@ -111,7 +114,12 @@ class YamlDeviceRepositoryTest {
                     pendingJob.outputs.mapIndexed { index, output ->
                         when (index) {
                             0 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.CLEARED)
-                            1 -> DeviceCleanupOutput(output.output, DeviceCleanupStatus.NEEDS_ATTENTION, "not redstone wire")
+                            1 ->
+                                DeviceCleanupOutput(
+                                    output.output,
+                                    DeviceCleanupStatus.NEEDS_ATTENTION,
+                                    "lectern holds a foreign book",
+                                )
                             else -> output
                         }
                     },
@@ -122,54 +130,7 @@ class YamlDeviceRepositoryTest {
         val loaded = repository.loadStore().cleanupJobs.single()
         assertEquals(job, loaded)
         assertEquals(DeviceCleanupStatus.CLEARED, loaded.outputs[0].status)
-        assertEquals("not redstone wire", loaded.outputs[1].detail)
-    }
-
-    @Test
-    fun `migrates schema v1 devices to the current schema without data loss`() {
-        val device = device()
-        val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
-        val legacy = YamlConfiguration()
-        legacy.set("schema-version", 1)
-        legacy.set(
-            "devices",
-            listOf(
-                linkedMapOf(
-                    "id" to device.id.toString(),
-                    "name" to device.name,
-                    "world" to device.worldName,
-                    "enabled" to device.enabled,
-                    "outputs" to
-                        device.outputs.map { output ->
-                            linkedMapOf(
-                                "bit-index" to output.bitIndex,
-                                "x" to output.x,
-                                "y" to output.y,
-                                "z" to output.z,
-                            )
-                        },
-                ),
-            ),
-        )
-        legacy.save(dataDirectory.resolve("devices.yml").toFile())
-
-        val migrated = YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
-
-        val migratedDevice = migrated.devices.single()
-        assertEquals(device.id, migratedDevice.id)
-        assertEquals(device.name, migratedDevice.name)
-        assertEquals(device.worldName, migratedDevice.worldName)
-        assertEquals(device.enabled, migratedDevice.enabled)
-        assertEquals(device.outputs, migratedDevice.outputs)
-        assertEquals(OutputResolution.MINUTE, migratedDevice.resolution)
-        assertEquals(OutputEncoding.BCD, migratedDevice.encoding)
-        assertTrue(migrated.cleanupJobs.isEmpty())
-        val stored = YamlConfiguration()
-        stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(6, stored.getInt("schema-version"))
-        assertEquals("minute", stored.getMapList("devices").single()["resolution"])
-        assertEquals("bcd", stored.getMapList("devices").single()["encoding"])
-        assertTrue(stored.getList("cleanup-jobs").orEmpty().isEmpty())
+        assertEquals("lectern holds a foreign book", loaded.outputs[1].detail)
     }
 
     @Test
@@ -212,89 +173,47 @@ class YamlDeviceRepositoryTest {
     }
 
     @Test
-    fun `persists and reloads analog devices one slot per digit`() {
+    fun `rejects an unsupported resolution`() {
         val repository = YamlDeviceRepository(temporaryDirectory.toFile())
-        val device = device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG)
+        repository.save(DeviceStoreSnapshot(listOf(device())))
+        val path = temporaryDirectory.resolve("data/devices.yml")
+        val yaml = YamlConfiguration()
+        yaml.load(path.toFile())
+        val devices = yaml.getMapList("devices").toMutableList()
+        devices[0] = LinkedHashMap(devices[0]).also { it["resolution"] = "hour" }
+        yaml.set("devices", devices)
+        yaml.save(path.toFile())
 
-        repository.save(DeviceStoreSnapshot(listOf(device)))
-
-        val loaded = repository.loadStore().devices.single()
-        assertEquals(OutputEncoding.ANALOG, loaded.encoding)
-        assertEquals(OutputResolution.SECOND, loaded.resolution)
-        assertEquals(6, loaded.outputs.size)
-        assertEquals(device.outputs, loaded.outputs)
-        assertEquals(5, loaded.outputs.last().bitIndex)
+        val exception = assertThrows(DeviceRepositoryException::class.java) { repository.loadStore() }
+        assertTrue(exception.message!!.contains("resolution"))
     }
 
     @Test
-    fun `persists a demo build with its display blocks`() {
+    fun `skips clocks built with the removed BCD encoding and reports them`() {
         val repository = YamlDeviceRepository(temporaryDirectory.toFile())
-        val demo =
-            device(resolution = OutputResolution.SECOND, encoding = OutputEncoding.ANALOG, demo = true)
-        val retired = device(name = "retired-demo", demo = true, startX = 5000)
-        val job = DeviceCleanupJob.fromDevice(retired, null)
+        val lecternClock = device(name = "lobby")
+        repository.save(DeviceStoreSnapshot(listOf(lecternClock)))
 
-        repository.save(DeviceStoreSnapshot(listOf(demo), listOf(job)))
+        val path = temporaryDirectory.resolve("data/devices.yml")
+        val yaml = YamlConfiguration()
+        yaml.load(path.toFile())
+        val stored = yaml.getMapList("devices").toMutableList()
+        // An entry written by 0.5.0 still carries `encoding`; the plugin no longer
+        // understands the BCD geometry, so it is skipped instead of mis-loaded.
+        stored[0] = LinkedHashMap(stored[0]).also { it["encoding"] = "bcd" }
+        stored += LinkedHashMap(stored[0]).also { it["name"] = "second-bcd" }
+        yaml.set("devices", stored)
+        yaml.save(path.toFile())
 
         val loaded = repository.loadStore()
-        val loadedDevice = loaded.devices.single()
-        assertEquals(demo.demoBlocks, loadedDevice.demoBlocks)
-        assertEquals(
-            retired.demoBlocks,
-            loaded.cleanupJobs
-                .single()
-                .display
-                .map { it.block },
-        )
-        assertTrue(loadedDevice.isDemo)
+
+        assertTrue(loaded.devices.isEmpty())
+        assertEquals(2, repository.skippedLegacyEntries.size)
+        assertTrue(repository.skippedLegacyEntries.all { it.contains("bcd") || it.contains("lobby") })
     }
 
     @Test
-    fun `migrates schema v4 devices without demo blocks`() {
-        val device = device()
-        val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
-        val legacy = YamlConfiguration()
-        legacy.set("schema-version", 4)
-        legacy.set(
-            "devices",
-            listOf(
-                linkedMapOf(
-                    "id" to device.id.toString(),
-                    "name" to device.name,
-                    "world" to device.worldName,
-                    "enabled" to device.enabled,
-                    "resolution" to "minute",
-                    "encoding" to "bcd",
-                    "outputs" to
-                        device.outputs.map { output ->
-                            linkedMapOf(
-                                "bit-index" to output.bitIndex,
-                                "x" to output.x,
-                                "y" to output.y,
-                                "z" to output.z,
-                            )
-                        },
-                ),
-            ),
-        )
-        legacy.set("cleanup-jobs", emptyList<Any>())
-        legacy.save(dataDirectory.resolve("devices.yml").toFile())
-
-        val migrated = YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
-
-        assertTrue(
-            migrated.devices
-                .single()
-                .demoBlocks
-                .isEmpty(),
-        )
-        val stored = YamlConfiguration()
-        stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(6, stored.getInt("schema-version"))
-    }
-
-    @Test
-    fun `migrates schema v3 devices without an encoding to bcd`() {
+    fun `treats a missing encoding as a legacy BCD entry`() {
         val device = device()
         val dataDirectory = Files.createDirectories(temporaryDirectory.resolve("data"))
         val legacy = YamlConfiguration()
@@ -323,35 +242,19 @@ class YamlDeviceRepositoryTest {
         legacy.set("cleanup-jobs", emptyList<Any>())
         legacy.save(dataDirectory.resolve("devices.yml").toFile())
 
-        val migrated = YamlDeviceRepository(temporaryDirectory.toFile()).loadStore()
+        val repository = YamlDeviceRepository(temporaryDirectory.toFile())
+        val migrated = repository.loadStore()
 
-        assertEquals(OutputEncoding.BCD, migrated.devices.single().encoding)
+        assertTrue(migrated.devices.isEmpty())
+        assertEquals(1, repository.skippedLegacyEntries.size)
         val stored = YamlConfiguration()
         stored.load(dataDirectory.resolve("devices.yml").toFile())
-        assertEquals(6, stored.getInt("schema-version"))
-        assertEquals("bcd", stored.getMapList("devices").single()["encoding"])
-    }
-
-    @Test
-    fun `rejects unsupported encodings`() {
-        val repository = YamlDeviceRepository(temporaryDirectory.toFile())
-        repository.save(DeviceStoreSnapshot(listOf(device())))
-        val path = temporaryDirectory.resolve("data/devices.yml")
-        val yaml = YamlConfiguration()
-        yaml.load(path.toFile())
-        val devices = yaml.getMapList("devices").toMutableList()
-        devices[0] = LinkedHashMap(devices[0]).also { it["encoding"] = "hexadecimal" }
-        yaml.set("devices", devices)
-        yaml.save(path.toFile())
-
-        val exception = assertThrows(DeviceRepositoryException::class.java) { repository.loadStore() }
-        assertTrue(exception.message!!.contains("encoding"))
+        assertEquals(7, stored.getInt("schema-version"))
     }
 
     private fun device(
         name: String = "clock",
         resolution: OutputResolution = OutputResolution.MINUTE,
-        encoding: OutputEncoding = OutputEncoding.BCD,
         demo: Boolean = false,
         startX: Int = 0,
     ) = RedstoneDevice(
@@ -360,11 +263,10 @@ class YamlDeviceRepositoryTest {
         worldName = "world",
         enabled = true,
         outputs =
-            (0 until encoding.outputCount(resolution)).map { index ->
+            (0 until resolution.digitCount).map { index ->
                 DeviceOutput(bitIndex = index, x = startX + index * 2, y = 64, z = 0)
             },
         resolution = resolution,
-        encoding = encoding,
         demoBlocks =
             if (demo) {
                 listOf(DemoBlock(startX, 65, 0, "minecraft:redstone_lamp"))

@@ -2,7 +2,6 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import java.util.UUID
@@ -49,18 +48,17 @@ data class DeviceCleanupJob(
     val worldName: String,
     val worldId: UUID?,
     val outputs: List<DeviceCleanupOutput>,
-    val resolution: OutputResolution = OutputResolution.MINUTE,
-    val encoding: OutputEncoding = OutputEncoding.BCD,
-    /** Display blocks of a demo device; empty for a plain device. */
+    val resolution: OutputResolution = OutputResolution.SECOND,
+    /** Display blocks of a created device; empty for a plain device. */
     val display: List<DeviceCleanupDemo> = emptyList(),
 ) {
     init {
         require(deviceName.isNotBlank()) { "deviceName must not be blank" }
         require(worldName.isNotBlank()) { "worldName must not be blank" }
-        val outputCount = encoding.outputCount(resolution)
+        val outputCount = resolution.digitCount
         require(outputs.size == outputCount) {
-            "cleanup job for a ${resolution.configValue}-resolution ${encoding.configValue} device must contain " +
-                "exactly $outputCount outputs (${resolution.label} ${encoding.configValue})"
+            "cleanup job for a ${resolution.configValue}-resolution device must contain exactly $outputCount outputs " +
+                "(${resolution.label})"
         }
         require(outputs.map { it.output.bitIndex }.toSet() == (0 until outputCount).toSet()) {
             "cleanup outputs must contain each slot index from 0 through ${outputCount - 1} exactly once"
@@ -90,7 +88,6 @@ data class DeviceCleanupJob(
                 worldId = worldId,
                 outputs = device.outputs.map { output -> DeviceCleanupOutput(output) },
                 resolution = device.resolution,
-                encoding = device.encoding,
                 display = device.demoBlocks.map { block -> DeviceCleanupDemo(block) },
             )
     }

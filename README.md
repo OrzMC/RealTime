@@ -9,10 +9,11 @@
 > **Status: `v0.5.0` released** (2026-11-26) — see the [release](https://github.com/OrzMC/RealTime/releases/tag/v0.5.0) and
 > [CHANGELOG](CHANGELOG.md). `main` is now on `0.6.0-SNAPSHOT`. Also on
 > [Hangar](https://hangar.papermc.io/OrzMC/RealTime) and [Modrinth](https://modrinth.com/project/pRGtDpaD).
-> The plugin provides timezone-aware time and Paper/Folia scheduler-safe redstone clocks in two encodings — **BCD**
-> (16/24 power-source slots for `HHmm`/`HHmmss`) and **analog** (one lectern per digit, so `HHmmss` needs six lines
-> instead of twenty-four) — plus **one command to build a working clock** (`/rtime create clock`), per-slot placement,
-> versioned persistence (schema v5), diagnostics, crash-safe deferred cleanup, and cleanup-queue operator controls.
+> The plugin provides timezone-aware time and Paper/Folia scheduler-safe lectern clocks: **one lectern per digit**, so a
+> comparator reads the digit as an analog level (`digit + 1`) and `HHmmss` needs only six slots. Build one with
+> `/rtime create <name>`, position single slots with `/rtime place` (the lectern appears immediately), and manage it with
+> a flat five-command surface. Versioned persistence (schema v7), diagnostics, crash-safe deferred cleanup and
+> cleanup-queue operator controls included.
 
 ## Goals
 
@@ -39,7 +40,7 @@ PaperMC documents `io.papermc.paper:paper-api:26.3.build.+` for the 26.3 API lin
 
 ## Layout
 
-- `realtime-core/`: pure Kotlin/JVM time service, BCD/analog encoders, device layout and demo geometry, and the validated device model.
+- `realtime-core/`: pure Kotlin/JVM time service, clock-digit encoder, lectern layout and display geometry, and the validated device model.
 - `realtime-paper/`: plugin lifecycle, commands, modular configuration, Paper/Folia adapters, device persistence, and optional integrations.
 - `tasks/`: roadmap and executable task contracts.
 - `.agents/`: roles, workflows, and safety policies.
@@ -69,19 +70,22 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
 
 ## Features
 
-- **Real-world time** with an explicit `ZoneId` (default `Asia/Shanghai`), `/rtime` + `/rtime info`, and optional
-  PlaceholderAPI placeholders.
-- **Five commands to learn**: `/rtime`, `/rtime create`, `/rtime info`, `/rtime on|off`, `/rtime remove` — everything
-  else (`place`, `status`, `cleanup`, `reload`) lives behind `/rtime help all`. Tab completion covers devices,
-  encodings, resolutions and slot numbers.
-- **Redstone clocks in two encodings**: `bcd` (one power-source slot per bit — 16 for `HHmm`, 24 for `HHmmss`) and
-  `analog` (one lectern per digit, comparator level = digit + 1 — six lines instead of twenty-four).
-- **In-game authoring**: `/rtime create <name> [bcd|analog]` builds at the block you aim at, lays out the slots in the
-  direction you face, places the display blocks (lamps, or lectern+comparator rows) and starts enabled;
-  `/rtime place <device> <slot>` repositions a single slot when something else occupies the default layout.
-  Authoring is bounded by `limits.allowed-areas` / `max-devices` / `edit-cooldown-seconds` and split permissions.
-- **Durable lifecycle**: disable empties every slot, remove queues a crash-safe cleanup job, and a `NEEDS_ATTENTION`
-  entry means "that block is not ours" — never overwritten, retry it or dismiss the job.
+- **Real-world time** with an explicit `ZoneId` (default `Asia/Shanghai`), `/rtime`, and optional PlaceholderAPI
+  placeholders.
+- **Reading is two commands**: `/rtime` (time plus every clock) and `/rtime <name>` (one clock in detail). Writing is
+  `create`, `on`/`off`, `place`, `remove`, with `status`/`cleanup`/`reload` for operators. Tab completion covers clock
+  names, options and slot numbers; removed verbs (`info`, `list`, `device`, `demo`, `set`) answer with their
+  replacement.
+- **Lectern clocks**: one lectern per digit holding a plugin-authored 15-page book, so a comparator reads
+  `digit + 1` with no decoding — six slots for `HHmmss`, four for `HHmm`. Seconds are the default resolution.
+- **In-game authoring**: `/rtime create <name>` builds at the block you aim at, grows the slots in the direction you
+  face, places the display blocks (comparator + dust + lamp per slot) and starts enabled. `manual` builds skip the
+  display and leave every slot unpositioned, so `/rtime place <name> <slot>` can drop each lectern exactly where the
+  machine has room — **the lectern appears immediately**, facing you. Authoring is bounded by
+  `limits.allowed-areas` / `max-devices` / `edit-cooldown-seconds` and split permissions.
+- **Durable lifecycle**: turning a clock off keeps its lecterns and drops the book (comparator reads 0); `remove`
+  queues a crash-safe cleanup job, and a `NEEDS_ATTENTION` entry means "that block is not ours" — never overwritten,
+  retry it or dismiss the job.
 - **Diagnostics** behind `/rtime status`; tick-level change detection with diff-only, chunk-batched writes.
 
 Commands, permissions, wiring diagrams, the cleanup queue and FAQ: **[usage guide](docs/usage.md)**.

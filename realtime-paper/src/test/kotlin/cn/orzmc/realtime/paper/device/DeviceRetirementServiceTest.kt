@@ -121,7 +121,7 @@ class DeviceRetirementServiceTest {
     }
 
     @Test
-    fun `retires second resolution devices with all twenty four cleanup outputs`() {
+    fun `retires second resolution devices with one cleanup output per digit`() {
         val device = device(enabled = false, resolution = OutputResolution.SECOND)
         var active = state(listOf(device))
         var persisted: DeviceStoreSnapshot? = null
@@ -137,10 +137,10 @@ class DeviceRetirementServiceTest {
         val job = service.retire(device.id, null)
 
         assertEquals(OutputResolution.SECOND, job.resolution)
-        assertEquals(24, job.outputs.size)
-        assertEquals((0 until 24).toSet(), job.outputs.map { it.output.bitIndex }.toSet())
+        assertEquals(6, job.outputs.size)
+        assertEquals((0 until 6).toSet(), job.outputs.map { it.output.bitIndex }.toSet())
         assertEquals(
-            24,
+            6,
             persisted
                 ?.cleanupJobs
                 ?.single()
@@ -183,7 +183,7 @@ class DeviceRetirementServiceTest {
         worldName = "world",
         enabled = enabled,
         outputs =
-            (0 until resolution.outputCount).map { bit ->
+            (0 until resolution.digitCount).map { bit ->
                 DeviceOutput(bitIndex = bit, x = bit * 2, y = 64, z = 0)
             },
         resolution = resolution,

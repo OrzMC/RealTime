@@ -1,6 +1,5 @@
 package cn.orzmc.realtime.paper.device
 
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.Location
@@ -260,11 +259,7 @@ class DeviceCleanupManager(
                             ?: return@runRegion
 
                     val block = targetWorld.getBlockAt(output.x, output.y, output.z)
-                    val outcome =
-                        when (currentJob.encoding) {
-                            OutputEncoding.BCD -> clearBinaryOutput(block)
-                            OutputEncoding.ANALOG -> clearAnalogOutput(block, currentJob.deviceId)
-                        }
+                    val outcome = clearAnalogOutput(block, currentJob.deviceId)
                     pendingResults.add(
                         CleanupResult(
                             jobId = currentJob.id,
@@ -293,27 +288,9 @@ class DeviceCleanupManager(
     }
 
     /**
-     * BCD slots hold power sources, so cleanup only removes a redstone block.
+     * Every slot is a lectern the device drove, recognised by the book it holds.
      *
-     * @return the cleanup status and an optional human-readable detail
-     */
-    private fun clearBinaryOutput(block: Block): Pair<DeviceCleanupStatus, String?> =
-        when (block.type) {
-            Material.AIR -> DeviceCleanupStatus.CLEARED to null
-            Material.REDSTONE_BLOCK -> {
-                block.setType(Material.AIR, true)
-                DeviceCleanupStatus.CLEARED to null
-            }
-            else ->
-                DeviceCleanupStatus.NEEDS_ATTENTION to
-                    "Expected AIR or REDSTONE_BLOCK, found ${block.type}"
-        }
-
-    /**
-     * Analog slots are lecterns the device drove, recognised by the book they
-     * hold.
-     *
-     * A blank lectern still counts as this device's slot: disabling a device
+     * A blank lectern still counts as this device's slot: turning a device off
      * removes its book (level 0) but keeps the lectern, and the slot itself is
      * owned by the device. A lectern that holds **someone else's** book is player
      * property: it is left in place and reported instead of being destroyed.

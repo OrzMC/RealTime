@@ -1,6 +1,5 @@
 package cn.orzmc.realtime.paper.placeholder
 
-import cn.orzmc.realtime.core.device.BcdTimeEncoder
 import cn.orzmc.realtime.core.device.DeviceOutput
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -35,9 +34,8 @@ class RealTimePlaceholderExpansionTest {
     }
 
     @Test
-    fun `exposes timezone epoch and BCD values`() {
+    fun `exposes timezone, epoch and device state`() {
         val state = state()
-        val expectedBits = BcdTimeEncoder.encode(23, 59, 0).bits.joinToString("") { if (it) "1" else "0" }
 
         assertEquals("Asia/Shanghai", expansion.onRequest(null, "timezone"))
         assertEquals("+08:00", expansion.onRequest(null, "offset"))
@@ -46,8 +44,9 @@ class RealTimePlaceholderExpansionTest {
             Instant.parse("2026-11-23T15:59:00Z").epochSecond.toString(),
             expansion.onRequest(null, "timestamp"),
         )
-        assertEquals("235900", expansion.onRequest(null, "bcd"))
-        assertEquals(expectedBits, expansion.onRequest(null, "bcd_bits"))
+        // The BCD placeholders went away with the BCD encoding.
+        assertNull(expansion.onRequest(null, "bcd"))
+        assertNull(expansion.onRequest(null, "bcd_bits"))
         assertEquals("true", expansion.onRequest(null, "redstone_enabled"))
         assertEquals("1", expansion.onRequest(null, "device_count"))
         assertEquals(state.timeService.zoneId.id, expansion.onRequest(null, "timezone"))
@@ -99,8 +98,9 @@ class RealTimePlaceholderExpansionTest {
             worldName = "world",
             enabled = true,
             outputs =
-                (0 until 16).map { bit ->
+                (0 until 6).map { bit ->
                     DeviceOutput(bit, bit * 2, 64, 0)
                 },
+            resolution = cn.orzmc.realtime.core.device.OutputResolution.SECOND,
         )
 }

@@ -128,6 +128,8 @@ class RealTimePlugin :
                 reload = ::reloadRuntimeState,
                 deviceAdministration = checkNotNull(deviceAdministration),
                 deviceDiagnostics = redstoneDeviceManager,
+                devicePlacement = redstoneDeviceManager,
+                skippedLegacyDevices = { deviceRepository.skippedLegacyEntries },
                 cleanupAdministration = cleanupAdministration,
                 deviceRetirement = deviceRetirementService,
                 logger = logger,
@@ -289,6 +291,9 @@ class RealTimePlugin :
                             org.bukkit.block.BlockFace.WEST -> LayoutAxis.X_MINUS
                             else -> LayoutAxis.X_PLUS
                         },
+                    // The lectern opens towards whoever placed it, so a slot's
+                    // direction is obvious from the spot where it was built.
+                    lecternFacing = player.facing.oppositeFace,
                 )
             }
 

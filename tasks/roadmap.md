@@ -8,14 +8,14 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 | PR2 | Clock-backed RealTime Core | Complete | PR1 |
 | PR3 | Commands and modular configuration | Complete | PR2 |
 | PR4 | Paper/Folia scheduler adapter and runtime tests | Complete | PR3 |
-| PR5 | Device model, BCD encoder, redstone output | Complete | PR2, PR4 |
+| PR5 | Device model, lectern outputs, redstone clock | Complete | PR2, PR4 |
 | PR6 | Optional PlaceholderAPI integration | Complete | PR2, PR3 |
 | PR7 | Hangar/Modrinth release automation | Complete | PR4, PR5, PR6 |
 | PR8 | Device administration commands and safe lifecycle | Complete | PR5, PR7 |
 | PR9 | Redstone device diagnostics and output observability | Complete | PR5, PR8 |
 | PR10 | Persistent deferred cleanup for safely retiring devices (PR10a store, PR10b processor, PR10c runtime/ops) | Complete — PR10a/PR10b/PR10c merged | PR5, PR8, PR9 |
 | PR11 | Admin-only disabled-device retirement command | Complete — PR #23 merged and Paper/Folia runtime smoke passed | PR10 |
-| PR12 | Second-resolution output (HHmmss, 24 BCD outputs) and schema v3 | Complete — PR #26 (`b2fb5dd`) | PR5, PR10, PR11 |
+| PR12 | Second-resolution output (HHmmss) and schema v3 | Complete — PR #26 (`b2fb5dd`) | PR5, PR10, PR11 |
 | PR13 | Real power-source outputs (`redstone_block`/air) + resolution-safe enable/disable | Complete — PR #28 (`f31e7ce`) | PR12 |
 | PR14 | Tick-level detection, diff-only and chunk-batched output writes | Complete — PR #30 (`dd844f4`) | PR13 |
 | PR15 | In-game device authoring (`create`/`set`) + permission split | Complete — PR #33 (`1c81060`) | PR14 |
@@ -33,7 +33,7 @@ This is a plan, not a claim of implementation. Update statuses only with evidenc
 - M4: optional integrations, compatibility matrix, release automation.
 - M5: safe device administration and operational diagnostics.
 - M6: crash-safe deferred cleanup and safe device retirement.
-- M7: two encodings (BCD and analog lecterns), in-game authoring with split permissions, teaching builds.
+- M7: lectern output (one per digit), in-game authoring with split permissions, `manual` per-slot builds.
 
 Every stage above is merged and included in `v0.2.0`, `v0.3.0`, `v0.4.0` and `v0.5.0` (released 2026-11-26); `main` is on `0.6.0-SNAPSHOT`.
 Split new work into small PRs with explicit acceptance criteria.

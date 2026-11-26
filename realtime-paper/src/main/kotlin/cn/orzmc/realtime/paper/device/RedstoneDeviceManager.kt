@@ -1,13 +1,11 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.AnalogScale
-import cn.orzmc.realtime.core.device.BcdTimeEncoder
-import cn.orzmc.realtime.core.device.BcdTimeFrame
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
+import cn.orzmc.realtime.core.device.TimeDigits
 import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.scheduler.PaperFoliaScheduler
 import org.bukkit.Bukkit
@@ -15,6 +13,7 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Server
 import org.bukkit.World
+import org.bukkit.block.BlockFace
 import org.bukkit.block.Lectern
 import org.bukkit.block.data.BlockData
 import org.bukkit.event.EventHandler
@@ -25,6 +24,7 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.logging.Logger
+import org.bukkit.block.data.type.Lectern as LecternData
 
 /**
  * Updates configured device outputs without loading chunks.
@@ -33,15 +33,13 @@ import java.util.logging.Logger
  * to the owning region. Chunk-load events refresh outputs that were previously
  * skipped because their chunks were unloaded.
  *
- * ## Output encodings
+ * ## Output slots
  *
- * A [OutputEncoding.BCD] slot materialises one bit: `minecraft:redstone_block`
- * for a logical 1 and air for a logical 0, so vanilla redstone reacts to the change.
- *
- * An [OutputEncoding.ANALOG] slot is a lectern holding the plugin's 15-page book;
- * the page index is the digit, so a comparator behind the lectern reads
- * `digit + 1`. Turning the device off removes the book, which drops the read to
- * level 0 ([AnalogScale.NO_BOOK]).
+ * A slot is a lectern holding the plugin's 15-page book; the page index is the
+ * digit, so a comparator behind the lectern reads `digit + 1`. Turning the device
+ * off removes the book, which drops the read to level 0 ([AnalogScale.NO_BOOK])
+ * while the lectern itself stays where it is: an operator can always see the
+ * build, and a slot that was placed by hand keeps its position.
  *
  * Anything else in a slot is left untouched and reported as an invalid output:
  * the manager never overwrites blocks or books it does not own.
@@ -52,8 +50,7 @@ import java.util.logging.Logger
  * task. Scheduling only happens when a frame actually changed.
  *
  * Writes are diffed per device: only slots whose desired state changed are
- * dispatched, grouped per chunk so a 24-output device costs two region tasks
- * instead of twenty-four. A full re-check of every slot runs every
+ * dispatched, grouped per chunk so a six-slot device costs one region task. A full re-check of every slot runs every
  * [FULL_CHECK_INTERVAL_SECONDS] so manual edits and invalid blocks are still
  * noticed without paying that cost every second.
  */
@@ -65,7 +62,8 @@ class RedstoneDeviceManager(
     private val books: AnalogBookFactory = DeviceBooks,
     private val blockDataFactory: (String) -> BlockData = { data -> Bukkit.createBlockData(data) },
 ) : Listener,
-    DeviceDiagnostics {
+    DeviceDiagnostics,
+    DevicePlacement {
     private val warnedOutputs = ConcurrentHashMap.newKeySet<String>()
     private val warnedWorlds = ConcurrentHashMap.newKeySet<String>()
     private val outputChecks = AtomicLong()
@@ -137,7 +135,7 @@ class RedstoneDeviceManager(
         val state = stateProvider()
         val world = event.world
         val chunk = event.chunk
-        val frame = BcdTimeEncoder.encode(state.timeService.now().toLocalTime())
+        val frame = TimeDigits.of(state.timeService.now().toLocalTime())
         state.devices
             .asSequence()
             .filter { it.worldName == world.name }
@@ -185,7 +183,7 @@ class RedstoneDeviceManager(
                 if (secondChanged || fullCheckDue) add(OutputResolution.SECOND)
                 if (minuteChanged || fullCheckDue) add(OutputResolution.MINUTE)
             }
-        val frame = BcdTimeEncoder.encode(snapshot.zonedDateTime.toLocalTime())
+        val frame = TimeDigits.of(snapshot.zonedDateTime.toLocalTime())
         scheduleOutputs(state, frame, resolutions, includeDisabled = force)
         if (force || fullCheckDue) scheduleDemoBlocks(state, includeDisabled = force)
     }
@@ -294,7 +292,7 @@ class RedstoneDeviceManager(
 
     private fun scheduleOutputs(
         state: RuntimeState,
-        frame: BcdTimeFrame,
+        frame: TimeDigits,
         resolutions: Set<OutputResolution>,
         includeDisabled: Boolean,
     ) {
@@ -307,7 +305,7 @@ class RedstoneDeviceManager(
 
     private fun scheduleDeviceOutputs(
         state: RuntimeState,
-        frame: BcdTimeFrame,
+        frame: TimeDigits,
         device: RedstoneDevice,
     ) {
         val desired = state.valuesFor(device, frame)
@@ -364,7 +362,7 @@ class RedstoneDeviceManager(
                         } else {
                             currentState.valuesFor(
                                 currentDevice ?: device,
-                                BcdTimeEncoder.encode(currentState.timeService.now().toLocalTime()),
+                                TimeDigits.of(currentState.timeService.now().toLocalTime()),
                             )
                         }
                     indexes.forEach { index ->
@@ -383,9 +381,9 @@ class RedstoneDeviceManager(
                             output = output,
                             value =
                                 if (outputStillConfigured) {
-                                    effective.getOrElse(output.bitIndex) { (currentDevice ?: device).encoding.offValue }
+                                    effective.getOrElse(output.bitIndex) { AnalogScale.NO_BOOK }
                                 } else {
-                                    (currentDevice ?: device).encoding.offValue
+                                    AnalogScale.NO_BOOK
                                 },
                         )
                     }
@@ -417,13 +415,13 @@ class RedstoneDeviceManager(
     /** Desired slot values for [device], honouring the enable switches. */
     private fun RuntimeState.valuesFor(
         device: RedstoneDevice,
-        frame: BcdTimeFrame,
+        frame: TimeDigits,
     ): List<Int> {
         val off = !configuration.generalEnabled || !redstoneConfiguration.enabled || !device.enabled
         return if (off) {
-            device.encoding.offValues(device.resolution)
+            List(device.outputCount) { AnalogScale.NO_BOOK }
         } else {
-            frame.values(device.encoding, device.resolution)
+            frame.values(device.resolution)
         }
     }
 
@@ -435,10 +433,7 @@ class RedstoneDeviceManager(
     ) {
         outputChecks.incrementAndGet()
         try {
-            when (device.encoding) {
-                OutputEncoding.BCD -> applyBinaryOutput(world, device, output, powered = value != 0)
-                OutputEncoding.ANALOG -> applyAnalogOutput(world, device, output, value)
-            }
+            applyAnalogOutput(world, device, output, value)
         } catch (exception: Exception) {
             writeFailures.incrementAndGet()
             logger.warning(
@@ -447,42 +442,13 @@ class RedstoneDeviceManager(
         }
     }
 
-    private fun applyBinaryOutput(
-        world: World,
-        device: RedstoneDevice,
-        output: DeviceOutput,
-        powered: Boolean,
-    ) {
-        val block = world.getBlockAt(output.x, output.y, output.z)
-        val expectedType = if (powered) POWERED_TYPE else Material.AIR
-        val currentType = block.type
-        if (currentType == expectedType) {
-            unchangedOutputs.incrementAndGet()
-            return
-        }
-        if (currentType != Material.AIR && currentType != POWERED_TYPE) {
-            invalidOutputBlock(
-                device,
-                output,
-                world,
-                "is $currentType, expected AIR or $POWERED_TYPE",
-            )
-            return
-        }
-
-        // Physics is required here: the slot becomes a real power source so
-        // vanilla redstone notifies and powers the surrounding circuit.
-        block.setType(expectedType, true)
-        powerChanges.incrementAndGet()
-    }
-
     /**
      * Drives one analog slot.
      *
      * [value] is the digit (`0`–`9`) or [AnalogScale.NO_BOOK] when the device is
-     * disabled. The slot must be air (the lectern is placed for the operator) or
-     * a lectern holding this device's book; a lectern with a foreign book keeps
-     * its contents and is reported instead of being overwritten.
+     * disabled. The slot must be air (the lectern is placed for the operator) or a
+     * lectern belonging to this device; a lectern with a foreign book keeps its
+     * contents and is reported instead of being overwritten.
      */
     private fun applyAnalogOutput(
         world: World,
@@ -527,16 +493,16 @@ class RedstoneDeviceManager(
         }
 
         if (blank) {
-            // A disabled device leaves its slot empty, exactly like a BCD slot:
-            // level 0 then comes from air rather than from a blank lectern, and a
-            // moved slot cannot leave an orphaned lectern behind.
-            // Clear the book first so it is not dropped as an item entity.
+            // A device that is off keeps its lecterns and only gives up the book:
+            // the read drops to level 0, the build stays visible, and a slot that
+            // was positioned by hand is not silently deleted.
             if (!books.isSlotEmpty(inventory)) {
                 books.clear(inventory)
                 bookWrites.incrementAndGet()
+                powerChanges.incrementAndGet()
+            } else {
+                unchangedOutputs.incrementAndGet()
             }
-            block.setType(Material.AIR, true)
-            powerChanges.incrementAndGet()
             return
         }
 
@@ -560,6 +526,111 @@ class RedstoneDeviceManager(
         }
     }
 
+    /**
+     * Builds one slot right away, so `place` is reviewable in the world.
+     *
+     * The lectern is created with [facing] (the direction the operator looks at it
+     * from) and carries this device's book at the digit of the current time; a
+     * device that is off gets a blank lectern, exactly like a regular refresh.
+     * The slot this one moved away from is cleared first, but only when it still
+     * belongs to this device.
+     */
+    override fun placeSlotNow(
+        deviceId: UUID,
+        slot: DeviceOutput,
+        previous: DeviceOutput?,
+        facing: BlockFace?,
+    ) {
+        val state = stateProvider()
+        val device = state.devices.firstOrNull { it.id == deviceId } ?: return
+        val world = server.getWorld(device.worldName) ?: return
+        val value = state.valuesFor(device, TimeDigits.of(state.timeService.now().toLocalTime()))[slot.bitIndex]
+        if (previous != null && previous != slot) runAt(world, previous) { clearLectern(it, device.id) }
+        runAt(world, slot) { block -> buildLectern(world, device, slot, block, value, facing) }
+        // The diff cache no longer describes the world; let the next refresh re-check it.
+        lastWritten.remove(deviceId)
+        requestRefresh()
+    }
+
+    private fun runAt(
+        world: World,
+        slot: DeviceOutput,
+        action: (org.bukkit.block.Block) -> Unit,
+    ) {
+        val location = Location(world, slot.x.toDouble(), slot.y.toDouble(), slot.z.toDouble())
+        try {
+            scheduler.runRegion(location) { target ->
+                val targetWorld = target.world ?: return@runRegion
+                action(targetWorld.getBlockAt(slot.x, slot.y, slot.z))
+            }
+        } catch (exception: Exception) {
+            writeFailures.incrementAndGet()
+            logger.warning("RealTime could not schedule slot write at ${world.name}:${slot.x},${slot.y},${slot.z}: ${exception.message}")
+        }
+    }
+
+    /** Removes a lectern that still holds this device's book (or nothing at all). */
+    private fun clearLectern(
+        block: org.bukkit.block.Block,
+        deviceId: UUID,
+    ) {
+        if (block.type != Material.LECTERN) return
+        val lectern = block.getState(false) as? Lectern ?: return
+        val inventory = lectern.inventory
+        if (!books.isSlotEmpty(inventory) && !books.holdsDeviceBook(inventory, deviceId)) return
+        if (!books.isSlotEmpty(inventory)) {
+            books.clear(inventory)
+            bookWrites.incrementAndGet()
+        }
+        block.setType(Material.AIR, true)
+    }
+
+    private fun buildLectern(
+        world: World,
+        device: RedstoneDevice,
+        slot: DeviceOutput,
+        block: org.bukkit.block.Block,
+        value: Int,
+        facing: BlockFace?,
+    ) {
+        when (block.type) {
+            Material.LECTERN -> Unit
+            Material.AIR -> {
+                val data =
+                    (Material.LECTERN.createBlockData() as LecternData).apply {
+                        this.facing = facing ?: BlockFace.NORTH
+                    }
+                block.setBlockData(data, true)
+                lecternPlacements.incrementAndGet()
+            }
+            else -> {
+                invalidOutputBlock(device, slot, world, "is ${block.type}, expected AIR or LECTERN")
+                return
+            }
+        }
+        val lectern = block.getState(false) as? Lectern ?: return
+        if (facing != null) {
+            val data = lectern.blockData
+            if (data is LecternData) {
+                data.facing = facing
+                block.setBlockData(data, true)
+            }
+        }
+        val inventory = lectern.inventory
+        if (value == AnalogScale.NO_BOOK) {
+            if (!books.isSlotEmpty(inventory)) {
+                books.clear(inventory)
+                bookWrites.incrementAndGet()
+            }
+            return
+        }
+        if (!books.holdsDeviceBook(inventory, device.id)) {
+            books.install(inventory, device.id)
+            bookWrites.incrementAndGet()
+        }
+        (block.getState(false) as? Lectern)?.setPage(AnalogScale.pageForDigit(value))
+    }
+
     private fun invalidOutputBlock(
         device: RedstoneDevice,
         output: DeviceOutput,
@@ -579,6 +650,5 @@ class RedstoneDeviceManager(
         const val REFRESH_PERIOD_TICKS = 1L
         const val SECONDS_PER_MINUTE = 60L
         const val FULL_CHECK_INTERVAL_SECONDS = 30L
-        val POWERED_TYPE: Material = Material.REDSTONE_BLOCK
     }
 }

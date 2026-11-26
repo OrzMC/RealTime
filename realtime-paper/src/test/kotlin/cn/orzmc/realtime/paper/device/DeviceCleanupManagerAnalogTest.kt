@@ -1,7 +1,6 @@
 package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -194,7 +193,6 @@ class DeviceCleanupManagerAnalogTest {
                         DeviceOutput(bitIndex = slot, x = slot * 2, y = 64, z = 0)
                     },
                 resolution = OutputResolution.MINUTE,
-                encoding = OutputEncoding.ANALOG,
             )
         val job = DeviceCleanupJob.fromDevice(device, worldId)
         var activeState = state(job)

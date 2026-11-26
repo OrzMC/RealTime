@@ -35,13 +35,15 @@ Behaviour that exists today:
 
 - **Time service**: `RealTimeService` / `ClockRealTimeService` with an injected `Clock`, explicit `ZoneId` and
   `Locale`, immutable `RealTimeSnapshot`, and locale-aware formatting.
-- **Commands**: five flat everyday verbs — `/rtime`, `/rtime create`, `/rtime info`, `/rtime on|off`, `/rtime remove` —
-  plus `place`/`status`/`cleanup`/`reload` behind `/rtime help all`, with split permissions. The old
-  `/rtime device <subcommand>` form stays as a compatibility alias (see [usage guide](../usage.md#3-命令与权限)).
-- **Redstone devices**: two encodings (`bcd`, `analog`), minute/second resolution, per-device `demo` builds, tick-level
-  detection with diff-only writes batched per chunk, a 30 s full re-check, and a durable deferred-cleanup queue.
-- **Persistence**: `data/devices.yml` schema **v5** (devices + cleanup jobs + demo display blocks), migrated
-  automatically from v1–v4.
+- **Commands**: parsed by `CommandSyntax` (pure, unit-tested) and executed by a thin dispatcher. Reading is `/rtime`
+  (time + every clock) and `/rtime <name>`; writing is `create` / `on` / `off` / `place` / `remove`; operators get
+  `status` / `cleanup` / `reload` / `help`. Clock names are unique and may not shadow a verb, so `/rtime <name>` is
+  unambiguous. Removed verbs answer with their replacement (see [usage guide](../usage.md#3-命令)).
+- **Redstone devices**: lectern slots only — one per digit, page index = digit, so a comparator reads `digit + 1`.
+  Tick-level detection with diff-only writes batched per chunk, a 30 s full re-check, immediate single-slot writes for
+  `place`, and a durable deferred-cleanup queue.
+- **Persistence**: `data/devices.yml` schema **v7** (devices + cleanup jobs + display blocks); entries written by a
+  version that still used the removed BCD encoding are skipped and reported instead of being mis-loaded.
 - **Diagnostics**: aggregate counters behind `/rtime status`; no world access from the command thread.
 - **PlaceholderAPI**: optional internal `realtime` expansion, compile-only dependency.
 - **Release automation**: protected tag workflow with changelog validation, reproducible artifacts, and optional
@@ -64,25 +66,23 @@ Official Paper 26.3 API references: [GlobalRegionScheduler](https://jd.papermc.i
 
 ### Redstone devices
 
-The core maps local time onto digits in hour → minute → second order and exposes two encodings:
+The core maps local time onto digits in hour → minute → second order ([`TimeDigits`]) and gives every digit one slot:
 
-- `bcd` (default): four slots per digit, least-significant bit first — sixteen slots for `minute`, twenty-four for
-  `second`. A slot is a power source: 1 places `REDSTONE_BLOCK`, 0 leaves air, so block physics notifies and powers the
-  surrounding circuit.
-- `analog`: one slot per digit — four/six slots. A slot is a lectern holding a plugin-created 15-page book; the page
-  index is the digit and `LecternBlockEntity#getRedstoneSignal()` reduces to `page + 1`, so a comparator reads levels
-  1–10 without any bit decoding. Disabling the device empties the slot (book first, then the lectern).
+- A slot is a lectern holding a plugin-created 15-page book. The page index is the digit and
+  `LecternBlockEntity#getRedstoneSignal()` reduces to `page + 1`, so a comparator reads levels 1–10 without any bit
+  decoding. Turning a clock off removes the book (level 0) but keeps the lectern, so the build stays visible.
+- Layout is computed by `DeviceLayout` (`offset = index * stride`, default stride 2 → one empty block for the reading
+  comparator). `DeviceDemo` derives the comparator/dust/lamp display from the same slot list, so a created clock is
+  readable immediately.
+- `place` writes a single slot through `DevicePlacement.placeSlotNow`, which builds the lectern with the requested
+  facing and the current digit — positioning a slot is visible and reviewable instead of a silent coordinate change.
 
-Layout is computed by `DeviceLayout` (`offset = index * stride + (index / groupSize) * groupGap`); the default keeps
-one empty block between slots and one extra between digits. `DeviceDemo` derives the display blocks of a
-`/rtime create`/`/rtime demo` build from the same slot list, so a created device is readable immediately.
-
-The Paper adapter persists validated device records in `data/devices.yml` (schema v5) and runs every block access on
+The Paper adapter persists validated device records in `data/devices.yml` (schema v7) and runs every block access on
 the owning region: global work calculates the frame, region work checks `World.isChunkLoaded` before touching a block,
 `ChunkLoadEvent` refreshes outputs when a chunk becomes available, and nothing ever force-loads a chunk. Writes are
 diffed per device and grouped per chunk, with a 30 s full re-check for player edits and invalid blocks. Anything that
 is not air (or a block/book the plugin placed) is reported as an invalid output and never overwritten. Retirement goes
-through a durable cleanup job that clears slots and demo display blocks; slots with foreign content are reported as
+through a durable cleanup job that clears slots and display blocks; slots with foreign content are reported as
 `NEEDS_ATTENTION` for an operator. See [redstone device configuration](../development/redstone-devices.md).
 
 ### Optional PlaceholderAPI adapter

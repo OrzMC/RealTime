@@ -1,7 +1,7 @@
 package cn.orzmc.realtime.core.device
 
 /**
- * Digit ↔ lectern page ↔ comparator level mapping for [OutputEncoding.ANALOG].
+ * Digit ↔ lectern page ↔ comparator level mapping for the lectern output the plugin uses.
  *
  * Paper 26.3 `LecternBlockEntity#getRedstoneSignal()` is:
  *

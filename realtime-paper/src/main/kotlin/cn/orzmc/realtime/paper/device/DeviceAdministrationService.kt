@@ -2,7 +2,6 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.paper.command.RuntimeState
@@ -18,7 +17,7 @@ interface DeviceAdministration {
         enabled: Boolean,
     ): RedstoneDevice
 
-    /** Creates a disabled device from a fully resolved layout. */
+    /** Creates a device from a fully resolved layout. */
     fun create(request: DeviceCreateRequest): RedstoneDevice
 
     /** Moves one output slot of an existing device. */
@@ -36,14 +35,15 @@ data class DeviceCreateRequest(
     val worldName: String,
     val resolution: OutputResolution,
     val outputs: List<DeviceOutput>,
-    val encoding: OutputEncoding = OutputEncoding.BCD,
     val demoBlocks: List<DemoBlock> = emptyList(),
-    /**
-     * Start the device enabled. Only `device demo` passes `true`: a teaching
-     * build is meant to light up immediately.
-     */
+    /** Start the device enabled; `create` does, `create ... manual` does not. */
     val enabled: Boolean = false,
 )
+
+/** Thrown when a clock is created with a name another clock already uses. */
+class DeviceNameTakenException(
+    val name: String,
+) : IllegalArgumentException("A clock named '$name' already exists")
 
 /** Thrown when `enable` is asked for a device that still has slots without a position. */
 class DeviceIncompleteException(
@@ -115,7 +115,6 @@ class DeviceAdministrationService(
                     enabled = enabled,
                     outputs = currentDevice.outputs,
                     resolution = currentDevice.resolution,
-                    encoding = currentDevice.encoding,
                     demoBlocks = currentDevice.demoBlocks,
                 )
             val updatedDevices =
@@ -135,6 +134,10 @@ class DeviceAdministrationService(
             val limits = currentState.redstoneConfiguration.limits
             if (currentState.devices.size >= limits.maxDevices) {
                 throw DeviceLimitReachedException(limits.maxDevices)
+            }
+            // Names are the only way to address a clock, so they must be unique.
+            if (currentState.devices.any { it.name.equals(request.name, ignoreCase = true) }) {
+                throw DeviceNameTakenException(request.name)
             }
             request.outputs.filterNot(DeviceOutput::unplaced).forEach { output ->
                 requireAllowed(currentState, request.worldName, output)
@@ -157,7 +160,6 @@ class DeviceAdministrationService(
                     enabled = request.enabled,
                     outputs = request.outputs,
                     resolution = request.resolution,
-                    encoding = request.encoding,
                     demoBlocks = request.demoBlocks,
                 )
             val updatedDevices = currentState.devices + device
@@ -202,7 +204,6 @@ class DeviceAdministrationService(
                     enabled = currentDevice.enabled,
                     outputs = currentDevice.outputs.map { output -> if (output.bitIndex == bitIndex) target else output },
                     resolution = currentDevice.resolution,
-                    encoding = currentDevice.encoding,
                     demoBlocks = currentDevice.demoBlocks,
                 )
             val updatedDevices =

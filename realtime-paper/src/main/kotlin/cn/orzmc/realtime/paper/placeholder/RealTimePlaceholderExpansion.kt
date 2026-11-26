@@ -1,6 +1,5 @@
 package cn.orzmc.realtime.paper.placeholder
 
-import cn.orzmc.realtime.core.device.BcdTimeEncoder
 import cn.orzmc.realtime.paper.command.RuntimeState
 import me.clip.placeholderapi.expansion.PlaceholderExpansion
 import org.bukkit.OfflinePlayer
@@ -28,8 +27,6 @@ class RealTimePlaceholderExpansion(
         val state = stateProvider()
         val snapshot = state.timeService.snapshot()
         val dateTime = snapshot.zonedDateTime
-        val localTime = snapshot.localTime
-        val bcd = BcdTimeEncoder.encode(localTime)
 
         return when (params.lowercase(Locale.ROOT)) {
             "time", "datetime" -> state.timeService.format(snapshot, state.configuration.commandFormat)
@@ -49,8 +46,6 @@ class RealTimePlaceholderExpansion(
             "iso" -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(dateTime)
             "timestamp" -> snapshot.epochSecond.toString()
             "timestamp_millis" -> snapshot.instant.toEpochMilli().toString()
-            "bcd" -> bcd.digits.joinToString("")
-            "bcd_bits" -> bcd.bits.joinToString("") { if (it) "1" else "0" }
             "redstone_enabled" -> state.redstoneConfiguration.enabled.toString()
             "device_count" -> state.devices.count { it.enabled }.toString()
             else -> null

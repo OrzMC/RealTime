@@ -5,9 +5,9 @@ import java.util.UUID
 /**
  * A configured clock device.
  *
- * [outputs] holds one slot per bit ([OutputEncoding.BCD]) or one slot per digit
- * ([OutputEncoding.ANALOG]); the slot count therefore depends on both
- * [resolution] and [encoding].
+ * Every device is a row of lecterns, one per clock digit: [resolution] decides how
+ * many digits there are (`HHmm` → 4, `HHmmss` → 6) and therefore how many slots
+ * the device must define.
  */
 class RedstoneDevice(
     val id: UUID,
@@ -15,31 +15,29 @@ class RedstoneDevice(
     val worldName: String,
     val enabled: Boolean,
     outputs: List<DeviceOutput>,
-    val resolution: OutputResolution = OutputResolution.MINUTE,
-    val encoding: OutputEncoding = OutputEncoding.BCD,
+    val resolution: OutputResolution = OutputResolution.SECOND,
     /**
-     * Display blocks of a `device demo` build: lamps, comparators and dust the
-     * plugin places and removes together with the device. Empty for a normal
-     * device, which only ever touches its own slots.
+     * Display blocks of a created device: comparators, dust and lamps the plugin
+     * places and removes together with the device. Empty for a device built with
+     * `manual`/`nodisplay`, which only ever touches its own slots.
      */
     val demoBlocks: List<DemoBlock> = emptyList(),
 ) {
     val outputs: List<DeviceOutput> = outputs.sortedBy(DeviceOutput::bitIndex)
 
-    /** Slots whose position has not been chosen yet (`device create ... manual`). */
+    /** Slots whose position has not been chosen yet (`create ... manual`). */
     val unplacedOutputs: List<DeviceOutput>
-        get() = outputs.filter(DeviceOutput::unplaced)
+        get() = this.outputs.filter(DeviceOutput::unplaced)
 
-    /** Number of output slots this device must define. */
+    /** Number of output slots this device must define: one per digit. */
     val outputCount: Int
-        get() = encoding.outputCount(resolution)
+        get() = resolution.digitCount
 
     init {
         require(name.isNotBlank()) { "Device name must not be blank" }
         require(worldName.isNotBlank()) { "World name must not be blank" }
         require(this.outputs.size == outputCount) {
-            "A ${resolution.configValue}-resolution ${encoding.configValue} device must define exactly " +
-                "$outputCount outputs (${resolution.label} ${encoding.configValue})"
+            "A ${resolution.configValue}-resolution device must define exactly $outputCount outputs (${resolution.label})"
         }
         require(this.outputs.map(DeviceOutput::bitIndex).toSet() == (0 until outputCount).toSet()) {
             "Device output slot indexes must cover 0 through ${outputCount - 1} exactly once"
@@ -57,14 +55,14 @@ class RedstoneDevice(
                 .toSet()
                 .size == demoBlocks.size,
         ) {
-            "Device demo block positions must be unique"
+            "Device display block positions must be unique"
         }
         require(this.demoBlocks.none { Triple(it.x, it.y, it.z) in slotPositions }) {
-            "Device demo blocks must not overlap output slots"
+            "Device display blocks must not overlap output slots"
         }
     }
 
-    /** A demo device also owns the display blocks of its teaching build. */
-    val isDemo: Boolean
+    /** True when the plugin also owns display blocks for this device. */
+    val hasDisplay: Boolean
         get() = demoBlocks.isNotEmpty()
 }

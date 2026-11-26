@@ -28,8 +28,7 @@ RealTime uses an internal expansion with identifier `realtime`. No separate Real
 | `%realtime_iso%` | ISO-8601 offset date-time |
 | `%realtime_timestamp%` | Unix timestamp in seconds |
 | `%realtime_timestamp_millis%` | Unix timestamp in milliseconds |
-| `%realtime_bcd%` | Six HHmmss decimal digits |
-| `%realtime_bcd_bits%` | Twenty-four BCD bits, digit groups HHmmss, LSB-first |
+| `%realtime_device_count%` | Clocks that are currently running |
 | `%realtime_redstone_enabled%` | Whether the redstone module is enabled |
 | `%realtime_device_count%` | Number of enabled redstone devices |
 
@@ -41,7 +40,7 @@ From the server console, parse placeholders with a null player:
 
 ```text
 /papi parse --null %realtime_time%
-/papi parse --null %realtime_bcd%
+/papi parse --null %realtime_device_count%
 /papi parse --null %realtime_timezone%
 ```
 

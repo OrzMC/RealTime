@@ -2,7 +2,6 @@ package cn.orzmc.realtime.paper.device
 
 import cn.orzmc.realtime.core.device.DemoBlock
 import cn.orzmc.realtime.core.device.DeviceOutput
-import cn.orzmc.realtime.core.device.OutputEncoding
 import cn.orzmc.realtime.core.device.OutputResolution
 import cn.orzmc.realtime.core.device.RedstoneDevice
 import cn.orzmc.realtime.core.time.ClockRealTimeService
@@ -161,7 +160,6 @@ class DeviceCleanupManagerDemoTest {
                 enabled = false,
                 outputs = (0 until 4).map { index -> DeviceOutput(index, index, 64, 0) },
                 resolution = OutputResolution.MINUTE,
-                encoding = OutputEncoding.ANALOG,
                 demoBlocks =
                     displayStatuses.indices.map { index ->
                         DemoBlock(index * 4, 65, 0, "minecraft:redstone_lamp")
