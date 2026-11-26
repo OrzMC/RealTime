@@ -41,7 +41,7 @@ echo "$SHA256  $WORK_DIR/server.jar" | sha256sum --check -
 echo "Server artifact checksum verified."
 
 mkdir -p "$WORK_DIR/plugins"
-cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.6.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
+cp "$ROOT_DIR/realtime-paper/build/libs/RealTime-${PROJECT_VERSION:-0.7.0-SNAPSHOT}.jar" "$WORK_DIR/plugins/RealTime.jar"
 
 DEVICE_NAME="ci-clock"
 mkdir -p "$WORK_DIR/plugins/RealTime/data"

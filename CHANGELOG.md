@@ -2,6 +2,13 @@
 
 All notable changes to RealTime are documented here. Release automation requires a non-empty section matching the exact version tag.
 
+## [Unreleased]
+
+### 工程
+
+- 发布工作流可重跑：`Create GitHub Release` 遇到已存在的 Release 时改为刷新资产与说明（`--clobber` / `gh release edit`），
+  Hangar 上传失败会重试一次。`v0.6.0` 就是卡在 Maven Central 403 上、只能手工补传的。
+
 ## [0.6.0]
 
 > **这是一个破坏性版本**：BCD 编码被移除，命令面重写。升级前请读下面的「安装与升级须知」。

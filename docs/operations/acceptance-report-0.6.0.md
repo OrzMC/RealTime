@@ -1,7 +1,7 @@
 # RealTime 0.6.0 真机验收报告
 
-> 状态：进行中（Paper 已完成，Folia 由 PR CI 的 smoke job 覆盖）
-> 最后更新：2026-11-26
+> 状态：完成（Paper 真机 18 项通过，Folia 由 CI 的 smoke job 覆盖）
+> 最后更新：2026-11-26（随 v0.6.0 发布）
 > 被测构建：`RealTime-0.6.0-SNAPSHOT.jar`，sha256 `27463b32ca683392c1991595a55c4aaac81f16ba76ea82dba15244bb73cc4f01`
 
 ## 环境
