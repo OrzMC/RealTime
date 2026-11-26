@@ -12,7 +12,7 @@
 |---|---|
 | 名称 | `RealTime` |
 | 一句话简介 | Real-world wall-clock time as redstone: BCD or analog (lectern) outputs, minute or second resolution, on Paper and Folia. |
-| 分类 | Hangar：`management`；Modrinth：`technical`（Modrinth 的服务器插件分类里没有 utility，`technical` 最接近） |
+| 分类 | Hangar：`management`（当前仍是 `misc`，待改）；Modrinth：`management` + `technology` + `utility`（最多 3 个；服务器插件分类里没有 `utility` 之外的工具类，"红石/技术"由 `technology` 表达） |
 | 许可证 | MIT |
 | 源码 | <https://github.com/OrzMC/RealTime> |
 | 问题追踪 | <https://github.com/OrzMC/RealTime/issues> |
@@ -92,7 +92,7 @@ you edit its slots). Full command reference, permissions, wiring diagrams, the c
 | Title | `RealTime` | ✅ 已通过 `PATCH /v2/project/{id}` 写入 |
 | Summary | 上表的一句話簡介（121 字符） | ✅ |
 | Description | 上面的长描述 | ✅ |
-| Categories | `technical` | ✅ |
+| Categories | `management` `technology` `utility` | ✅ |
 | Source / Issues / Wiki | 上表三个链接 | ✅ |
 | License | MIT | 已有 |
 | Project type | `plugin`（API v2 显示成 `mod` 属正常） | 已有 |
@@ -142,6 +142,27 @@ Hangar 部分不需要任何凭据（公开 API 就能读）；Modrinth 的项�
 脚本会如实报 `cannot read the project` 而不是假装通过 —— 这时要么临时勾上 `READ_PROJECT` 再跑，要么以项目页截图为准。
 
 **2026-11-25 审计结果**（Hangar `OrzMC/RealTime` + Modrinth `pRGtDpaD`）：
+
+Modrinth（`status: processing`，`in_review: true`，`queued` 2026-11-25T14:21Z）：
+
+| 项 | 实际 | 结论 |
+|---|---|---|
+| id / slug / 标题 | `pRGtDpaD` / `realtimesignal` / `RealTime` | ✅ |
+| 项目类型 | `plugin`（v2 显示 `mod` 属正常） | ✅ |
+| 简介 / 长描述 | 121 字符 / 2,799 字符 | ✅ |
+| 分类 | `management`、`technology`、`utility` | ✅ |
+| 许可证 | `MIT` | ✅ |
+| loader / 游戏版本 | `paper` + `folia` / `26.3` | ✅ |
+| 链接 | source / issues / wiki | ✅ |
+| 图标 | 已上传（96px webp） | ✅ |
+| 截图 `gallery` | `[]` | ⚠️ 可选，建议后续补 1–2 张 |
+| 版本 `0.4.0` | 存在（版本 id `kKzydngL`），但**审核中版本接口返回 404** | ⏳ 审核通过后才能核对文件 sha256 |
+
+> 审核期间 Modrinth 把版本对象也藏起来（`/v2/version/<id>` 与 `/v2/project/<id>/version` 都是 404，即使令牌有
+> `READ_PROJECT`）。所以"上传的 jar 是否与 GitHub Release 一致"要等公开后再跑一次审计 —— Hangar 那份已经确认
+> sha256 `8531becc…` 逐字节一致。
+
+Hangar：
 
 | 项 | Hangar 实际 | 结论 |
 |---|---|---|
