@@ -8,7 +8,7 @@ RealTime is an independent Minecraft plugin. It provides timezone-aware real-wor
 Pure Kotlin/JVM domain logic: Clock-backed time source, timezone/locale handling, immutable snapshots, formatting, encoders, and platform-independent device models. It must not depend on Bukkit, Paper, Folia, PlaceholderAPI, or server runtime classes.
 
 ### realtime-paper
-Plugin lifecycle, command registration, configuration and migration, persistence, Paper/Folia scheduler adapters, world/block/entity access, and optional integrations.
+Plugin lifecycle, command registration, configuration and migration, persistence, Paper/Folia scheduler adapters, world/block/entity access, the update checker/downloader (`update/`), and optional integrations.
 
 ## Packaging
 

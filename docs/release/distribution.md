@@ -42,7 +42,7 @@
 | API 线 | `26.3` |
 | 服务端 | Paper 26.3+，声明 `folia-supported: true` |
 | 依赖 | 无（PlaceholderAPI 为可选软依赖） |
-| 命令 / 权限 | `/rtime`，根权限 `realtime.admin` |
+| 命令 / 权限 | `/rtime`（含 `/rtime update`），根权限 `realtime.admin`，更新权限 `realtime.update` |
 | 版本类型 | 稳定 tag → release；带 `-` 的 tag → 预发布 |
 | 同一个 jar | GitHub Release、Hangar、Modrinth 三处只能是同一份（校验和一致） |
 

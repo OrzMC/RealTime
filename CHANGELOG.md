@@ -4,10 +4,30 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+_尚无条目。_
+
+## [0.9.0]
+
 ### 新增
 
-- PlaceholderAPI 新增 `%realtime_update_available%` 与 `%realtime_latest_version%`，可以在告示牌/记分板上显示
-  "有新版本待重启"（`true` / 版本号）。
+- PlaceholderAPI 新增两个占位符，让告示牌/记分板能显示"有新版待重启"而不用敲命令：
+  - `%realtime_update_available%` → `true` / `false`（有新版本，含已下载待重启）
+  - `%realtime_latest_version%` → 重启后会装上的版本号；已是最新则为空字符串
+
+### 文档
+
+- 文档与代码对齐：`docs/usage.md` 的命令面口径改为"两读 + 五写 + 五个运维命令"（原来写的是六管，漏掉了 `update`）；
+  `docs/product/requirements.md` 的命令清单去掉早已移除的 `/rtime now`、补上 `/rtime update`，权限列表补 `realtime.update`；
+  `docs/release/distribution.md` 的权限口径同步；`docs/development/workflow.md` 的冒烟清单修正 `/rtime now` 说法并补上
+  `scripts/smoke-update.sh`；架构总览在 `realtime-paper` 职责里点明 `update/` 包。
+- `SECURITY.md` 新增「插件会碰哪些网络」：只在与更新检查相关时访问白名单内主机、只走 HTTPS、每次重定向都重校验、
+  校验和由平台公布、**下载的 jar 不会被插件执行**（只放进 `plugins/update/`，由服务端在下次启动时处理）。
+
+### 安装与升级须知（0.9.0）
+
+- 相对 0.8.0 **没有行为变化、没有破坏性变更**：只是多了两个只读占位符，以及若干文档修正。
+- 未安装 PlaceholderAPI 的服务器不受影响；已安装的会在启动日志里看到 `%realtime_update_available%`。
+- `config.yml` / `modules/*.yml` / `data/devices.yml`（schema 7）格式不变，不需要迁移。
 
 ## [0.8.0]
 
