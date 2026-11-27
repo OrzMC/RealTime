@@ -30,7 +30,8 @@ RealTime uses an internal expansion with identifier `realtime`. No separate Real
 | `%realtime_timestamp_millis%` | Unix timestamp in milliseconds |
 | `%realtime_device_count%` | Clocks that are currently running |
 | `%realtime_redstone_enabled%` | Whether the redstone module is enabled |
-| `%realtime_device_count%` | Number of enabled redstone devices |
+| `%realtime_update_available%` | `true` when a newer version is known (available or already downloaded and waiting for a restart), else `false` |
+| `%realtime_latest_version%` | The version a restart would install, or an empty string when up to date |
 
 Placeholder names are case-insensitive. These placeholders are server-time values and do not use the requesting player's locale, world, or personal data.
 
