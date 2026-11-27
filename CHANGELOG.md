@@ -4,6 +4,10 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
+_尚无条目。_
+
+## [0.8.0]
+
 ### 新增
 
 - **自动更新（检查 + 下载到更新目录）**：`/rtime update` 向 Hangar 查询新版本（失败时回退 GitHub Releases），
@@ -23,9 +27,20 @@ All notable changes to RealTime are documented here. Release automation requires
 
 - 新增 [`docs/development/updates.md`](docs/development/updates.md)：Paper 的 `plugins/update` 到底怎么工作
   （按插件名匹配、开服时替换、坏文件被跳过）、三个平台各给哪种校验和、安全边界、为什么不做热替换/自动重启。
-- `docs/usage.md` 增补自动更新一节、命令表与诊断字段；README、架构总览、需求、测试策略、平台文案同步。
 - 新增 [`docs/operations/acceptance-report-0.8.0.md`](docs/operations/acceptance-report-0.8.0.md)：真机（真实 Hangar +
   真实 CDN）把 `0.6.9` 通过插件自己的更新流程升到已发布的 `0.7.0`，并核对下载文件 sha256 与发布资产一致。
+- `docs/usage.md` 增补自动更新一节、命令表与诊断字段；README、架构总览、需求、测试策略、平台文案同步。
+
+### 安装与升级须知（0.8.0）
+
+- **首次启动会自动生成 `plugins/RealTime/modules/updates.yml`**，默认 `mode: notify`：只检查、只提示，
+  **不会**自动下载任何东西。想让它自己下就改成 `mode: download`。
+- 新增命令 `/rtime update [check|download]`，新增权限 `realtime.update`（默认 OP）。`realtime.admin` 已包含它。
+- `messages.yml` 新增若干键；**旧文件不用改**，缺失的键会自动回退内置默认值。
+- 更新下载好之后**必须重启**才生效：插件不会热替换自己，也不会重启服务器。重启后 `plugins/` 里的
+  RealTime jar 会自动变成新版本的文件名，`plugins/update/` 会被清空。
+- 其余一切不变：命令、`devices.yml`（schema 7）、占位符、Paper/Folia 26.3+ 与 Java 25 的要求。
+- 从 0.6.0 或更早升级的，请先读 [0.6.0 的升级须知](#060)（BCD 钟不再加载、命令面重写）。
 
 ## [0.7.0]
 
