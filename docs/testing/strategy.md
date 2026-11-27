@@ -20,7 +20,9 @@
    - `smoke-update.sh` — update check against a local fixture "Hangar", verified download into `plugins/update/`,
      Paper's swap on the next boot, and refusal of a checksum mismatch
 6. **Real-server acceptance** (`docs/operations/`): the current report is
-   [acceptance-report-0.6.0.md](../operations/acceptance-report-0.6.0.md); the 0.1.0 and 2026-11-25 documents are kept as
+   [acceptance-report-0.6.0.md](../operations/acceptance-report-0.6.0.md) for device behaviour and
+   [acceptance-report-0.8.0.md](../operations/acceptance-report-0.8.0.md) for the updater (it walks a real `0.6.9`
+   build up to the published `0.7.0` through the real Hangar API and CDN); the 0.1.0 and 2026-11-25 documents are kept as
    history (they describe BCD-era builds), plus the per-PR evidence in `tasks/completed/`.
 
 ## Rules

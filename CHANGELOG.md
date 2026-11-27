@@ -24,6 +24,8 @@ All notable changes to RealTime are documented here. Release automation requires
 - 新增 [`docs/development/updates.md`](docs/development/updates.md)：Paper 的 `plugins/update` 到底怎么工作
   （按插件名匹配、开服时替换、坏文件被跳过）、三个平台各给哪种校验和、安全边界、为什么不做热替换/自动重启。
 - `docs/usage.md` 增补自动更新一节、命令表与诊断字段；README、架构总览、需求、测试策略、平台文案同步。
+- 新增 [`docs/operations/acceptance-report-0.8.0.md`](docs/operations/acceptance-report-0.8.0.md)：真机（真实 Hangar +
+  真实 CDN）把 `0.6.9` 通过插件自己的更新流程升到已发布的 `0.7.0`，并核对下载文件 sha256 与发布资产一致。
 
 ## [0.7.0]
 

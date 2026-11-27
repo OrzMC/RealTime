@@ -107,6 +107,7 @@ Implementation notes (store schema, page/level maths, scheduler safety): [redsto
 - [Development workflow](docs/development/workflow.md) (branch names, gates, PR shape, definition of done)
 - [Release process](docs/release/process.md)
 - [Hangar and Modrinth publishing](docs/release/distribution.md)
+- [0.8.0 updater acceptance](docs/operations/acceptance-report-0.8.0.md) (current)
 - [0.6.0 real-server acceptance](docs/operations/acceptance-report-0.6.0.md) (current)
 - [Hangar / Modrinth listing source of truth](docs/operations/platform-listings.md)
 - [0.1.0 production acceptance handoff](docs/operations/production-acceptance-0.1.0.md) (historical)
