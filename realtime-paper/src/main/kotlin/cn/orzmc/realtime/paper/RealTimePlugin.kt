@@ -172,13 +172,15 @@ class RealTimePlugin :
 
         if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) {
             placeholderExpansion =
-                PlaceholderApiBridge.register(description.version) {
-                    checkNotNull(runtimeState)
-                }
+                PlaceholderApiBridge.register(
+                    pluginVersion = description.version,
+                    stateProvider = { checkNotNull(runtimeState) },
+                    updateStatus = { updateService?.status() ?: UpdateStatus.Idle },
+                )
             if (placeholderExpansion == null) {
                 logger.warning("PlaceholderAPI is present, but the RealTime expansion could not be registered.")
             } else {
-                logger.info("PlaceholderAPI expansion registered: %realtime_time%.")
+                logger.info("PlaceholderAPI expansion registered: %realtime_time%, %realtime_update_available%.")
             }
         }
 

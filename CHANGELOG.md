@@ -4,7 +4,10 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
-_尚无条目。_
+### 新增
+
+- PlaceholderAPI 新增 `%realtime_update_available%` 与 `%realtime_latest_version%`，可以在告示牌/记分板上显示
+  "有新版本待重启"（`true` / 版本号）。
 
 ## [0.8.0]
 

@@ -7,6 +7,7 @@ import cn.orzmc.realtime.paper.command.RuntimeState
 import cn.orzmc.realtime.paper.config.RealTimeConfiguration
 import cn.orzmc.realtime.paper.device.RedstoneConfiguration
 import cn.orzmc.realtime.paper.message.MessageCatalog
+import cn.orzmc.realtime.paper.update.UpdateStatus
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -19,7 +20,12 @@ import java.util.Locale
 import java.util.UUID
 
 class RealTimePlaceholderExpansionTest {
-    private val expansion = RealTimePlaceholderExpansion("1.2.3") { state() }
+    private val expansion =
+        RealTimePlaceholderExpansion(
+            pluginVersion = "1.2.3",
+            stateProvider = { state() },
+            updateStatus = { UpdateStatus.Idle },
+        )
 
     @Test
     fun `exposes configured local date and time`() {
@@ -31,6 +37,40 @@ class RealTimePlaceholderExpansionTest {
         assertEquals("59", expansion.onRequest(null, "minute"))
         assertEquals("00", expansion.onRequest(null, "second"))
         assertEquals("Monday", expansion.onRequest(null, "weekday"))
+    }
+
+    @Test
+    fun `exposes whether an update is waiting`() {
+        val offered = manifest("0.9.0")
+        val available = RealTimePlaceholderExpansion("1.2.3", { state() }, { UpdateStatus.Available(offered, Instant.EPOCH) })
+        assertEquals("true", available.onRequest(null, "update_available"))
+        assertEquals("0.9.0", available.onRequest(null, "latest_version"))
+
+        val pending =
+            RealTimePlaceholderExpansion("1.2.3", {
+                state()
+            }, {
+                UpdateStatus.Downloaded(
+                    offered,
+                    java.nio.file.Path
+                        .of("/srv/plugins/update/RealTime-0.9.0.jar"),
+                    Instant.EPOCH,
+                )
+            })
+        assertEquals("true", pending.onRequest(null, "update_available"))
+
+        val current =
+            RealTimePlaceholderExpansion("1.2.3", {
+                state()
+            }, {
+                UpdateStatus.UpToDate(
+                    cn.orzmc.realtime.core.update.SemanticVersion
+                        .parse("1.2.3"),
+                    Instant.EPOCH,
+                )
+            })
+        assertEquals("false", current.onRequest(null, "update_available"))
+        assertEquals("", current.onRequest(null, "latest_version"))
     }
 
     @Test
@@ -65,6 +105,19 @@ class RealTimePlaceholderExpansionTest {
         assertEquals("1.2.3", expansion.version)
         assertTrue(expansion.persist())
     }
+
+    private fun manifest(version: String) =
+        cn.orzmc.realtime.core.update.UpdateManifest(
+            version =
+                cn.orzmc.realtime.core.update.SemanticVersion
+                    .parse(version),
+            downloadUrl = "https://hangarcdn.papermc.io/plugins/OrzMC/RealTime/versions/$version/PAPER/RealTime-$version.jar",
+            digest =
+                cn.orzmc.realtime.core.update.Digest
+                    .of(cn.orzmc.realtime.core.update.DigestAlgorithm.SHA256, "a".repeat(64)),
+            sizeBytes = 2183111,
+            source = cn.orzmc.realtime.core.update.UpdateSource.HANGAR,
+        )
 
     private fun state(): RuntimeState {
         val configuration =

@@ -186,6 +186,8 @@ channel: release    # release = 只要正式版；any = 连 -SNAPSHOT 一起
 | `%realtime_timestamp%` `%realtime_timestamp_millis%` | Unix 时间 |
 | `%realtime_redstone_enabled%` | 红石模块是否开启 |
 | `%realtime_device_count%` | 正在走时的钟数量 |
+| `%realtime_update_available%` | `true`/`false`：是否有新版本（含已下载待重启）|
+| `%realtime_latest_version%` | 重启后会装上的版本号，已是最新则为空字符串 |
 
 旧版本的 `%realtime_bcd%` / `%realtime_bcd_bits%` 随 BCD 编码一起移除。
 
