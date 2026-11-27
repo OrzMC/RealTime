@@ -1,0 +1,54 @@
+# 自动更新（检查新版本 + 可选下载到服务器更新目录）
+#
+# 机制说明：Paper/Bukkit 的 `plugins/update/` 目录（bukkit.yml -> settings.update-folder）
+# 会在**开服加载插件时**生效：Paper 读候选 jar 的 plugin.yml 名字，命中 "RealTime" 就用它
+# 覆盖当前 jar、把当前 jar 重命名成候选的文件名、再删掉候选。所以：
+#   * 下载只是"放到更新目录"，**重启后**才生效；
+#   * 插件不会热替换自己，也不会重启服务器。
+#
+# 安全约束（硬编码，配置只能收紧不能放宽到 http 外网）：
+#   * 只走 HTTPS，主机名必须在 safety.allowed-hosts 里，重定向的每一跳都重新校验；
+#   * 必须带平台公布的校验和（Hangar/GitHub 是 sha256，Modrinth 是 sha512），
+#     校验不通过就删掉下载、绝不落盘；
+#   * 不会降级，不会把已是最新的版本再装一遍。
+config-version: 1
+
+# 关掉后不会发出任何网络请求（`/rtime update` 会直接说已关闭）。
+enabled: true
+
+# notify  = 只提示，等你执行 /rtime update download
+# download = 发现新版本就直接下载到 plugins/update/（仍是重启才生效）
+mode: notify
+
+# release = 只看正式版（推荐）；any = 连 -SNAPSHOT / 预发布一起看
+channel: release
+
+# 多久检查一次，单位小时（1–168）。
+check-interval-hours: 6
+
+# auto 按 Hangar → GitHub 的顺序取第一个能用的结果；也可写死某一个。
+# Modrinth 仅作候选：项目审核中时匿名读不到版本，会被跳过。
+source: auto
+
+notify:
+  console: true
+  # 只发给有 realtime.update 权限的玩家（默认 OP），每个版本一次。
+  players: true
+
+safety:
+  # 单个 jar 的上限；真实包约 2.1 MB。
+  max-download-mb: 16
+  # 开发构建（0.8.0-SNAPSHOT 之类）默认不检查：它总比即将发布的正式版旧。
+  skip-dev-builds: true
+  # 允许的下载主机，留空/删除则用内置列表。改成别的等于信任别的下载源。
+  allowed-hosts:
+    - hangar.papermc.io
+    - hangarcdn.papermc.io
+    - api.github.com
+    - github.com
+    - objects.githubusercontent.com
+    - api.modrinth.com
+    - cdn.modrinth.com
+  # 以下两项只用于 CI / 本地联调，生产环境请保持默认。
+  allow-insecure-http: false
+  api-base-override: ''

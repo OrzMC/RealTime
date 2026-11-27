@@ -4,7 +4,28 @@ All notable changes to RealTime are documented here. Release automation requires
 
 ## [Unreleased]
 
-_尚无条目。_
+### 新增
+
+- **自动更新（检查 + 下载到更新目录）**：`/rtime update` 向 Hangar 查询新版本（失败时回退 GitHub Releases），
+  `/rtime update download` 把校验过的 jar 放进服务器的 `plugins/update/`，**重启后**由 Paper 完成替换。
+  不热替换插件、不重启服务器。
+  - 新增 `modules/updates.yml`：`mode`（notify/download）、`channel`（release/any）、检查间隔、通知开关、
+    白名单与体积上限；开发构建（`-SNAPSHOT`）默认不检查。
+  - 新增权限 `realtime.update`（默认 OP，`realtime.admin` 的子权限）与 `/rtime status` 的更新状态行。
+  - 安全：只走 HTTPS（loopback 除外，且需显式开启）、主机白名单在**每次重定向**都校验、JSON 1 MiB / jar 体积上限、
+    必须带平台校验和（sha256/sha512），不符即删除下载且不留残file。
+  - 线程模型：全部网络/磁盘工作在 Paper `AsyncScheduler`，回复经 `CommandTarget.runOnOwner` 回到玩家所在 region
+    （Folia 安全）；检查单飞，不会叠加请求。
+- 新增 `scripts/smoke-update.sh` + `scripts/update-fixture-server.py`：在真 Paper/Folia 上验证"下载 → 重启替换 →
+  篡改校验和被拒"，已接进 `runtime-smoke` 的 paper/folia matrix。
+
+### 文档
+
+- 新增 [`docs/development/updates.md`](docs/development/updates.md)：Paper 的 `plugins/update` 到底怎么工作
+  （按插件名匹配、开服时替换、坏文件被跳过）、三个平台各给哪种校验和、安全边界、为什么不做热替换/自动重启。
+- `docs/usage.md` 增补自动更新一节、命令表与诊断字段；README、架构总览、需求、测试策略、平台文案同步。
+- 新增 [`docs/operations/acceptance-report-0.8.0.md`](docs/operations/acceptance-report-0.8.0.md)：真机（真实 Hangar +
+  真实 CDN）把 `0.6.9` 通过插件自己的更新流程升到已发布的 `0.7.0`，并核对下载文件 sha256 与发布资产一致。
 
 ## [0.7.0]
 

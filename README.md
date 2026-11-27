@@ -87,6 +87,9 @@ See [isolated Agent worktrees](docs/development/agent-worktrees.md) for the mult
   queues a crash-safe cleanup job, and a `NEEDS_ATTENTION` entry means "that block is not ours" — never overwritten,
   retry it or dismiss the job.
 - **Diagnostics** behind `/rtime status`; tick-level change detection with diff-only, chunk-batched writes.
+- **Self-updating the standard way**: `/rtime update` asks Hangar (GitHub as fallback) for a newer build,
+  verifies the published checksum, and `/rtime update download` puts it in the server's `plugins/update/`
+  folder — Paper swaps it in on the next start. Never hot-swaps, never restarts the server.
 
 Commands, permissions, wiring diagrams, the cleanup queue and FAQ: **[usage guide](docs/usage.md)**.
 Implementation notes (store schema, page/level maths, scheduler safety): [redstone devices](docs/development/redstone-devices.md).
@@ -104,6 +107,7 @@ Implementation notes (store schema, page/level maths, scheduler safety): [redsto
 - [Development workflow](docs/development/workflow.md) (branch names, gates, PR shape, definition of done)
 - [Release process](docs/release/process.md)
 - [Hangar and Modrinth publishing](docs/release/distribution.md)
+- [0.8.0 updater acceptance](docs/operations/acceptance-report-0.8.0.md) (current)
 - [0.6.0 real-server acceptance](docs/operations/acceptance-report-0.6.0.md) (current)
 - [Hangar / Modrinth listing source of truth](docs/operations/platform-listings.md)
 - [0.1.0 production acceptance handoff](docs/operations/production-acceptance-0.1.0.md) (historical)

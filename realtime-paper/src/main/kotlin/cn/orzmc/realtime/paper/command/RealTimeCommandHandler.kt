@@ -25,6 +25,9 @@ import cn.orzmc.realtime.paper.device.DeviceOutputConflictException
 import cn.orzmc.realtime.paper.device.DeviceOutputIndexException
 import cn.orzmc.realtime.paper.device.DevicePlacement
 import cn.orzmc.realtime.paper.device.DeviceRetirementAdministration
+import cn.orzmc.realtime.paper.update.UpdateAdministration
+import cn.orzmc.realtime.paper.update.UpdateOutcome
+import cn.orzmc.realtime.paper.update.UpdateStatus
 import java.util.UUID
 import java.util.logging.Logger
 
@@ -44,6 +47,7 @@ class RealTimeCommandHandler(
     private val devicePlacement: DevicePlacement? = null,
     private val cleanupAdministration: DeviceCleanupAdministration? = null,
     private val deviceRetirement: DeviceRetirementAdministration? = null,
+    private val updateAdministration: UpdateAdministration? = null,
     private val skippedLegacyDevices: () -> List<String> = { emptyList() },
     private val logger: Logger? = null,
     private val nowMillis: () -> Long = System::currentTimeMillis,
@@ -64,6 +68,7 @@ class RealTimeCommandHandler(
             is Invocation.Remove -> removeDevice(target, state, invocation)
             Invocation.Status -> showStatus(target, state)
             is Invocation.Cleanup -> showCleanup(target, state, invocation.action)
+            is Invocation.Update -> runUpdate(target, state, invocation.action)
             Invocation.Help -> showHelp(target, state)
             Invocation.Reload -> reloadConfiguration(target, state)
             is Invocation.Removed ->
@@ -462,6 +467,9 @@ class RealTimeCommandHandler(
                 ),
             )
         }
+        updateAdministration?.let { administration ->
+            target.sendMessage(renderUpdateStatus(state, administration.status()))
+        }
         val legacy = skippedLegacyDevices()
         if (legacy.isNotEmpty()) {
             target.sendMessage(
@@ -472,6 +480,86 @@ class RealTimeCommandHandler(
             )
         }
     }
+
+    private fun runUpdate(
+        target: CommandTarget,
+        state: RuntimeState,
+        action: CommandSyntax.UpdateAction,
+    ) {
+        if (!target.hasPermission(UPDATE_PERMISSION)) return sendNoPermission(target, state)
+        val administration = updateAdministration ?: return sendUnavailable(target, state)
+        when (action) {
+            CommandSyntax.UpdateAction.CHECK -> {
+                target.sendMessage(state.messages.render("command.update.checking"))
+                administration.checkNow { outcome -> target.runOnOwner { reportUpdate(target, state, outcome) } }
+            }
+            CommandSyntax.UpdateAction.DOWNLOAD -> {
+                target.sendMessage(state.messages.render("command.update.downloading"))
+                administration.download { outcome -> target.runOnOwner { reportUpdate(target, state, outcome) } }
+            }
+        }
+    }
+
+    /**
+     * Renders the updater result. The callback arrives from the updater's async
+     * thread, but [CommandTarget.runOnOwner] has already moved it back to where the
+     * sender may be touched.
+     */
+    private fun reportUpdate(
+        target: CommandTarget,
+        state: RuntimeState,
+        outcome: UpdateOutcome,
+    ) {
+        val message =
+            when (outcome) {
+                is UpdateOutcome.Checked -> renderUpdateStatus(state, outcome.status)
+                is UpdateOutcome.Installed ->
+                    state.messages.render(
+                        "command.update.downloaded",
+                        mapOf(
+                            "version" to outcome.version.normalized(),
+                            "file" to outcome.file.toString(),
+                            "bytes" to outcome.bytes.toString(),
+                        ),
+                    )
+                is UpdateOutcome.Refused ->
+                    state.messages.render("command.update.refused", mapOf("reason" to outcome.reason))
+            }
+        target.sendMessage(message)
+    }
+
+    /** One line for `/rtime status` and for the check result; the same mapping both places. */
+    private fun renderUpdateStatus(
+        state: RuntimeState,
+        status: UpdateStatus,
+    ): String =
+        when (status) {
+            is UpdateStatus.Disabled ->
+                state.messages.render("command.update.disabled", mapOf("reason" to status.reason))
+            UpdateStatus.Idle -> state.messages.render("command.update.idle")
+            UpdateStatus.Checking -> state.messages.render("command.update.checking")
+            is UpdateStatus.UpToDate ->
+                state.messages.render("command.update.latest", mapOf("version" to status.current.normalized()))
+            is UpdateStatus.Available ->
+                state.messages.render(
+                    "command.update.available",
+                    mapOf(
+                        "version" to status.manifest.version.normalized(),
+                        "current" to pluginVersion,
+                        "source" to status.manifest.source.configValue,
+                    ),
+                )
+            is UpdateStatus.Downloaded ->
+                state.messages.render(
+                    "command.update.pending",
+                    mapOf(
+                        "version" to status.manifest.version.normalized(),
+                        "file" to status.file.toString(),
+                    ),
+                )
+            is UpdateStatus.Failed ->
+                state.messages.render("command.update.failed", mapOf("reason" to status.reason))
+        }
 
     private fun showCleanup(
         target: CommandTarget,
@@ -744,6 +832,7 @@ class RealTimeCommandHandler(
         const val EDIT_PERMISSION = "realtime.device.edit"
         const val RETIRE_PERMISSION = "realtime.device.retire"
         const val ADMIN_PERMISSION = "realtime.admin"
+        const val UPDATE_PERMISSION = "realtime.update"
 
         private val HELP_KEYS =
             listOf(
@@ -756,6 +845,7 @@ class RealTimeCommandHandler(
                 "command.help.remove",
                 "command.help.status",
                 "command.help.cleanup",
+                "command.help.update",
                 "command.help.reload",
                 "command.help.footer",
             )

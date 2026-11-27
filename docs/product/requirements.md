@@ -41,6 +41,18 @@ cleanup queue are documented once in the [usage guide](../usage.md); this docume
 - Retirement is deferred and durable; blocks the plugin does not own are never overwritten and can be retried or
   dismissed by an operator.
 
+### Self-update (P1)
+
+- Check for a newer published version on Hangar, falling back to GitHub Releases, at most every
+  `check-interval-hours` (default 6).
+- Report it on the console, to holders of `realtime.update` when they join, and in `/rtime status`.
+- Never hot-swap the running jar and never restart the server: the only supported application point is
+  the server's own update folder (`plugins/update/`), which Paper applies at plugin load.
+- Download only what can be verified: HTTPS (loopback HTTP only for CI), host allowlist re-validated on
+  every redirect, size cap, and a checksum published by the platform. A publication without a checksum is
+  reported but never installed.
+- Never offer a downgrade, and filter pre-releases unless `channel: any`.
+
 ### Optional PlaceholderAPI integration (P1)
 
 Initial planned placeholders: date, time, datetime, weekday, timezone, and Unix timestamp. PlaceholderAPI must remain optional; the plugin must load when it is absent.

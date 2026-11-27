@@ -4,10 +4,12 @@
 
 1. **Core unit tests** (`realtime-core`): clock, timezone/DST conversion, locale formatting, snapshots, clock-digit
    encoders, `AnalogScale`, `DeviceLayout`, `DeviceDemo` geometry, and device-model validation. Pure JVM, no server.
-2. **Configuration tests**: defaults, parsing, migrations, invalid values, per-resolution slot counts, command parsing and completion (no server required).
+2. **Configuration tests**: defaults, parsing, migrations, invalid values, per-resolution slot counts, command parsing and completion (no server required). The updater's `modules/updates.yml` is covered the same way, including rejected typos in `allowed-hosts`.
 3. **Paper unit tests** (`realtime-paper`): command parsing/completion/dispatch and permissions, device/cleanup services,
    YAML repository schema round-trips and migrations (including legacy BCD entries being skipped), diagnostics, and the
-   region-aware managers driven through fake Bukkit proxies (no server needed).
+   region-aware managers driven through fake Bukkit proxies (no server needed). The updater is covered without network
+   access: HTTP against a loopback `com.sun.net.httpserver` (allowlist, redirect escape, size caps), platform payload
+   parsing from fixtures, and the installer against a real temporary directory.
 4. **Release-script tests** (`scripts/test-release-scripts.sh`, `validate-release.sh`): tag/changelog rules, artifact
    inspection, checksums.
 5. **Runtime smoke jobs** (CI, `scripts/smoke-*.sh`, real Paper and Folia servers):
@@ -15,8 +17,12 @@
    - `smoke-device-cleanup.sh` — restart recovery, unloaded-chunk deferral, chunk-load retry, `NEEDS_ATTENTION`
      preservation (a player block is never overwritten), operator retry, retirement by name, lectern cleanup
    - placeholder smoke — PlaceholderAPI expansion output
+   - `smoke-update.sh` — update check against a local fixture "Hangar", verified download into `plugins/update/`,
+     Paper's swap on the next boot, and refusal of a checksum mismatch
 6. **Real-server acceptance** (`docs/operations/`): the current report is
-   [acceptance-report-0.6.0.md](../operations/acceptance-report-0.6.0.md); the 0.1.0 and 2026-11-25 documents are kept as
+   [acceptance-report-0.6.0.md](../operations/acceptance-report-0.6.0.md) for device behaviour and
+   [acceptance-report-0.8.0.md](../operations/acceptance-report-0.8.0.md) for the updater (it walks a real `0.6.9`
+   build up to the published `0.7.0` through the real Hangar API and CDN); the 0.1.0 and 2026-11-25 documents are kept as
    history (they describe BCD-era builds), plus the per-PR evidence in `tasks/completed/`.
 
 ## Rules

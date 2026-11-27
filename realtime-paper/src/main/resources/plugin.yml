@@ -18,6 +18,7 @@ commands:
       /rtime on|off <钟名>                 开机 / 关机
       /rtime place <钟名> <槽位> [x y z]   把槽位摆到看着的位置（讲台立刻立起）
       /rtime remove <钟名>                 拆掉并清理方块（先 off）
+      /rtime update [check|download]       检查新版本 / 下载到 plugins/update（重启生效）
       /rtime status|cleanup|help|reload
     permission: realtime.command
 permissions:
@@ -42,10 +43,14 @@ permissions:
     default: op
     children:
       realtime.device.view: true
+  realtime.update:
+    description: Allows checking for a new plugin version and downloading it into the server update folder.
+    default: op
   realtime.admin:
     description: Allows reloading the configuration and every device administration action.
     default: op
     children:
+      realtime.update: true
       realtime.command: true
       realtime.device.toggle: true
       realtime.device.edit: true

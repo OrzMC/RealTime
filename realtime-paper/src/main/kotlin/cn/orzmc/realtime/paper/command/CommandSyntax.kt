@@ -24,10 +24,16 @@ object CommandSyntax {
     const val REMOVE = "remove"
     const val STATUS = "status"
     const val CLEANUP = "cleanup"
+    const val UPDATE = "update"
     const val HELP = "help"
     const val RELOAD = "reload"
 
-    val VERBS: List<String> = listOf(CREATE, ON, OFF, PLACE, REMOVE, STATUS, CLEANUP, HELP, RELOAD)
+    val VERBS: List<String> =
+        listOf(CREATE, ON, OFF, PLACE, REMOVE, STATUS, CLEANUP, UPDATE, HELP, RELOAD)
+
+    /** Words `/rtime update` accepts after the verb. */
+    const val UPDATE_CHECK = "check"
+    const val UPDATE_DOWNLOAD = "download"
 
     /** A clock may not be named after a verb, or `/rtime <name>` would be ambiguous. */
     val RESERVED_NAMES: Set<String> = VERBS.toSet()
@@ -76,6 +82,10 @@ object CommandSyntax {
             val action: CleanupAction,
         ) : Invocation
 
+        data class Update(
+            val action: UpdateAction,
+        ) : Invocation
+
         data object Help : Invocation
 
         data object Reload : Invocation
@@ -119,6 +129,14 @@ object CommandSyntax {
         val facing: LayoutAxis? = null,
     )
 
+    enum class UpdateAction {
+        /** Ask the platforms now and report the result. */
+        CHECK,
+
+        /** Fetch the offered build into the server's update folder. */
+        DOWNLOAD,
+    }
+
     sealed interface CleanupAction {
         data object List : CleanupAction
 
@@ -143,6 +161,7 @@ object CommandSyntax {
             REMOVE -> parseName(rest) { Invocation.Remove(it) }
             STATUS -> if (rest.isEmpty()) Invocation.Status else usage()
             CLEANUP -> parseCleanup(rest)
+            UPDATE -> parseUpdate(rest)
             HELP -> if (rest.isEmpty()) Invocation.Help else usage()
             RELOAD -> if (rest.isEmpty()) Invocation.Reload else usage()
             // Anything else is a clock name: `/rtime lobby` reads one clock.
@@ -245,6 +264,18 @@ object CommandSyntax {
             }
         return Invocation.Place(name, slot, coordinates)
     }
+
+    private fun parseUpdate(rest: List<String>): Invocation =
+        when (rest.size) {
+            0 -> Invocation.Update(UpdateAction.CHECK)
+            1 ->
+                when (rest[0].lowercase(Locale.ROOT)) {
+                    UPDATE_CHECK -> Invocation.Update(UpdateAction.CHECK)
+                    UPDATE_DOWNLOAD -> Invocation.Update(UpdateAction.DOWNLOAD)
+                    else -> usage()
+                }
+            else -> usage()
+        }
 
     private fun parseCleanup(rest: List<String>): Invocation =
         when (rest.firstOrNull()?.lowercase(Locale.ROOT)) {
