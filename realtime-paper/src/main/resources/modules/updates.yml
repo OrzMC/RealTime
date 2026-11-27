@@ -38,7 +38,7 @@ notify:
 safety:
   # 单个 jar 的上限；真实包约 2.1 MB。
   max-download-mb: 16
-  # 开发构建（0.8.0-SNAPSHOT 之类）默认不检查：它总比即将发布的正式版旧。
+  # 开发构建（0.9.0-SNAPSHOT 之类）默认不检查：它总比即将发布的正式版旧。
   skip-dev-builds: true
   # 允许的下载主机，留空/删除则用内置列表。改成别的等于信任别的下载源。
   allowed-hosts:
