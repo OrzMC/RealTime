@@ -66,7 +66,7 @@ channel: release    # release = 只要正式版；any = 连 -SNAPSHOT 一起
 
 ## 3. 命令
 
-**两读 + 六管 + 一诊断**，名字和槽位号都能 Tab 补全：
+**两读 + 五写 + 五个运维命令**（`status` / `cleanup` / `update` / `help` / `reload`），名字和槽位号都能 Tab 补全：
 
 | 命令 | 权限 | 默认 | 作用 |
 |---|---|---|---|

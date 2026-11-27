@@ -72,9 +72,10 @@ bash scripts/validate-release.sh vX.Y.Z              # 只有发版时才需要
   `*.bat/*.cmd/*.ps1` CRLF，压缩包/图片二进制。Windows 侧编辑器把它改回 CRLF 会导致 CI 失败。
 - 涉及设备/红石/命令的改动，**推送前**至少跑一次对应冒烟脚本（本地 Docker 服务器）：
   ```bash
-  scripts/smoke-server.sh paper          # 启动 + /rtime now + 命令面
+  scripts/smoke-server.sh paper          # 启动 + /rtime + 命令面
   scripts/smoke-device-cleanup.sh paper  # 建/禁/退/清理队列
   scripts/smoke-device-cleanup.sh folia
+  scripts/smoke-update.sh paper          # 更新检查 → 下载 → 重启替换（动了更新代码必跑）
   ```
 - 达不到门禁时**不要**用 `SKIP_PREPUSH` 硬推；先在本机修好，或明确在 PR 里写"未运行的检查 + 原因"。
 
